@@ -1,6 +1,7 @@
 # Setup
 import os
 os.environ["OPENAI_API_KEY"] = open("C:\\Users\\koduki\\.secret\\openai.txt", "r").read()
+os.environ["GOOGLE_API_KEY"] = open("C:\\Users\\koduki\\.secret\\gemini.txt", "r").read()
 
 # テンプレートとプロンプトエンジニアリング
 from langchain.prompts import (
@@ -41,8 +42,13 @@ from langchain.chains import ConversationChain
 from langchain.chat_models import ChatOpenAI
 from langchain.memory import ConversationBufferMemory
 
+from langchain_google_genai import ChatGoogleGenerativeAI
+from langchain.schema.messages import HumanMessage, SystemMessage
+
 # llm = ChatOpenAI(model_name="gpt-3.5-turbo-16k", temperature=0)
-llm = ChatOpenAI(model_name="gpt-4", temperature=0)
+# llm = ChatOpenAI(model_name="gpt-4", temperature=0)
+llm = ChatGoogleGenerativeAI(model="gemini-pro", convert_system_message_to_human=True)
+
 # memory = ConversationBufferMemory(return_messages=True)
 # conversation = ConversationChain(memory=memory, prompt=prompt, llm=llm, partial_variables={"format_instructions": parser.get_format_instructions()})
 chain = prompt | llm | parser
