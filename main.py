@@ -2,6 +2,7 @@
 import os
 os.environ["OPENAI_API_KEY"] = open("C:\\Users\\koduki\\.secret\\openai.txt", "r").read()
 os.environ["GOOGLE_API_KEY"] = open("C:\\Users\\koduki\\.secret\\gemini.txt", "r").read()
+os.environ["OBS_WS_PASSWORD"] = open("C:\\Users\\koduki\\.secret\\obs.txt", "r").read()
 
 # テンプレートとプロンプトエンジニアリング
 from langchain.prompts import (
@@ -18,9 +19,9 @@ prompt = ChatPromptTemplate.from_messages([
 from langchain.chat_models import ChatOpenAI
 from langchain_google_genai import ChatGoogleGenerativeAI
 
-# llm = ChatOpenAI(model_name="gpt-3.5-turbo-16k", temperature=0)
-# llm = ChatOpenAI(model_name="gpt-4", temperature=0)
-llm = ChatGoogleGenerativeAI(model="gemini-pro", convert_system_message_to_human=True)
+#llm = ChatOpenAI(model_name="gpt-3.5-turbo-16k", temperature=0)
+llm = ChatOpenAI(model_name="gpt-4", temperature=0)
+#llm = ChatGoogleGenerativeAI(model="gemini-pro", convert_system_message_to_human=True)
 
 # 出力フォーマットを定義
 from langchain_core.output_parsers import JsonOutputParser
@@ -54,9 +55,13 @@ import json
 import datetime
 from voicevox_adapter import VoicevoxAdapter
 from play_sound import PlaySound
+from obs_adapter import ObsAdapter
 
 play_sound = PlaySound("スピーカー (Realtek(R) Audio)")
 voicevox_adapter = VoicevoxAdapter()
+
+obs = ObsAdapter()
+obs.visible_avater("normal")
 
 print("Ready. Youtubeにコメントしてね。")
 while chat.is_alive():
@@ -75,13 +80,17 @@ while chat.is_alive():
             print("transformed: " + data)
             reply = json.loads(data)
             print("parsed: " + str(reply))
-    
+            
             print(f"{datetime.datetime.now()} [紅月あい]: {reply}")
             ss = time.perf_counter()
             data, rate = voicevox_adapter.get_voice(reply["character_reply"])
             se = time.perf_counter()
             print((se - ss))
+
+            obs.visible_avater(reply["current_emotion"])
             play_sound.play_sound(data, rate)
+            obs.visible_avater("normal")
+
         except Exception as e:
             print(e)
             print(e.__traceback__)
