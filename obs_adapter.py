@@ -14,12 +14,20 @@ class ObsAdapter:
             item_id = item["sceneItemId"]
             if item["sourceName"] == name:
                 self.client.set_scene_item_enabled("s001", item_id, True)
-            else:
+            elif(not item["sourceName"].startswith("LLM")):
+                self.client.set_scene_item_enabled("s001", item_id, False)
+
+    def visible_llm(self, name):
+        for item in self.client.get_scene_item_list("s001").scene_items:
+            item_id = item["sceneItemId"]
+            if item["sourceName"] == "LLM_" + name:
+                self.client.set_scene_item_enabled("s001", item_id, True)
+            elif(item["sourceName"].startswith("LLM")):
                 self.client.set_scene_item_enabled("s001", item_id, False)
 
 if __name__ == "__main__":
     import time
-
+    print(1)
     obs = ObsAdapter()
     obs.visible_avater("normal")
     time.sleep(1)
@@ -36,5 +44,8 @@ if __name__ == "__main__":
     obs.visible_avater("angry")
     time.sleep(1)
 
-    obs.visible_avater("normal")
+    obs.visible_llm("gemini")
+    time.sleep(1)
+
+    obs.visible_llm("gpt4")
     time.sleep(1)
