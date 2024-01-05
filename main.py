@@ -106,7 +106,8 @@ while chat.is_alive():
             se = time.perf_counter()
             print((se - ss))
 
-            obs.visible_avater(reply["current_emotion"])
+            emo = reply["current_emotion"].split(":")[0]
+            obs.visible_avater(emo)
             play_sound.play_sound(data, rate)
             obs.visible_avater("normal")
 
