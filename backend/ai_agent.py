@@ -1,4 +1,5 @@
 import time
+import os
 
 class AIAgent:
     talks = [
@@ -22,7 +23,10 @@ class AIAgent:
             ChatPromptTemplate,
         )
 
-        prompt_system = open("prompt_system.txt", "r", encoding='utf-8').read()
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        file_path = os.path.join(script_dir, 'prompt_system.txt')
+        prompt_system = open(file_path, "r", encoding='utf-8').read()
+
         prompt = ChatPromptTemplate.from_messages([
             ("system", prompt_system),
             ("user", "{input}")

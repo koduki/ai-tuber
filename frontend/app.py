@@ -2,11 +2,11 @@ import time
 import datetime
 import asyncio
 
-from voicevox_adapter import VoicevoxAdapter
-from play_sound import PlaySound
-from obs_adapter import ObsAdapter
+from .voicevox_adapter import VoicevoxAdapter
+from .play_sound import PlaySound
+from .obs_adapter import ObsAdapter
 
-class Frontend:
+class App:
     def __init__(self, ai) -> None:
         self.ai = ai
         # play_sound = PlaySound("スピーカー (Realtek(R) Audio)")
