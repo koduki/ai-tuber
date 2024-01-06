@@ -36,6 +36,13 @@ class VoicevoxAdapter:
         return data, sample_rate
     
 if __name__ == "__main__":
-    voicevox = VoicevoxAdapter()
-    data, sample_rate = voicevox.get_voice("こんにちは")
-    print(sample_rate)
+    from play_sound import PlaySound
+
+    input_str = "いらっしゃいませ"
+    voicevox_adapter = VoicevoxAdapter()
+    play_sound = PlaySound("スピーカー (Realtek(R) Audio)")
+    # play_sound = PlaySound("CABLE Input")
+    data, rate = voicevox_adapter.get_voice(input_str)
+    print(rate)
+
+    play_sound.play_sound(data, rate)
