@@ -18,9 +18,22 @@ class AIAgent:
     def __init__(self, llm_model) -> None:
         self.llm_model = llm_model
 
+        # 出力フォーマットを定義
+        from langchain_core.output_parsers import JsonOutputParser
+        from langchain_core.pydantic_v1 import BaseModel, Field
+
+        class Reply(BaseModel):
+            current_emotion: str = Field(description="maxe")
+            character_reply: str = Field(description="れん's reply to User")
+
+        parser = JsonOutputParser(pydantic_object=Reply)
+
         # テンプレートとプロンプトエンジニアリング
         from langchain.prompts import (
             ChatPromptTemplate,
+            HumanMessagePromptTemplate,
+            SystemMessagePromptTemplate,
+            MessagesPlaceholder,
         )
 
         script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -28,9 +41,10 @@ class AIAgent:
         prompt_system = open(file_path, "r", encoding='utf-8').read()
 
         prompt = ChatPromptTemplate.from_messages([
-            ("system", prompt_system),
-            ("user", "{input}")
-        ])
+            SystemMessagePromptTemplate.from_template(prompt_system),
+            MessagesPlaceholder(variable_name="chat_history"),
+            HumanMessagePromptTemplate.from_template("{input}"), 
+        ]).partial(format_instructions=parser.get_format_instructions())
 
         # モデルの準備
         from langchain.chat_models import ChatOpenAI
@@ -45,19 +59,11 @@ class AIAgent:
         else:
             llm = None
 
-
-        # 出力フォーマットを定義
-        from langchain_core.output_parsers import JsonOutputParser
-        from langchain_core.pydantic_v1 import BaseModel, Field
-
-        class Reply(BaseModel):
-            current_emotion: str = Field(description="maxe")
-            character_reply: str = Field(description="れん's reply to User")
-
-        self.parser = JsonOutputParser(pydantic_object=Reply)
-
         # チェインを作成
-        self.chain = prompt | llm | self.parser
+        from langchain.chains import LLMChain
+        from langchain.memory import ConversationBufferWindowMemory
+        memory = ConversationBufferWindowMemory(memory_key="chat_history", return_messages=True, k=5)
+        self.chain = LLMChain(llm=llm,prompt=prompt,verbose=True,memory=memory)
 
     #
     # methods
@@ -66,12 +72,12 @@ class AIAgent:
         import json
 
         ls = time.perf_counter()
-        res = self.chain.invoke({"input": text, "format_instructions": self.parser.get_format_instructions()})
+        res = self.chain.invoke({"input": text})
         le = time.perf_counter()
         print("llm response(sec): " + str(le - ls))
         print("res: " + str(res))
 
-        text = str(res).replace("'", "\"")
+        text = str(res['text']).replace("'", "\"")
         data = json.loads(text)
         data["current_emotion"] = data["current_emotion"].split(":")[0]
         print("parsed: " + str(data))
