@@ -68,9 +68,15 @@ talks = [
     {"url":"https://www.4gamer.net/games/338/G033856/20231220044/","data":""},
     {"url":"https://www.moguravr.com/snapdragon-xr2-plus-gen-2-revealed/","data":""},
     {"url":"https://www.moguravr.com/vtuber-contents-2023/","data":""},
+    {"url":"https://note.com/shi3zblog/n/nf657d6105bd9","data":""},
+    {"url":"https://ymmt.hatenablog.com/entry/2024/01/05/165100","data":""},
+    {"url":"https://collabo-cafe.com/events/collabo/frieren-anime2023-add-info-2nd-cours/","data":""},
+    {"url":"https://gamewith.jp/fgo/article/show/432003","data":""},
+
+    
 ]
 
-def say_short_story():
+def say_short_talk():
     import random
 
     index = random.randrange(len(talks))
@@ -120,13 +126,6 @@ def voice(msg):
     obs.visible_avater("normal")
 
 
-
-
-# while True:
-#     time.sleep(60)
-#     voice(say_short_story())
-
-
 import pytchat
 print("YouTubeのVIDEO_IDを入れてください.")
 video_id = input() # "YOUR_VIDEO_ID"
@@ -134,15 +133,74 @@ chat = pytchat.create(video_id=video_id)
 print("Ready. YouTubeにコメントしてね。")
 
 voice({"character_reply":"良く来たの。今日は何をするのじゃ？", "current_emotion":"joyful"})
-while chat.is_alive():
-    for c in chat.get().sync_items():
-        print(f"{c.datetime} [{c.author.name}]: {c.message}")
-        
-        try:
-            reply = say_chat(c.message)
-            voice(reply)
 
+import asyncio
+
+def show_error(e):
+    print(e)
+    print(e.__traceback__)
+
+async def task_chat(q):
+    while True:
+        await asyncio.sleep(1)
+        if chat.is_alive():
+            for c in chat.get().sync_items():
+                print(f"{c.datetime} [{c.author.name}]: {c.message}")
+                try:
+                    reply = say_chat(c.message)
+                    print("step1")
+                    await q.put(reply)
+                    print("step1-1")
+                except Exception as e:
+                    show_error(e)
+
+async def task_short_talk(q):
+    while True:
+        await asyncio.sleep(60 * 3)
+        try:
+            reply = say_short_talk()
+            print("step2")
+            await q.put(reply)
+            print("step2-2")
         except Exception as e:
-            print(e)
-            print(e.__traceback__)
+            show_error(e)  
+
+async def task_voice(q):
+    while True:
+        try:
+            print("step3")
+            reply = await q.get()
+            print("step4")
+            voice(reply)
+            print("step4-2")
+            q.task_done()
+        except Exception as e:
+            show_error(e)
+
+async def task_system():
+    from aioconsole import ainput
+    
+    while True:
+        print("step5")
+        syscmd = await ainput()
+        print("step5-2")
+        if syscmd == "quit" or syscmd == "q":
+            print(syscmd)
+            exit(0)
+
+
+async def main():
+    q = asyncio.Queue()
+    t1 = asyncio.create_task(task_chat(q))
+    t2 = asyncio.create_task(task_short_talk(q))
+    t3 = asyncio.create_task(task_voice(q))
+    t4 = asyncio.create_task(task_system())
+    await t1
+    await t2
+    await t3
+    await t4
+
+asyncio.run(main())
+
+
 
