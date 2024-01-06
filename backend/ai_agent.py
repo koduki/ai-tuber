@@ -16,7 +16,11 @@ class AIAgent:
     ]
 
     def __init__(self, llm_model) -> None:
+        self.chLLM(llm_model)
+    
+    def chLLM(self, llm_model):
         self.llm_model = llm_model
+        print("use model: " + llm_model)
 
         # 出力フォーマットを定義
         from langchain_core.output_parsers import JsonOutputParser
@@ -63,7 +67,7 @@ class AIAgent:
         from langchain.chains import LLMChain
         from langchain.memory import ConversationBufferWindowMemory
         memory = ConversationBufferWindowMemory(memory_key="chat_history", return_messages=True, k=5)
-        self.chain = LLMChain(llm=llm,prompt=prompt,verbose=True,memory=memory)
+        self.chain = LLMChain(llm=llm,prompt=prompt,verbose=False,memory=memory)
 
     #
     # methods
