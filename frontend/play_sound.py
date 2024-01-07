@@ -1,5 +1,4 @@
 import sounddevice as sd
-from typing import TypedDict
 
 class PlaySound:
     def __init__(self, output_device_name="CABLE Input") -> None:

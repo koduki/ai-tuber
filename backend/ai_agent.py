@@ -4,19 +4,52 @@ import os
 class AIAgent:
     talks = [
         {"url":"https://gigazine.net/news/20240105-niklaus-wirth-passed-away/?s=09","data":""},
-        {"url":"https://ja.wikipedia.org/wiki/Stable_Diffusion","data":""},
-        {"url":"https://ja.wikipedia.org/wiki/ChatGPT","data":""},
-        {"url":"https://www.4gamer.net/games/338/G033856/20231220044/","data":""},
-        {"url":"https://www.moguravr.com/snapdragon-xr2-plus-gen-2-revealed/","data":""},
-        {"url":"https://www.moguravr.com/vtuber-contents-2023/","data":""},
-        {"url":"https://note.com/shi3zblog/n/nf657d6105bd9","data":""},
-        {"url":"https://ymmt.hatenablog.com/entry/2024/01/05/165100","data":""},
-        {"url":"https://collabo-cafe.com/events/collabo/frieren-anime2023-add-info-2nd-cours/","data":""},
-        {"url":"https://gamewith.jp/fgo/article/show/432003","data":""},   
+        {"url":"https://ja.wikipedia.org/wiki/Stable_Diffusion","data":""}, 
     ]
 
     def __init__(self, llm_model) -> None:
         self.chLLM(llm_model)
+        self._update_news()
+
+    def _update_news(self):
+
+        urls=[]
+        print("start:update the latest news.")
+
+        root = self._parse_rss("https://www.moguravr.com/feed/")
+        xs = list(map(lambda item: item.find("link").text, root.findall("channel/item")))
+        urls.extend(xs)
+
+        root = self._parse_rss("https://animeanime.jp/rss20/index.rdf")
+        xs = list(map(lambda item: item.find("link").text, root.findall("channel/item")))
+        urls.extend(xs)
+
+        root = self._parse_rss("https://b.hatena.ne.jp/entrylist/it.rss")
+        xs = list(map(lambda item: item.find('{http://purl.org/rss/1.0/}link').text, root.findall('./{http://purl.org/rss/1.0/}item')))
+        urls.extend(xs)
+
+        root = self._parse_rss("https://gigazine.net/news/rss_2.0/")
+        software_items = [item for item in root.findall("channel/item") if "ソフトウェア" in item.find("{http://purl.org/dc/elements/1.1/}subject").text]
+        xs = list(map(lambda item: item.find("link").text, software_items))
+        urls.extend(xs)
+
+        self.talks = list(map(lambda url: {"url": url, "data": ""}, urls))
+
+        print("finish:update the latest news.")
+
+
+    def _parse_rss(self, url):
+        import requests
+        import xml.etree.ElementTree as ET
+
+        """指定されたURLからRSSフィードを取得して解析します。"""
+        response = requests.get(url)
+        if response.status_code == 200:
+            rss_xml = response.content
+            root = ET.fromstring(rss_xml)
+            return root
+        else:
+            raise Exception("RSSフィードの取得に失敗しました")
     
     def chLLM(self, llm_model):
         self.llm_model = llm_model
@@ -75,10 +108,11 @@ class AIAgent:
     def _say(self, text):
         import json
 
+        print("start:llm")
         ls = time.perf_counter()
         res = self.chain.invoke({"input": text})
         le = time.perf_counter()
-        print("llm response(sec): " + str(le - ls))
+        print("finish:llm response(sec): " + str(le - ls))
         print("res: " + str(res))
 
         text = str(res['text']).replace("'", "\"")
@@ -104,3 +138,4 @@ class AIAgent:
 
     def say_chat(self, comment):
         return self._say(comment)
+
