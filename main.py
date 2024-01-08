@@ -1,7 +1,7 @@
 import os
 import sys
 
-from backend.ai_agent import ChatAI
+from backend.chatai import ChatAI
 from frontend.app import App
 
 def read_secret(file_name):
