@@ -51,6 +51,6 @@ ai.say_chat("はじめまして")
 
 以下のコードやプロンプトを参考にさせて頂いています。
 
-- [「AITuberを作ってみたら生成AIプログラミングがよくわかった件」](https://books.rakuten.co.jp/rk/00ea8972a43a32da86144e5f4b340e7f/)
+- [書籍: 「AITuberを作ってみたら生成AIプログラミングがよくわかった件」](https://books.rakuten.co.jp/rk/00ea8972a43a32da86144e5f4b340e7f/)
 - [sr2mg/aituber_python_programing_example](https://github.com/sr2mg/aituber_python_programing_example)
 - [ChatGPTでキャラを動かそう！キャラ再現率が高いプロンプトと回答をしっかり縛れるAPIフロー](https://zenn.dev/niwatoro/articles/180f6185c382bb)
