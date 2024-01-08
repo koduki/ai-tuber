@@ -1,5 +1,6 @@
 import time
 import os
+from .parse_chain import ParseChain
 
 class AIAgent:
     talks = [
@@ -100,27 +101,21 @@ class AIAgent:
         from langchain.chains import LLMChain
         from langchain.memory import ConversationBufferWindowMemory
         memory = ConversationBufferWindowMemory(memory_key="chat_history", return_messages=True, k=5)
-        self.chain = LLMChain(llm=llm,prompt=prompt,verbose=False,memory=memory)
+        chain = LLMChain(llm=llm, prompt=prompt, verbose=False, memory=memory)
+        self.chat_chain = ParseChain(chain=chain, verbose=False)
 
     #
     # methods
     #
     def _say(self, text):
-        import json
-
         print("start:llm")
         ls = time.perf_counter()
-        res = self.chain.invoke({"input": text})
+        res = self.chat_chain.invoke({"input": text})
         le = time.perf_counter()
         print("finish:llm response(sec): " + str(le - ls))
         print("res: " + str(res))
 
-        text = str(res['text']).replace("'", "\"")
-        data = json.loads(text)
-        data["current_emotion"] = data["current_emotion"].split(":")[0]
-        print("parsed: " + str(data))
-
-        return data
+        return res
 
     def say_short_talk(self):
         import random
