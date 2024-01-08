@@ -1,7 +1,7 @@
 import os
 import sys
 
-from backend.ai_agent import AIAgent
+from backend.ai_agent import ChatAI
 from frontend.app import App
 
 def read_secret(file_name):
@@ -17,7 +17,7 @@ try:
 
     # AI
     llm_model = sys.argv[1] if len(sys.argv) > 1 else 'gemini'
-    ai = AIAgent(llm_model)
+    ai = ChatAI(llm_model)
 
     # YouTube & OBS, Voice
     print("YouTubeのVIDEO_IDを入れてください.")

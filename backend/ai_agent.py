@@ -2,7 +2,7 @@ import time
 import os
 from .parse_chain import ParseChain
 
-class AIAgent:
+class ChatAI:
     talks = [
         {"url":"https://gigazine.net/news/20240105-niklaus-wirth-passed-away/?s=09","data":""},
         {"url":"https://ja.wikipedia.org/wiki/Stable_Diffusion","data":""}, 

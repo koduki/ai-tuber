@@ -2,12 +2,12 @@ import os
 import obsws_python as obs
 
 class ObsAdapter:
-    host = "localhost"
-    port = 4455
-    password = os.environ["OBS_WS_PASSWORD"]
-
     def __init__(self) -> None:
-        self.client = obs.ReqClient(host=self.host, port=self.port, password=self.password, timeout=3)
+        host = "localhost"
+        port = 4455
+        password = os.environ["OBS_WS_PASSWORD"]
+
+        self.client = obs.ReqClient(host=host, port=port, password=password, timeout=3)
     
     def visible_avater(self, name):
         for item in self.client.get_scene_item_list("s001").scene_items:

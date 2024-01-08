@@ -40,8 +40,8 @@ def read_secret(file_name):
 os.environ["OPENAI_API_KEY"] = read_secret("openai.txt")
 os.environ["GOOGLE_API_KEY"] = read_secret("gemini.txt")
 
-from backend.ai_agent import AIAgent
-ai = AIAgent("gpt4")
+from backend.ai_agent import ChatAI
+ai = ChatAI("gpt4")
 
 ai.say_short_talk()
 ai.say_chat("はじめまして")
