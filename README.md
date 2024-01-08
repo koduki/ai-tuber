@@ -6,7 +6,7 @@
 
 以下のシーン、ソースでセットする必要あり。
 
-![OBS](ss01.png)
+![OBS](docs/ss01.png)
 
 ## VOICEVOXの起動
 
