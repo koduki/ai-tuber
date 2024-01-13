@@ -32,6 +32,10 @@ class App:
         text = msg["character_reply"]
         emotion = msg["current_emotion"]
         print(f"{datetime.datetime.now()} [紅月れん]: {text}")
+        # data, rate = self._task_gen_voice(text)
+        # self.obs.visible_avater(emotion)
+        # self.play_sound.play_sound(data, rate)
+        # self.obs.visible_avater("normal")
         xs = text.split("。")
         with concurrent.futures.ThreadPoolExecutor() as executor:
             # タスクをスケジュール
@@ -69,7 +73,7 @@ class App:
     def task_short_talk(self, q):
         while True:
             try:
-                time.sleep(60*1)
+                time.sleep(60*3)
                 reply = self.ai.say_short_talk()
                 print("step2")
                 q.put(reply)

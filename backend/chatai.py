@@ -100,7 +100,7 @@ class ChatAI:
         # チェインを作成
         from langchain.chains import LLMChain
         from langchain.memory import ConversationBufferWindowMemory
-        memory = ConversationBufferWindowMemory(memory_key="chat_history", return_messages=True, k=5)
+        memory = ConversationBufferWindowMemory(memory_key="chat_history", return_messages=True, k=20)
         chain = LLMChain(llm=llm, prompt=prompt, verbose=False, memory=memory)
         self.chat_chain = ParseChain(chain=chain, verbose=False)
 
