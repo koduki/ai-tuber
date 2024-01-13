@@ -27,7 +27,6 @@ class ObsAdapter:
 
 if __name__ == "__main__":
     import time
-    print(1)
     obs = ObsAdapter()
     obs.visible_avater("normal")
     time.sleep(1)

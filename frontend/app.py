@@ -5,11 +5,12 @@ import asyncio
 from .voicevox_adapter import VoicevoxAdapter
 from .play_sound import PlaySound
 from .obs_adapter import ObsAdapter
+from .youtube_comment_adapter import YouTubeCommentAdapter
 
 class App:
     def __init__(self, ai) -> None:
         self.ai = ai
-        # play_sound = PlaySound("スピーカー (Realtek(R) Audio)")
+        # self.play_sound = PlaySound("スピーカー (Realtek(R) Audio)")
         self.play_sound = PlaySound("CABLE Input")
         self.voicevox_adapter = VoicevoxAdapter()
 
@@ -17,19 +18,37 @@ class App:
         self.obs.visible_avater("normal")
         self.obs.visible_llm(ai.llm_model)
 
-    def voice(self, msg):
-        text = msg["character_reply"]
-        emotion = msg["current_emotion"]
-
-        print(f"{datetime.datetime.now()} [紅月れん]: {text}")
+    async def _task_gen_voice(self, text):
         ss = time.perf_counter()
-        data, rate = self.voicevox_adapter.get_voice(text)
+        t = asyncio.create_task(self.voicevox_adapter.get_voice(text))
+        data, rate = await t
         se = time.perf_counter()
         print("voice response(sec): " + str(se - ss))
 
-        self.obs.visible_avater(emotion)
-        self.play_sound.play_sound(data, rate)
-        self.obs.visible_avater("normal")
+        return data, rate    
+    
+    async def voice(self, msg):
+        print(1)
+        text = msg["character_reply"]
+        print(2)
+        emotion = msg["current_emotion"]
+        print(3)
+        print(f"{datetime.datetime.now()} [紅月れん]: {text}")
+        xs = text.split("。")
+        tasks = []
+        for x in xs:
+            print("voice")
+            t = asyncio.create_task(self._task_gen_voice(x))
+            print("/voice")
+            tasks.append(t)
+
+        for t in tasks:
+            print("say")
+            data, rate = await t
+            print("/say")
+            self.obs.visible_avater(emotion)
+            self.play_sound.play_sound(data, rate)
+            self.obs.visible_avater("normal")
 
     def show_error(self, e):
         print(e)
@@ -38,20 +57,19 @@ class App:
     async def task_chat(self, q):
         while True:
             await asyncio.sleep(1)
-            if self.chat.is_alive():
-                for c in self.chat.get().sync_items():
-                    print(f"{c.datetime} [{c.author.name}]: {c.message}")
-                    try:
-                        reply = self.ai.say_chat(c.message)
-                        print("step1")
-                        await q.put(reply)
-                        print("step1-1")
-                    except Exception as e:
-                        self.show_error(e)
+            for c in self.comments.get():
+                print(f"{c.datetime} [{c.author.name}]: {c.message}")
+                try:
+                    reply = self.ai.say_chat(c.message)
+                    print("step1")
+                    await q.put(reply)
+                    print("step1-1")
+                except Exception as e:
+                    self.show_error(e)
 
     async def task_short_talk(self, q):
         while True:
-            await asyncio.sleep(60 * 3)
+            await asyncio.sleep(60 * 1)
             try:
                 reply = self.ai.say_short_talk()
                 print("step2")
@@ -66,8 +84,8 @@ class App:
                 print("step3")
                 reply = await q.get()
                 print("step4")
-                self.voice(reply)
-                print("step4-2")
+                await self.voice(reply)
+                print("/step4")
                 q.task_done()
             except Exception as e:
                 self.show_error(e)
@@ -101,9 +119,7 @@ class App:
         await t4
 
     def exec(self, video_id):
-        import pytchat
-
-        self.chat = pytchat.create(video_id=video_id)
+        self.comments = YouTubeCommentAdapter(video_id)
         print("Ready. YouTubeにコメントしてね。終了時は「quit」または「q」と入力してください。")
 
         self.voice({"character_reply":"良く来たの。今日は何をするのじゃ？", "current_emotion":"joyful"})

@@ -29,10 +29,10 @@ class ChatAI:
         xs = list(map(lambda item: item.find('{http://purl.org/rss/1.0/}link').text, root.findall('./{http://purl.org/rss/1.0/}item')))
         urls.extend(xs)
 
-        root = self._parse_rss("https://gigazine.net/news/rss_2.0/")
-        software_items = [item for item in root.findall("channel/item") if "ソフトウェア" in item.find("{http://purl.org/dc/elements/1.1/}subject").text]
-        xs = list(map(lambda item: item.find("link").text, software_items))
-        urls.extend(xs)
+        # root = self._parse_rss("https://gigazine.net/news/rss_2.0/")
+        # software_items = [item for item in root.findall("channel/item") if "ソフトウェア" in item.find("{http://purl.org/dc/elements/1.1/}subject").text]
+        # xs = list(map(lambda item: item.find("link").text, software_items))
+        # urls.extend(xs)
 
         self.talks = list(map(lambda url: {"url": url, "data": ""}, urls))
 
