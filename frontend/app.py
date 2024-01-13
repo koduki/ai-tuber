@@ -1,5 +1,7 @@
 import time
 import datetime
+import queue
+import concurrent.futures
 import asyncio
 
 from .voicevox_adapter import VoicevoxAdapter
@@ -18,75 +20,74 @@ class App:
         self.obs.visible_avater("normal")
         self.obs.visible_llm(ai.llm_model)
 
-    async def _task_gen_voice(self, text):
+    def _task_gen_voice(self, text):
         ss = time.perf_counter()
-        t = asyncio.create_task(self.voicevox_adapter.get_voice(text))
-        data, rate = await t
+        data, rate = self.voicevox_adapter.get_voice(text)
         se = time.perf_counter()
         print("voice response(sec): " + str(se - ss))
 
         return data, rate    
     
-    async def voice(self, msg):
-        print(1)
+    def voice(self, msg):
         text = msg["character_reply"]
-        print(2)
         emotion = msg["current_emotion"]
-        print(3)
         print(f"{datetime.datetime.now()} [紅月れん]: {text}")
         xs = text.split("。")
-        tasks = []
-        for x in xs:
+        with concurrent.futures.ThreadPoolExecutor() as executor:
+            # タスクをスケジュール
             print("voice")
-            t = asyncio.create_task(self._task_gen_voice(x))
+            futures = [executor.submit(self._task_gen_voice, x) for x in xs]
             print("/voice")
-            tasks.append(t)
 
-        for t in tasks:
-            print("say")
-            data, rate = await t
-            print("/say")
-            self.obs.visible_avater(emotion)
-            self.play_sound.play_sound(data, rate)
-            self.obs.visible_avater("normal")
+            # 結果を待機
+            for future in futures:
+                print("say")
+                # print(future.result())
+                data, rate = future.result()
+                print("/say")
+                self.obs.visible_avater(emotion)
+                self.play_sound.play_sound(data, rate)
+                self.obs.visible_avater("normal")
 
     def show_error(self, e):
         print(e)
         print(e.__traceback__)
 
-    async def task_chat(self, q):
+    def task_chat(self, q):
         while True:
-            await asyncio.sleep(1)
+            time.sleep(1)
             for c in self.comments.get():
                 print(f"{c.datetime} [{c.author.name}]: {c.message}")
                 try:
                     reply = self.ai.say_chat(c.message)
                     print("step1")
-                    await q.put(reply)
+                    q.put(reply)
                     print("step1-1")
                 except Exception as e:
                     self.show_error(e)
 
-    async def task_short_talk(self, q):
+    def task_short_talk(self, q):
         while True:
-            await asyncio.sleep(60 * 1)
             try:
+                time.sleep(60*1)
                 reply = self.ai.say_short_talk()
                 print("step2")
-                await q.put(reply)
+                q.put(reply)
                 print("step2-2")
             except Exception as e:
                 self.show_error(e)  
 
-    async def task_voice(self, q):
+    def task_voice(self, q):
         while True:
             try:
-                print("step3")
-                reply = await q.get()
-                print("step4")
-                await self.voice(reply)
-                print("/step4")
-                q.task_done()
+                time.sleep(1)
+                if not q.empty():
+                    print("step3")
+                    reply = q.get()
+                    print("step4")
+                    self.voice(reply)
+                    print("/step4")
+                    q.task_done()
             except Exception as e:
                 self.show_error(e)
 
@@ -108,15 +109,22 @@ class App:
                 self.obs.visible_llm(self.ai.llm_model)
 
     async def _exec(self):
-        q = asyncio.Queue()
-        t1 = asyncio.create_task(self.task_chat(q))
-        t2 = asyncio.create_task(self.task_short_talk(q))
-        t3 = asyncio.create_task(self.task_voice(q))
-        t4 = asyncio.create_task(self.task_system())
-        await t1
-        await t2
-        await t3
-        await t4
+        # q = asyncio.Queue()
+        # t1 = asyncio.create_task(self.task_chat(q))
+        # t2 = asyncio.create_task(self.task_short_talk(q))
+        # t3 = asyncio.create_task(self.task_voice(q))
+        # t4 = asyncio.create_task(self.task_system())
+
+        q = queue.Queue()
+        with concurrent.futures.ThreadPoolExecutor() as executor:
+            executor.submit(self.task_voice, q)
+            executor.submit(self.task_short_talk, q)
+            executor.submit(self.task_chat, q)
+
+        # await t1
+        # await t2
+        # await t3
+        # await t4
 
     def exec(self, video_id):
         self.comments = YouTubeCommentAdapter(video_id)
