@@ -9,7 +9,7 @@ class ChatAI:
     ]
 
     def __init__(self, llm_model) -> None:
-        self.chLLM(llm_model)
+        self.use_llm(llm_model)
         self._update_news()
 
     def _update_news(self):
@@ -52,7 +52,7 @@ class ChatAI:
         else:
             raise Exception("RSSフィードの取得に失敗しました")
     
-    def chLLM(self, llm_model):
+    def use_llm(self, llm_model):
         self.llm_model = llm_model
         print("use model: " + llm_model)
 

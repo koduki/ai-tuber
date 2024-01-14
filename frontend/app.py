@@ -106,10 +106,10 @@ class App:
                 print(syscmd)
                 exit(0)
             elif syscmd == "use_gemini":
-                self.ai.chLLM("gemini")
+                self.ai.use_llm("gemini")
                 self.obs.visible_llm(self.ai.llm_model)
             elif syscmd == "use_gpt4":
-                self.ai.chLLM("gpt4")
+                self.ai.use_llm("gpt4")
                 self.obs.visible_llm(self.ai.llm_model)
 
     async def _exec(self):
