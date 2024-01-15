@@ -17,6 +17,7 @@ soundfile = "^0.12.1"
 sounddevice = "^0.4.6"
 obsws-python = "^1.6.2"
 pytchat = "^0.5.5"
+langchain-openai = "^0.0.2.post1"
 
 [build-system]
 requires = ["poetry-core"]

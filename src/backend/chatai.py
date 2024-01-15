@@ -85,7 +85,7 @@ class ChatAI:
         ]).partial(format_instructions=parser.get_format_instructions())
 
         # モデルの準備
-        from langchain_community.chat_models import ChatOpenAI
+        from langchain_openai import ChatOpenAI
         from langchain_google_genai import ChatGoogleGenerativeAI
 
         if llm_model == 'gpt4':
