@@ -1,0 +1,23 @@
+[tool.poetry]
+name = "ai-tuber"
+version = "0.1.0"
+description = ""
+authors = ["koduki"]
+readme = "README.md"
+packages = [
+    { include = "src" },
+]
+
+[tool.poetry.dependencies]
+python = "^3.10"
+langchain = "^0.1.0"
+openai = "^1.7.2"
+langchain-google-genai = "^0.0.6"
+soundfile = "^0.12.1"
+sounddevice = "^0.4.6"
+obsws-python = "^1.6.2"
+pytchat = "^0.5.5"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
