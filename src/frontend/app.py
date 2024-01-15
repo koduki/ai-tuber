@@ -63,7 +63,7 @@ class App:
             for c in self.comments.get():
                 print(f"{c.datetime} [{c.author.name}]: {c.message}")
                 try:
-                    reply = self.ai.say_chat(c.message)
+                    reply = self.ai.say_chat({"speaker":c.author.name, "message":c.message})
                     print("step1")
                     q.put(reply)
                     print("step1-1")

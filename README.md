@@ -31,14 +31,9 @@ $ ptyhon
 
 import os
 import sys
-def read_secret(file_name):
-    home_directory = os.path.expanduser("~")
-    file_path = os.path.join(home_directory, ".secret", file_name)
-    with open(file_path, "r") as file:
-        return file.read().strip()
 
-os.environ["OPENAI_API_KEY"] = read_secret("openai.txt")
-os.environ["GOOGLE_API_KEY"] = read_secret("gemini.txt")
+os.environ["OPENAI_API_KEY"] = open(f"{os.environ['HOMEPATH']}\\.secret\\openai.txt", "r").read()
+os.environ["GOOGLE_API_KEY"] = open(f"{os.environ['HOMEPATH']}\\.secret\\gemini.txt", "r").read()
 
 from backend.chatai import ChatAI
 ai = ChatAI("gpt4")

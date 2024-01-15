@@ -107,10 +107,10 @@ class ChatAI:
     #
     # methods
     #
-    def _say(self, text):
+    def _say(self, comment):
         print("start:llm")
         ls = time.perf_counter()
-        res = self.chat_chain.invoke({"input": text})
+        res = self.chat_chain.invoke(comment) # {"speaker":c.author.name, "message":c.message}
         le = time.perf_counter()
         print("finish:llm response(sec): " + str(le - ls))
         print("res: " + str(res))
@@ -127,7 +127,7 @@ class ChatAI:
             {url}
             """
             
-            self.talks[index]["data"] = self._say(msg)
+            self.talks[index]["data"] = self._say({"speaker":"system", "message":msg})
 
         return self.talks[index]["data"]
 

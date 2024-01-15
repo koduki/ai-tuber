@@ -1,6 +1,7 @@
 from langchain.chains import LLMChain
 from langchain.chains.base import Chain
 from typing import Dict, List, Any
+import json
 
 class ParseChain(Chain):
     chain: LLMChain
@@ -13,7 +14,7 @@ class ParseChain(Chain):
     
     @property
     def input_keys(self) -> List[str]:
-        return ['input']
+        return ["speaker", "message"]
     
     @property
     def output_keys(self) -> List[str]:
@@ -22,7 +23,8 @@ class ParseChain(Chain):
     def _call(self, inputs: Dict[str, str]) -> Dict[str, str]:
         print("call")
         print(inputs)
-        output = self.chain.invoke(inputs)
+        msg = json.dumps(inputs)
+        output = self.chain.invoke(msg)
         print(output)
 
         data = self._parse(str(output['text']))
@@ -33,7 +35,6 @@ class ParseChain(Chain):
     
     def _parse(self, text):
         import re
-        import json
 
         # parse non-JSON format
         text = text.replace('\n', '')
