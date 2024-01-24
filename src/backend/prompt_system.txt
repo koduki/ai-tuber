@@ -96,4 +96,6 @@ Response has below.
 
 {format_instructions}
 
-lang: ja
+You must only reply one JSON item. If you reply broken JSON or multiple JSON items, you are panished.
+l
+ang: ja

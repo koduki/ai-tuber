@@ -1,6 +1,7 @@
 import time
 import os
 from .parse_chain import ParseChain
+from . import weather_tool
 
 class ChatAI:
     talks = [
@@ -52,10 +53,7 @@ class ChatAI:
         else:
             raise Exception("RSSフィードの取得に失敗しました")
     
-    def use_llm(self, llm_model):
-        self.llm_model = llm_model
-        print("use model: " + llm_model)
-
+    def _mk_parser(self):
         # 出力フォーマットを定義
         from langchain_core.output_parsers import JsonOutputParser
         from langchain_core.pydantic_v1 import BaseModel, Field
@@ -64,8 +62,9 @@ class ChatAI:
             current_emotion: str = Field(description="maxe")
             character_reply: str = Field(description="れん's reply to User")
 
-        parser = JsonOutputParser(pydantic_object=Reply)
-
+        return JsonOutputParser(pydantic_object=Reply)
+    
+    def _mk_prompt4chat(self):
         # テンプレートとプロンプトエンジニアリング
         from langchain.prompts import (
             ChatPromptTemplate,
@@ -78,11 +77,19 @@ class ChatAI:
         file_path = os.path.join(script_dir, 'prompt_system.txt')
         prompt_system = open(file_path, "r", encoding='utf-8').read()
 
+        parser = self._mk_parser()
         prompt = ChatPromptTemplate.from_messages([
             SystemMessagePromptTemplate.from_template(prompt_system),
-            MessagesPlaceholder(variable_name="chat_history"),
+            MessagesPlaceholder(variable_name="chat_history", optional=True),
+            MessagesPlaceholder(variable_name="agent_scratchpad"),
             HumanMessagePromptTemplate.from_template("{input}"), 
         ]).partial(format_instructions=parser.get_format_instructions())
+
+        return prompt
+        
+    def use_llm(self, llm_model):
+        self.llm_model = llm_model
+        print("use model: " + llm_model)
 
         # モデルの準備
         from langchain_openai import ChatOpenAI
@@ -101,8 +108,16 @@ class ChatAI:
         from langchain.chains import LLMChain
         from langchain.memory import ConversationBufferWindowMemory
         memory = ConversationBufferWindowMemory(memory_key="chat_history", return_messages=True, k=20)
+        prompt = self._mk_prompt4chat()
+        tools = [weather_tool.weather_api]
+
         chain = LLMChain(llm=llm, prompt=prompt, verbose=False, memory=memory)
-        self.chat_chain = ParseChain(chain=chain, verbose=False)
+
+        from langchain.agents import AgentExecutor, create_openai_tools_agent
+        agent = create_openai_tools_agent(llm, tools, prompt)
+        agent_executor = AgentExecutor(agent=agent, verbose=True, tools=tools, memory=memory)
+
+        self.chat_chain = ParseChain(chain=agent_executor, verbose=False)
 
     #
     # methods

@@ -27,6 +27,8 @@ python .\main.py gpt4
 AI部分のみのテストをしたいときは以下。
 
 ```
+$ poetry shell
+$ cd src
 $ ptyhon
 
 import os
@@ -38,8 +40,8 @@ os.environ["GOOGLE_API_KEY"] = open(f"{os.environ['HOMEPATH']}\\.secret\\gemini.
 from backend.chatai import ChatAI
 ai = ChatAI("gpt4")
 
+ai.say_chat({"speaker":"koduki", "message":"はじめまして"})
 ai.say_short_talk()
-ai.say_chat("はじめまして")
 ```
 
 ## Special Thanks.

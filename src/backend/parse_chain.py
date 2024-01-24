@@ -1,10 +1,10 @@
-from langchain.chains import LLMChain
 from langchain.chains.base import Chain
 from typing import Dict, List, Any
 import json
+from langchain.agents import AgentExecutor
 
 class ParseChain(Chain):
-    chain: LLMChain
+    chain: AgentExecutor
 
     def __init__(__pydantic_self__, **data: Any) -> None:
         if len(data) == 0:
@@ -24,10 +24,10 @@ class ParseChain(Chain):
         print("call")
         print(inputs)
         msg = json.dumps(inputs)
-        output = self.chain.invoke(msg)
+        output = self.chain.invoke({"input":msg})
         print(output)
 
-        data = self._parse(str(output['text']))
+        data = self._parse(str(output['output']))
         print("parsed: " + str(data))
 
         print("/call")
@@ -37,7 +37,6 @@ class ParseChain(Chain):
         import re
 
         # parse non-JSON format
-        text = text.replace('\n', '')
         if "{" not in text and "}" not in text:
             text = f'{{"current_emotion": "fun", "character_reply": "{text}"}}'
 
@@ -48,9 +47,16 @@ class ParseChain(Chain):
         # parse quartation
         text = text.replace("'", "\"")
 
-        # transform
+        # transform and remove duplicate
         print(text)
-        data = json.loads(text)
+        split_output = text.split('\n')
+        unique_output = []
+        for item in split_output:
+            item_json = json.loads(item)
+            if item_json not in unique_output:
+                unique_output.append(item_json)
+
+        data = unique_output[0]
 
         # parse broken current_emotion format
         data["current_emotion"] = data["current_emotion"].split(":")[0]
