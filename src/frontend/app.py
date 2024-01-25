@@ -73,7 +73,7 @@ class App:
     def task_short_talk(self, q):
         while True:
             try:
-                time.sleep(60*3)
+                time.sleep(60*1)
                 reply = self.ai.say_short_talk()
                 print("step2")
                 q.put(reply)

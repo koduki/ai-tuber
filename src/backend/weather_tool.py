@@ -14,14 +14,16 @@ def weather_api(when:str, location: str) -> str:
     return _weather_api(when, location)
 
 from langchain_openai import ChatOpenAI
+from langchain_google_genai import ChatGoogleGenerativeAI
 
 def _weather_api(when, location):
     from datetime import date
     today = date.today()
     
     # llm = ChatOpenAI(model="gpt-3.5-turbo-1106", temperature=0)
-    llm = ChatOpenAI(model="gpt-4", temperature=0)
-
+    # llm = ChatOpenAI(model="gpt-4", temperature=0)
+    llm = ChatGoogleGenerativeAI(model="gemini-pro", convert_system_message_to_human=True)
+    
     from langchain.chains import LLMChain
     prompt = ChatPromptTemplate.from_messages([
         ("system", "今日は{today}です。以下の問に答えなさい。返答のフォーマットは'YYYY-MM-DD'です。返答は'YYYY-MM-DD'のみを返してください。それ以外の値を返すと罰せられます。"),
