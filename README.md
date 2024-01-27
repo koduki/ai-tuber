@@ -41,7 +41,7 @@ from backend.chatai import ChatAI
 ai = ChatAI("gpt4")
 
 ai.say_chat({"speaker":"koduki", "message":"はじめまして"})
-ai.say_chat({"speaker":"koduki", "message":"今日の天気は？"})
+ai.say_chat({"speaker":"koduki", "message":"今日の東京都の天気は？"})
 ai.say_short_talk()
 ```
 

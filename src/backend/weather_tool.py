@@ -1,9 +1,7 @@
 from langchain.agents import tool
 from langchain.prompts import ChatPromptTemplate
-from langchain_openai import ChatOpenAI
 from langchain_google_genai import ChatGoogleGenerativeAI
 
-# tool デコレーターを使ってツールを定義
 @tool
 def weather_api(when:str, location: str) -> str:
     """
@@ -18,8 +16,6 @@ def _weather_api(when, location):
     from datetime import date
     today = date.today()
     
-    # llm = ChatOpenAI(model="gpt-3.5-turbo-1106", temperature=0)
-    # llm = ChatOpenAI(model="gpt-4", temperature=0)
     llm = ChatGoogleGenerativeAI(model="gemini-pro", convert_system_message_to_human=True)
     
     from langchain.chains import LLMChain

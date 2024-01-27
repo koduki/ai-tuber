@@ -2,14 +2,12 @@ import time
 import os
 from .parse_chain import ParseChain
 from . import weather_tool
-from .short_talk import ShortTalkEngine
+from . import short_talk_tool
 
 class ChatAI:
 
     def __init__(self, llm_model) -> None:
         self.use_llm(llm_model)
-        self.st_engine = ShortTalkEngine()
-        self.st_engine.update_news()
     
     def _mk_parser(self):
         # 出力フォーマットを定義
@@ -66,11 +64,11 @@ class ChatAI:
         from langchain.memory import ConversationBufferWindowMemory
         memory = ConversationBufferWindowMemory(memory_key="chat_history", return_messages=True, k=20)
         prompt = self._mk_prompt4chat()
-        tools = [weather_tool.weather_api]
+        tools = [weather_tool.weather_api, short_talk_tool.talk]
 
         from langchain.agents import AgentExecutor, create_openai_tools_agent
         agent = create_openai_tools_agent(llm, tools, prompt)
-        agent_executor = AgentExecutor(agent=agent, verbose=True, tools=tools, memory=memory)
+        agent_executor = AgentExecutor(agent=agent, verbose=True, tools=tools, memory=memory, max_iterations=3)
 
         self.chat_chain = ParseChain(chain=agent_executor, verbose=False)
 
@@ -88,12 +86,7 @@ class ChatAI:
         return res
 
     def say_short_talk(self):
-        contents = self.st_engine.neta()
-        msg = f"""
-        以下のcontentsを参考にリスナーに「ちょっと小話でもしようかの」と言って、400文字程度の雑談をしてください。その際にキャラクターらしさを含めた内容になるようにしてください。
-        -----
-        {contents}
-        """
+        msg = "「ちょっと小話でもしようかの」と言って、talk_contentsで400文字程度の雑談をしてください。その際にキャラクターらしさを含めた内容になるようにしてください。"
 
         return self._say({"speaker":"system", "message":msg})
 
