@@ -1,6 +1,7 @@
 from langchain.agents import tool
 from langchain.prompts import ChatPromptTemplate
-
+from langchain_openai import ChatOpenAI
+from langchain_google_genai import ChatGoogleGenerativeAI
 
 # tool デコレーターを使ってツールを定義
 @tool
@@ -12,9 +13,6 @@ def weather_api(when:str, location: str) -> str:
     """
     
     return _weather_api(when, location)
-
-from langchain_openai import ChatOpenAI
-from langchain_google_genai import ChatGoogleGenerativeAI
 
 def _weather_api(when, location):
     from datetime import date
@@ -45,7 +43,7 @@ def _weather_api(when, location):
     ])
     chain = LLMChain(llm=llm, prompt=prompt, verbose=True)
     r = chain.invoke({"location": location})
-    pos = dict((k, v) for k, v in (item.split(':') for item in r['text'].split(', ')))
+    pos = dict((k, v) for k, v in (item.split(':') for item in r['text'].replace(" ", "").split(',')))
     
     
     import requests

@@ -2,67 +2,14 @@ import time
 import os
 from .parse_chain import ParseChain
 from . import weather_tool
+from .short_talk import ShortTalkEngine
 
 class ChatAI:
-    talks = [
-        {"url":"https://gigazine.net/news/20240105-niklaus-wirth-passed-away/?s=09","data":""},
-        {"url":"https://ja.wikipedia.org/wiki/Stable_Diffusion","data":""}, 
-    ]
 
     def __init__(self, llm_model) -> None:
         self.use_llm(llm_model)
-        self._update_news()
-
-    def _update_news(self):
-
-        urls=[]
-        print("start:update the latest news.")
-
-        urls.extend(['https://ja.wikipedia.org/wiki/%E6%B0%97%E8%B1%A1%E7%B2%BE%E9%9C%8A%E8%A8%98'])
-        # root = self._parse_rss("https://www.moguravr.com/feed/")
-        # xs = list(map(lambda item: item.find("link").text, root.findall("channel/item")))
-        # urls.extend(xs)
-
-        # root = self._parse_rss("https://animeanime.jp/rss20/index.rdf")
-        # xs = list(map(lambda item: item.find("link").text, root.findall("channel/item")))
-        # urls.extend(xs)
-
-        # root = self._parse_rss("https://b.hatena.ne.jp/entrylist/it.rss")
-        # xs = list(map(lambda item: item.find('{http://purl.org/rss/1.0/}link').text, root.findall('./{http://purl.org/rss/1.0/}item')))
-        # urls.extend(xs)
-
-        root = self._parse_rss("https://www.theguardian.com/world/extreme-weather/rss")
-        xs = list(map(lambda item: item.find("link").text, root.findall("channel/item")))
-        urls.extend(xs)
-        
-        root = self._parse_rss("https://www.jstage.jst.go.jp/AF05S010NewRssDld?btnaction=JT0041&sryCd=jmsj&rssLang=en")
-        xs = list(map(lambda item: item.find('{http://www.w3.org/2005/Atom}link').attrib['href'], root.findall('./{http://www.w3.org/2005/Atom}entry')))
-        urls.extend(xs)
-        
-        
-        
-        # root = self._parse_rss("https://gigazine.net/news/rss_2.0/")
-        # software_items = [item for item in root.findall("channel/item") if "ソフトウェア" in item.find("{http://purl.org/dc/elements/1.1/}subject").text]
-        # xs = list(map(lambda item: item.find("link").text, software_items))
-        # urls.extend(xs)
-
-        self.talks = list(map(lambda url: {"url": url, "data": ""}, urls))
-
-        print("finish:update the latest news.")
-
-
-    def _parse_rss(self, url):
-        import requests
-        import xml.etree.ElementTree as ET
-
-        """指定されたURLからRSSフィードを取得して解析します。"""
-        response = requests.get(url)
-        if response.status_code == 200:
-            rss_xml = response.content
-            root = ET.fromstring(rss_xml)
-            return root
-        else:
-            raise Exception("RSSフィードの取得に失敗しました")
+        self.st_engine = ShortTalkEngine()
+        self.st_engine.update_news()
     
     def _mk_parser(self):
         # 出力フォーマットを定義
@@ -116,13 +63,10 @@ class ChatAI:
             llm = None
 
         # チェインを作成
-        from langchain.chains import LLMChain
         from langchain.memory import ConversationBufferWindowMemory
         memory = ConversationBufferWindowMemory(memory_key="chat_history", return_messages=True, k=20)
         prompt = self._mk_prompt4chat()
         tools = [weather_tool.weather_api]
-
-        chain = LLMChain(llm=llm, prompt=prompt, verbose=False, memory=memory)
 
         from langchain.agents import AgentExecutor, create_openai_tools_agent
         agent = create_openai_tools_agent(llm, tools, prompt)
@@ -144,18 +88,14 @@ class ChatAI:
         return res
 
     def say_short_talk(self):
-        import random
+        contents = self.st_engine.neta()
+        msg = f"""
+        以下のcontentsを参考にリスナーに「ちょっと小話でもしようかの」と言って、400文字程度の雑談をしてください。その際にキャラクターらしさを含めた内容になるようにしてください。
+        -----
+        {contents}
+        """
 
-        index = random.randrange(len(self.talks))
-        if self.talks[index]["data"] == "":
-            url = self.talks[index]["url"]
-            msg = f"""以下のページを参考にリスナーに「ちょっと小話でもしようかの」と言って、600文字程度の雑談をしてください。その際にキャラクターらしさを含めた内容になるようにしてください。
-            {url}
-            """
-            
-            self.talks[index]["data"] = self._say({"speaker":"system", "message":msg})
-
-        return self.talks[index]["data"]
+        return self._say({"speaker":"system", "message":msg})
 
     def say_chat(self, comment):
         return self._say(comment)
