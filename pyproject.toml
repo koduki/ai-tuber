@@ -20,6 +20,7 @@ pytchat = "^0.5.5"
 langchain-openai = "^0.0.2.post1"
 langchainhub = "^0.1.14"
 beautifulsoup4 = "^4.12.3"
+grandalf = "^0.8"
 
 [build-system]
 requires = ["poetry-core"]
