@@ -4,6 +4,14 @@ from .parse_chain import ParseChain
 from . import weather_tool
 from . import short_talk_tool
 
+from langchain.schema.agent import AgentFinish
+from langchain.tools.render import format_tool_to_openai_function
+from langchain.agents.format_scratchpad import format_to_openai_functions
+from langchain.agents.output_parsers import OpenAIFunctionsAgentOutputParser
+from langchain.prompts import ChatPromptTemplate, MessagesPlaceholder
+from langchain_core.runnables import RunnableLambda, RunnablePassthrough
+from operator import itemgetter
+
 class ChatAI:
 
     def __init__(self, llm_model) -> None:
@@ -21,24 +29,17 @@ class ChatAI:
         return JsonOutputParser(pydantic_object=Reply)
     
     def _mk_prompt4chat(self):
-        # テンプレートとプロンプトエンジニアリング
-        from langchain.prompts import (
-            ChatPromptTemplate,
-            HumanMessagePromptTemplate,
-            SystemMessagePromptTemplate,
-            MessagesPlaceholder,
-        )
-
         script_dir = os.path.dirname(os.path.abspath(__file__))
         file_path = os.path.join(script_dir, 'prompt_system.txt')
         prompt_system = open(file_path, "r", encoding='utf-8').read()
 
         parser = self._mk_parser()
+
         prompt = ChatPromptTemplate.from_messages([
-            SystemMessagePromptTemplate.from_template(prompt_system),
-            MessagesPlaceholder(variable_name="chat_history", optional=True),
+            ("system", prompt_system),
+            ("user", "{input}"),
+            MessagesPlaceholder(variable_name="chat_history"),
             MessagesPlaceholder(variable_name="agent_scratchpad"),
-            HumanMessagePromptTemplate.from_template("{input}"), 
         ]).partial(format_instructions=parser.get_format_instructions())
 
         return prompt
@@ -63,22 +64,54 @@ class ChatAI:
         # チェインを作成
         from langchain.memory import ConversationBufferWindowMemory
         memory = ConversationBufferWindowMemory(memory_key="chat_history", return_messages=True, k=20)
-        prompt = self._mk_prompt4chat()
+        prompt_for_tools = ChatPromptTemplate.from_messages([
+            ("system", "You are agentai"),
+            ("user", "{input}"),
+        ])
+        prompt_for_chat = self._mk_prompt4chat()
+
         tools = [weather_tool.weather_api, short_talk_tool.talk]
 
-        from langchain.agents import AgentExecutor, create_openai_tools_agent
-        agent = create_openai_tools_agent(llm, tools, prompt)
-        agent_executor = AgentExecutor(agent=agent, verbose=True, tools=tools, memory=memory, max_iterations=3)
+        llm = ChatOpenAI(temperature=0, model='gpt-4-0613')
+        llm_with_tools = ChatOpenAI(temperature=0, model='gpt-3.5-turbo').bind(functions=[format_tool_to_openai_function(t) for t in tools])
 
-        self.chat_chain = ParseChain(chain=agent_executor, verbose=False)
+        def call_func(log):
+            if isinstance(log, AgentFinish):
+                return [(log, [])]
+            else:
+                tool = next(x for x in tools if x.name == log.tool)
+                observation = tool.run(log.tool_input)
+                return [(log, observation)]
+
+        def store_memory(response):
+            print(response)
+
+            input = {"input":response["input"]}
+            output = {"output": response["return_values"].return_values['output']}
+            memory.save_context(input, output)
+            return output
+
+        agent = (
+            RunnablePassthrough().assign(
+                chat_history=RunnableLambda(memory.load_memory_variables) | itemgetter("chat_history"),
+                agent_scratchpad=prompt_for_tools | llm_with_tools | OpenAIFunctionsAgentOutputParser() | call_func | format_to_openai_functions
+            )| RunnablePassthrough().assign(
+                return_values=prompt_for_chat | llm | OpenAIFunctionsAgentOutputParser(),
+            )| store_memory
+        )
+
+        self.chat_chain = agent
 
     #
     # methods
     #
     def _say(self, comment):
+        import json
+
         print("start:llm")
         ls = time.perf_counter()
-        res = self.chat_chain.invoke(comment) # {"speaker":c.author.name, "message":c.message}
+        msg = json.dumps(comment)
+        res = self.chat_chain.invoke({"input":msg}) # {"speaker":c.author.name, "message":c.message}
         le = time.perf_counter()
         print("finish:llm response(sec): " + str(le - ls))
         print("res: " + str(res))
