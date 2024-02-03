@@ -93,8 +93,33 @@ class ChatAI:
         
         def to_json(response):
             import json
+            import re
             text = response['output']
-            data = json.loads(text)
+
+            # parse non-JSON format
+            if "{" not in text and "}" not in text:
+                text = f'{{"current_emotion": "fun", "character_reply": "{text}"}}'
+
+            # parse include markdown
+            json_str = re.search(r'```json(.*?)```', text, re.DOTALL)
+            text = json_str.group(1) if json_str else text
+
+            # parse quartation
+            text = text.replace("'", "\"")
+
+            # transform and remove duplicate
+            print(text)
+            split_output = text.split('\n')
+            unique_output = []
+            for item in split_output:
+                item_json = json.loads(item)
+                if item_json not in unique_output:
+                    unique_output.append(item_json)
+
+            data = unique_output[0]
+
+            # parse broken current_emotion format
+            data["current_emotion"] = data["current_emotion"].split(":")[0]
 
             return data
 
