@@ -90,6 +90,13 @@ class ChatAI:
             output = {"output": response["return_values"].return_values['output']}
             memory.save_context(input, output)
             return output
+        
+        def to_json(response):
+            import json
+            text = response['output']
+            data = json.loads(text)
+
+            return data
 
         agent = (
             RunnablePassthrough().assign(
@@ -97,7 +104,7 @@ class ChatAI:
                 agent_scratchpad=prompt_for_tools | llm_with_tools | OpenAIFunctionsAgentOutputParser() | call_func | format_to_openai_functions
             )| RunnablePassthrough().assign(
                 return_values=prompt_for_chat | llm | OpenAIFunctionsAgentOutputParser(),
-            )| store_memory
+            )| store_memory | to_json
         )
 
         self.chat_chain = agent

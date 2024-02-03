@@ -88,7 +88,7 @@ def _get(url):
     soup = BeautifulSoup(response.text, 'html.parser')    
 
     # scriptタグとstyleタグをすべて削除
-    for script_or_style in soup(["script", "style", "iframe", "svg", "img", "video"]):
+    for script_or_style in soup(["script", "style", "iframe", "svg", "img", "video", "a", "aside", "footer", "header", "gu-island", "source", "picture", "figure"]):
         script_or_style.extract()
     
     body_content = soup.body
