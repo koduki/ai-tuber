@@ -1,10 +1,11 @@
 import time
 import os
-from .parse_chain import ParseChain
 from . import weather_tool
 from . import short_talk_tool
+from .lcel_operator import call_func
+from .lcel_operator import store_memory
+from .lcel_operator import to_json
 
-from langchain.schema.agent import AgentFinish
 from langchain.tools.render import format_tool_to_openai_function
 from langchain.agents.format_scratchpad import format_to_openai_functions
 from langchain.agents.output_parsers import OpenAIFunctionsAgentOutputParser
@@ -72,67 +73,19 @@ class ChatAI:
 
         tools = [weather_tool.weather_api, short_talk_tool.talk]
 
-        llm = ChatOpenAI(temperature=0, model='gpt-4-0613')
+        llm_for_chat = ChatOpenAI(temperature=0, model='gpt-4-0613')
         llm_with_tools = ChatOpenAI(temperature=0, model='gpt-3.5-turbo').bind(functions=[format_tool_to_openai_function(t) for t in tools])
 
-        def call_func(log):
-            if isinstance(log, AgentFinish):
-                return [(log, [])]
-            else:
-                tool = next(x for x in tools if x.name == log.tool)
-                observation = tool.run(log.tool_input)
-                return [(log, observation)]
-
-        def store_memory(response):
-            print(response)
-
-            input = {"input":response["input"]}
-            output = {"output": response["return_values"].return_values['output']}
-            memory.save_context(input, output)
-            return output
-        
-        def to_json(response):
-            import json
-            import re
-            text = response['output']
-
-            # parse non-JSON format
-            if "{" not in text and "}" not in text:
-                text = f'{{"current_emotion": "fun", "character_reply": "{text}"}}'
-
-            # parse include markdown
-            json_str = re.search(r'```json(.*?)```', text, re.DOTALL)
-            text = json_str.group(1) if json_str else text
-
-            # parse quartation
-            text = text.replace("'", "\"")
-
-            # transform and remove duplicate
-            print(text)
-            split_output = text.split('\n')
-            unique_output = []
-            for item in split_output:
-                item_json = json.loads(item)
-                if item_json not in unique_output:
-                    unique_output.append(item_json)
-
-            data = unique_output[0]
-
-            # parse broken current_emotion format
-            data["current_emotion"] = data["current_emotion"].split(":")[0]
-
-            return data
-
-        agent = (
+        rooter = (
             RunnablePassthrough().assign(
                 chat_history=RunnableLambda(memory.load_memory_variables) | itemgetter("chat_history"),
-                agent_scratchpad=prompt_for_tools | llm_with_tools | OpenAIFunctionsAgentOutputParser() | call_func | format_to_openai_functions
+                agent_scratchpad=prompt_for_tools | llm_with_tools | OpenAIFunctionsAgentOutputParser() | call_func(tools) | format_to_openai_functions
             )| RunnablePassthrough().assign(
-                return_values=prompt_for_chat | llm | OpenAIFunctionsAgentOutputParser(),
-            )| store_memory | to_json
+                return_values=prompt_for_chat | llm_for_chat | OpenAIFunctionsAgentOutputParser(),
+            )| store_memory(memory) | to_json
         )
 
-        self.chat_chain = agent
+        self.chat_chain = rooter
 
     #
     # methods
