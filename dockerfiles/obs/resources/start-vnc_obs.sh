@@ -1,7 +1,7 @@
 #!/bin/sh
 
 ## Setup Config
-python3 /root/youtube-setup.py
+python3 /root/init-yt-key.py
 
 ## Run VNC & OBS
 vncserver -localhost :1
