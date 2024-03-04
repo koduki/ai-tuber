@@ -1,13 +1,16 @@
 FROM debian:12-slim
 
+ENV YT_LIVE_KEY=
+EXPOSE 6080
+
 # INSTALL
-RUN apt-get -y update && apt install -y obs-studio -o Acquire::http::Timeout=30 -o Acquire::Retries=3
-RUN apt install -y \
+RUN apt-get -y update && apt install -y \
     websockify novnc tightvncserver \
-    fluxbox \
-    python3-pip
-RUN /bin/sh -c pip install \
-    obsws-python
+    fluxbox
+RUN apt install -y obs-studio
+RUN apt install -y \ 
+    python3-pip pipx 
+RUN pipx install --include-deps obsws_python
 
 # ADD RESOURCES
 ENV USER=root
@@ -22,5 +25,6 @@ RUN echo foobar | vncpasswd -f > /root/.vnc/passwd
 RUN chmod 600 /root/.vnc/passwd
 
 # START
+WORKDIR /root
 RUN chmod a+x /root/start-vnc_obs.sh
 CMD ["/root/start-vnc_obs.sh"]
