@@ -9,8 +9,11 @@ RUN apt-get -y update && apt install -y \
     fluxbox
 RUN apt install -y obs-studio
 RUN apt install -y \ 
-    python3-pip pipx 
-RUN pipx install --include-deps obsws_python
+    python3-pip \
+    curl
+
+RUN curl -sSL https://install.python-poetry.org | python3 -
+ENV PATH="/root/.local/bin:$PATH"
 
 # ADD RESOURCES
 ENV USER=root
@@ -18,11 +21,15 @@ ADD ./resources/config /root/.config
 ADD ./resources/vnc /root/.vnc
 ADD ./resources/start-vnc_obs.sh /root/start-vnc_obs.sh
 ADD ./resources/init-yt-key.py /root/init-yt-key.py
-ADD ./resources/start-yt-live.py /root/start-yt-live.py
+ADD ./resources/bgm.mp3 /root/
 
 # SET VNC PASSWORD
 RUN echo foobar | vncpasswd -f > /root/.vnc/passwd
 RUN chmod 600 /root/.vnc/passwd
+
+# Install App
+ADD ./app /app
+RUN cd /app && poetry install
 
 # START
 WORKDIR /root
