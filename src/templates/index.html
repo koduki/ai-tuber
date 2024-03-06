@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>Hello World</title>
+</head>
+<body>
+    <h1>Hello World</h1>
+    <input type="text" id="name" name="name">
+    <button id="hello-button">送信</button>
+    <p id="message"></p>
+
+    <script>
+        const helloButton = document.getElementById("hello-button");
+        const messageElement = document.getElementById("message");
+
+        helloButton.addEventListener("click", async () => {
+            const name = document.getElementById("name").value;
+            const response = await fetch("/hello", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({ name }),
+            });
+            const data = await response.json();
+            messageElement.textContent = data.message;
+        });
+    </script>
+</body>
+</html>
