@@ -1,0 +1,14 @@
+[tool.poetry]
+name = "app"
+version = "0.1.0"
+description = ""
+authors = ["koduki"]
+
+[tool.poetry.dependencies]
+python = "^3.10"
+obsws-python = "^1.7.0"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
