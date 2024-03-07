@@ -6,7 +6,7 @@ from .lcel_operator import call_func
 from .lcel_operator import store_memory
 from .lcel_operator import to_json
 
-from langchain.tools.render import format_tool_to_openai_function
+from langchain_core.utils.function_calling import convert_to_openai_function
 from langchain.agents.format_scratchpad import format_to_openai_functions
 from langchain.agents.output_parsers import OpenAIFunctionsAgentOutputParser
 from langchain.prompts import ChatPromptTemplate, MessagesPlaceholder
@@ -74,7 +74,7 @@ class ChatAI:
         tools = [weather_tool.weather_api, short_talk_tool.talk]
 
         llm_for_chat = ChatOpenAI(temperature=0, model='gpt-4-0613')
-        llm_with_tools = ChatOpenAI(temperature=0, model='gpt-3.5-turbo').bind(functions=[format_tool_to_openai_function(t) for t in tools])
+        llm_with_tools = ChatOpenAI(temperature=0, model='gpt-3.5-turbo').bind(functions=[convert_to_openai_function(t) for t in tools])
 
         rooter = (
             RunnablePassthrough().assign(
