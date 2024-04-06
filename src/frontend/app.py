@@ -8,6 +8,8 @@ from .voicevox_adapter import VoicevoxAdapter
 from .play_sound import PlaySound
 from .obs_adapter import ObsAdapter
 from .youtube_comment_adapter import YouTubeCommentAdapter
+from apscheduler.schedulers.background import BackgroundScheduler
+
 
 class App:
     def __init__(self, ai) -> None:
@@ -57,29 +59,27 @@ class App:
         print(e)
         print(e.__traceback__)
 
-    def task_chat(self, q):
-        while True:
-            time.sleep(1)
-            for c in self.comments.get():
-                print(f"{c.datetime} [{c.author.name}]: {c.message}")
-                try:
-                    reply = self.ai.say_chat({"speaker":c.author.name, "message":c.message})
-                    print("step1")
-                    q.put(reply)
-                    print("step1-1")
-                except Exception as e:
-                    self.show_error(e)
+    # def task_chat(self, q):
+    def task_chat(self):
+        for c in self.comments.get():
+            print(f"{c['datetime']} [{c['author']}]: {c['message']}")
+            try:
+                reply = self.ai.say_chat({"speaker":c["author"], "message":c["message"]})
+                print("step1")
+                print(reply)
+                # q.put(reply)
+                print("step1-1")
+            except Exception as e:
+                self.show_error(e)
 
     def task_short_talk(self, q):
-        while True:
-            try:
-                time.sleep(60*3)
-                reply = self.ai.say_short_talk()
-                print("step2")
-                q.put(reply)
-                print("step2-2")
-            except Exception as e:
-                self.show_error(e)  
+        try:
+            reply = self.ai.say_short_talk()
+            print("step2")
+            q.put(reply)
+            print("step2-2")
+        except Exception as e:
+            self.show_error(e)  
 
     def task_voice(self, q):
         while True:
@@ -95,45 +95,51 @@ class App:
             except Exception as e:
                 self.show_error(e)
 
-    async def task_system(self):
-        from aioconsole import ainput
+    # async def task_system(self):
+    #     from aioconsole import ainput
         
-        while True:
-            print("step5")
-            syscmd = await ainput()
-            print("step5-2")
-            if syscmd == "quit" or syscmd == "q":
-                print(syscmd)
-                exit(0)
-            elif syscmd == "use_gemini":
-                self.ai.use_llm("gemini")
-                self.obs.visible_llm(self.ai.llm_model)
-            elif syscmd == "use_gpt4":
-                self.ai.use_llm("gpt4")
-                self.obs.visible_llm(self.ai.llm_model)
+    #     while True:
+    #         print("step5")
+    #         syscmd = await ainput()
+    #         print("step5-2")
+    #         if syscmd == "quit" or syscmd == "q":
+    #             print(syscmd)
+    #             exit(0)
+    #         elif syscmd == "use_gemini":
+    #             self.ai.use_llm("gemini")
+    #             self.obs.visible_llm(self.ai.llm_model)
+    #         elif syscmd == "use_gpt4":
+    #             self.ai.use_llm("gpt4")
+    #             self.obs.visible_llm(self.ai.llm_model)
 
-    async def _exec(self):
+    # async def _exec(self):
         # q = asyncio.Queue()
         # t1 = asyncio.create_task(self.task_chat(q))
         # t2 = asyncio.create_task(self.task_short_talk(q))
         # t3 = asyncio.create_task(self.task_voice(q))
         # t4 = asyncio.create_task(self.task_system())
 
-        q = queue.Queue()
-        with concurrent.futures.ThreadPoolExecutor() as executor:
-            executor.submit(self.task_voice, q)
-            executor.submit(self.task_short_talk, q)
-            executor.submit(self.task_chat, q)
+        # q = queue.Queue()
+        # with concurrent.futures.ThreadPoolExecutor() as executor:
+        #     executor.submit(self.task_voice, q)
+        #     executor.submit(self.task_short_talk, q)
+        #     executor.submit(self.task_chat, q)
 
         # await t1
         # await t2
         # await t3
         # await t4
 
+    def close(self):
+        self.comments.close()
+
     def exec(self, video_id):
         self.comments = YouTubeCommentAdapter(video_id)
         print("Ready. YouTubeにコメントしてね。終了時は「quit」または「q」と入力してください。")
 
-        self.voice({"character_reply":"良く来たの。今日は何をするのじゃ？", "current_emotion":"joyful"})
+        # self.voice({"character_reply":"良く来たの。今日は何をするのじゃ？", "current_emotion":"joyful"})
 
-        asyncio.run(self._exec())
+        # APSchedulerの初期化とジョブの追加
+        scheduler = BackgroundScheduler()
+        scheduler.add_job(self.task_chat, 'interval', seconds=1)
+        scheduler.start()
