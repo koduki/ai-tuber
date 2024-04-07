@@ -54,9 +54,9 @@ class ChatAI:
         from langchain_google_genai import ChatGoogleGenerativeAI
 
         if llm_model == 'gpt4':
-            llm = ChatOpenAI(model_name="gpt-4", temperature=0)
+            llm = ChatOpenAI(model_name="gpt-4-0125-preview", temperature=0)
         elif llm_model == 'gpt3':
-            llm = ChatOpenAI(model_name="gpt-3.5-turbo-16k", temperature=0)
+            llm = ChatOpenAI(model_name="gpt-3.5-turbo-0125", temperature=0)
         elif llm_model == 'gemini':
             llm = ChatGoogleGenerativeAI(model="gemini-pro", convert_system_message_to_human=True)
         else:
@@ -64,7 +64,7 @@ class ChatAI:
 
         # チェインを作成
         from langchain.memory import ConversationBufferWindowMemory
-        memory = ConversationBufferWindowMemory(memory_key="chat_history", return_messages=True, k=20)
+        memory = ConversationBufferWindowMemory(memory_key="chat_history", return_messages=True, k=5)
         prompt_for_tools = ChatPromptTemplate.from_messages([
             ("system", "You are agentai"),
             ("user", "{input}"),
@@ -73,7 +73,7 @@ class ChatAI:
 
         tools = [weather_tool.weather_api, short_talk_tool.talk]
 
-        llm_for_chat = ChatOpenAI(temperature=0, model='gpt-4-0613')
+        llm_for_chat = llm
         llm_with_tools = ChatOpenAI(temperature=0, model='gpt-3.5-turbo').bind(functions=[convert_to_openai_function(t) for t in tools])
 
         rooter = (

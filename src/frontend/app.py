@@ -2,7 +2,6 @@ import time
 import datetime
 import queue
 import concurrent.futures
-import asyncio
 
 from .voicevox_adapter import VoicevoxAdapter
 from .play_sound import PlaySound
@@ -21,6 +20,14 @@ class App:
         self.obs = ObsAdapter()
         self.obs.visible_avater("normal")
         self.obs.visible_llm(ai.llm_model)
+
+        # ボイスキュー
+        self.voice_q = queue.Queue()
+
+        # APSchedulerの初期化とジョブの追加
+        self.scheduler = BackgroundScheduler()
+        self.scheduler.add_job(self.task_chat, 'interval', seconds=1)
+        self.scheduler.start()
 
     def _task_gen_voice(self, text):
         ss = time.perf_counter()
@@ -67,7 +74,7 @@ class App:
                 reply = self.ai.say_chat({"speaker":c["author"], "message":c["message"]})
                 print("step1")
                 print(reply)
-                # q.put(reply)
+                self.voice_q.put(reply)
                 print("step1-1")
             except Exception as e:
                 self.show_error(e)
@@ -132,6 +139,7 @@ class App:
 
     def close(self):
         self.comments.close()
+        self.scheduler.close()
 
     def exec(self, video_id):
         self.comments = YouTubeCommentAdapter(video_id)
@@ -139,7 +147,4 @@ class App:
 
         # self.voice({"character_reply":"良く来たの。今日は何をするのじゃ？", "current_emotion":"joyful"})
 
-        # APSchedulerの初期化とジョブの追加
-        scheduler = BackgroundScheduler()
-        scheduler.add_job(self.task_chat, 'interval', seconds=1)
-        scheduler.start()
+
