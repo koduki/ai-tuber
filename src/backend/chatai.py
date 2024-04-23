@@ -25,7 +25,7 @@ class ChatAI:
 
         class Reply(BaseModel):
             current_emotion: str = Field(description="maxe")
-            character_reply: str = Field(description="れん's reply to User")
+            character_reply: str = Field(description="Character's reply to User")
 
         return JsonOutputParser(pydantic_object=Reply)
     
@@ -54,9 +54,9 @@ class ChatAI:
         from langchain_google_genai import ChatGoogleGenerativeAI
 
         if llm_model == 'gpt4':
-            llm = ChatOpenAI(model_name="gpt-4-0125-preview", temperature=0)
+            llm = ChatOpenAI(model_name="gpt-4-turbo", temperature=0).bind(response_format={"type": "json_object"})
         elif llm_model == 'gpt3':
-            llm = ChatOpenAI(model_name="gpt-3.5-turbo-0125", temperature=0)
+            llm = ChatOpenAI(model_name="gpt-3.5-turbo", temperature=0)
         elif llm_model == 'gemini':
             llm = ChatGoogleGenerativeAI(model="gemini-pro", convert_system_message_to_human=True)
         else:
