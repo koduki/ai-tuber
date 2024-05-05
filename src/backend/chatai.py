@@ -64,7 +64,7 @@ class ChatAI:
 
         # チェインを作成
         from langchain.memory import ConversationBufferWindowMemory
-        memory = ConversationBufferWindowMemory(memory_key="chat_history", return_messages=True, k=5)
+        memory = ConversationBufferWindowMemory(memory_key="chat_history", return_messages=True, k=10)
         prompt_for_tools = ChatPromptTemplate.from_messages([
             ("system", "You are agentai"),
             ("user", "{input}"),
