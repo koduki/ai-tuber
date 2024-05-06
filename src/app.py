@@ -3,7 +3,7 @@ from flask import Flask
 import os
 
 from backend.chatai import ChatAI
-from frontend.app import AITuber
+from frontend.aituber import AITuber
 
 secret_path = f"{os.environ['HOMEPATH']}/.secret/"
 os.environ["OPENAI_API_KEY"] = open(secret_path + "openai.txt", "r").read()

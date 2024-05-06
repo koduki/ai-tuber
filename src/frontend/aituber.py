@@ -85,22 +85,20 @@ class AITuber:
             self.show_error(e)  
 
     def task_voice(self):
-        while True:
-            try:
-                time.sleep(1)
-                if not self.voice_q.empty():
-                    print("step3")
-                    reply = self.voice_q.get()
-                    print("/step3")
-                    print("step4")
-                    self.voice(reply)
-                    print("/step4")
-                    self.voice_q.task_done()
-            except Exception as e:
-                self.show_error(e)
+        try:
+            if not self.voice_q.empty():
+                reply = self.voice_q.get()
+                print("step3")
+                self.voice(reply)
+                print("/step3")
+                self.voice_q.task_done()
+        except Exception as e:
+            self.show_error(e)
 
     def close(self):
+        print("Shutting down schduler...")
         self.scheduler.shutdown(wait=False)
+        print("Shutting down comments...")
         self.comments.close()
 
     def exec(self, video_id):
