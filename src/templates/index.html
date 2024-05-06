@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>Ren Studio</title>
+</head>
+<body>
+    <h1>Ren Studio</h1>
+    <input type="text" id="video_id" name="name">
+    <button id="btn_stream-start">配信開始</button>
+    <p id="message"></p>
+
+    <script>
+        const btn_stream = document.getElementById("btn_stream-start");
+        const messageElement = document.getElementById("message");
+
+        btn_stream.addEventListener("click", async () => {
+            const video_id = document.getElementById("video_id").value;
+            const data = await post("/start", { "video_id":video_id });
+            messageElement.textContent = data.message;
+        });
+
+        async function post(url, data){
+            const response = await fetch(url, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify(data),
+            });
+            return await response.json(); 
+        }
+
+    </script>
+</body>
+</html>
