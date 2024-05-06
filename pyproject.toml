@@ -10,7 +10,7 @@ packages = [
 
 [tool.poetry.dependencies]
 python = "^3.9"
-langchain = "^0.1.0"
+langchain = "^0.1.11"
 openai = "^1.7.2"
 langchain-google-genai = "^0.0.6"
 soundfile = "^0.12.1"
@@ -22,6 +22,8 @@ langchainhub = "^0.1.14"
 beautifulsoup4 = "^4.12.3"
 grandalf = "^0.8"
 chromadb = "^0.4.22"
+flask = "^3.0.2"
+apscheduler = "^3.10.4"
 
 [build-system]
 requires = ["poetry-core"]

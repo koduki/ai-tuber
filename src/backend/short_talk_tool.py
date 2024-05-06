@@ -7,7 +7,7 @@ from langchain.chains import LLMChain
 @tool
 def talk() -> str:
     """
-    This tool reply about short-talk(雑談 or 小話). 
+    This tool is only use for 小話(ko-ba-na-shi). 
     """
     
     return f"talk_contents:'{_talk()}'"
