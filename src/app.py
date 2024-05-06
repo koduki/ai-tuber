@@ -1,9 +1,10 @@
-from flask import Flask
-
 import os
+import json
 
 from backend.chatai import ChatAI
 from frontend.aituber import AITuber
+
+from flask import Flask, render_template, request
 
 secret_path = f"{os.environ['HOMEPATH']}/.secret/"
 os.environ["OPENAI_API_KEY"] = open(secret_path + "openai.txt", "r").read()
@@ -15,22 +16,28 @@ from backend.chatai import ChatAI
 ai = ChatAI("gpt4")
 aituber = AITuber(ai)
 
-# YouTube & OBS, Voice
-print("YouTubeのVIDEO_IDを入れてください.")
-video_id = input() # "YOUR_VIDEO_ID"
-aituber.exec(video_id)
 
 # Start Web
 app = Flask(__name__)
-print("Admin console is `http://localhost:5000/`")
 
 @app.route('/')
 def index():
-    return "Flask and APScheduler Example!"
+    return render_template('index.html', title = 'flask test')
+
+@app.route("/start", methods=["post"])
+def start():
+    data = json.loads(request.data)
+    video_id = data.get("video_id")
+
+    # YouTube & OBS, Voice
+    aituber.exec(video_id)
+
+    return {"message":"Success: " + video_id}
 
 if __name__ == '__main__':
     try:
-        app.run(use_reloader=False)
+        print("Admin console is `http://localhost:5000/`")
+        app.run(use_reloader=False, debug=True, port=5000)
     except (KeyboardInterrupt, SystemExit):
         pass
     finally:

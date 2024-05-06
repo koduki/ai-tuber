@@ -2,30 +2,21 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>Hello World</title>
+    <title>Ren Studio</title>
 </head>
 <body>
-    <h1>Hello World</h1>
-    <input type="text" id="name" name="name">
-    <button id="hello-button">送信</button>
+    <h1>Ren Studio</h1>
+    <input type="text" id="video_id" name="name">
     <button id="btn_stream-start">配信開始</button>
     <p id="message"></p>
 
     <script>
-        const helloButton = document.getElementById("hello-button");
         const btn_stream = document.getElementById("btn_stream-start");
-       
         const messageElement = document.getElementById("message");
 
-        helloButton.addEventListener("click", async () => {
-            const name = document.getElementById("name").value;
-            const data = await post("/hello", { name });
-            messageElement.textContent = data.message;
-        });
-
         btn_stream.addEventListener("click", async () => {
-            const name = document.getElementById("name").value;
-            const data = await post("/start", { name });
+            const video_id = document.getElementById("video_id").value;
+            const data = await post("/start", { "video_id":video_id });
             messageElement.textContent = data.message;
         });
 
