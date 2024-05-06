@@ -9,11 +9,9 @@ from .obs_adapter import ObsAdapter
 from .youtube_comment_adapter import YouTubeCommentAdapter
 from apscheduler.schedulers.background import BackgroundScheduler
 
-
-class App:
+class AITuber:
     def __init__(self, ai) -> None:
         self.ai = ai
-        # self.play_sound = PlaySound("スピーカー (Realtek(R) Audio)")
         self.play_sound = PlaySound("CABLE Input")
         self.voicevox_adapter = VoicevoxAdapter()
 
@@ -27,6 +25,9 @@ class App:
         # APSchedulerの初期化とジョブの追加
         self.scheduler = BackgroundScheduler()
         self.scheduler.add_job(self.task_chat, 'interval', seconds=1)
+        self.scheduler.add_job(self.task_voice, 'interval', seconds=1)
+        self.scheduler.add_job(self.task_short_talk, 'interval', seconds=60)
+
         self.scheduler.start()
 
     def _task_gen_voice(self, text):
@@ -41,10 +42,7 @@ class App:
         text = msg["character_reply"]
         emotion = msg["current_emotion"]
         print(f"{datetime.datetime.now()} [紅月れん]: {text}")
-        # data, rate = self._task_gen_voice(text)
-        # self.obs.visible_avater(emotion)
-        # self.play_sound.play_sound(data, rate)
-        # self.obs.visible_avater("normal")
+
         xs = text.split("。")
         with concurrent.futures.ThreadPoolExecutor() as executor:
             # タスクをスケジュール
@@ -55,7 +53,6 @@ class App:
             # 結果を待機
             for future in futures:
                 print("say")
-                # print(future.result())
                 data, rate = future.result()
                 print("/say")
                 self.obs.visible_avater(emotion)
@@ -66,7 +63,6 @@ class App:
         print(e)
         print(e.__traceback__)
 
-    # def task_chat(self, q):
     def task_chat(self):
         for c in self.comments.get():
             print(f"{c['datetime']} [{c['author']}]: {c['message']}")
@@ -75,75 +71,41 @@ class App:
                 print("step1")
                 print(reply)
                 self.voice_q.put(reply)
-                print("step1-1")
+                print("/step1")
             except Exception as e:
                 self.show_error(e)
 
-    def task_short_talk(self, q):
+    def task_short_talk(self):
         try:
             reply = self.ai.say_short_talk()
             print("step2")
-            q.put(reply)
-            print("step2-2")
+            self.voice_q.put(reply)
+            print("/step2")
         except Exception as e:
             self.show_error(e)  
 
-    def task_voice(self, q):
+    def task_voice(self):
         while True:
             try:
                 time.sleep(1)
-                if not q.empty():
+                if not self.voice_q.empty():
                     print("step3")
-                    reply = q.get()
+                    reply = self.voice_q.get()
+                    print("/step3")
                     print("step4")
                     self.voice(reply)
                     print("/step4")
-                    q.task_done()
+                    self.voice_q.task_done()
             except Exception as e:
                 self.show_error(e)
 
-    # async def task_system(self):
-    #     from aioconsole import ainput
-        
-    #     while True:
-    #         print("step5")
-    #         syscmd = await ainput()
-    #         print("step5-2")
-    #         if syscmd == "quit" or syscmd == "q":
-    #             print(syscmd)
-    #             exit(0)
-    #         elif syscmd == "use_gemini":
-    #             self.ai.use_llm("gemini")
-    #             self.obs.visible_llm(self.ai.llm_model)
-    #         elif syscmd == "use_gpt4":
-    #             self.ai.use_llm("gpt4")
-    #             self.obs.visible_llm(self.ai.llm_model)
-
-    # async def _exec(self):
-        # q = asyncio.Queue()
-        # t1 = asyncio.create_task(self.task_chat(q))
-        # t2 = asyncio.create_task(self.task_short_talk(q))
-        # t3 = asyncio.create_task(self.task_voice(q))
-        # t4 = asyncio.create_task(self.task_system())
-
-        # q = queue.Queue()
-        # with concurrent.futures.ThreadPoolExecutor() as executor:
-        #     executor.submit(self.task_voice, q)
-        #     executor.submit(self.task_short_talk, q)
-        #     executor.submit(self.task_chat, q)
-
-        # await t1
-        # await t2
-        # await t3
-        # await t4
-
     def close(self):
+        self.scheduler.shutdown(wait=False)
         self.comments.close()
-        self.scheduler.close()
 
     def exec(self, video_id):
         self.comments = YouTubeCommentAdapter(video_id)
-        print("Ready. YouTubeにコメントしてね。終了時は「quit」または「q」と入力してください。")
+        print("Ready. YouTubeにコメントをしてください。")
 
         # self.voice({"character_reply":"良く来たの。今日は何をするのじゃ？", "current_emotion":"joyful"})
 
