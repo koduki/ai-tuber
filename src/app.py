@@ -6,7 +6,7 @@ from frontend.aituber import AITuber
 
 from flask import Flask, render_template, request
 
-secret_path = f"{os.environ['HOMEPATH']}/.secret/"
+secret_path = "/secret/"
 os.environ["OPENAI_API_KEY"] = open(secret_path + "openai.txt", "r").read()
 os.environ["GOOGLE_API_KEY"] = open(secret_path + "gemini.txt", "r").read()
 os.environ["OBS_WS_PASSWORD"] = open(secret_path + "obs.txt", "r").read()
