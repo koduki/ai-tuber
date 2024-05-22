@@ -25,12 +25,12 @@ ENV PATH="/root/.local/bin:$PATH"
 # ADD RESOURCES
 ENV USER=root
 RUN echo 'no cache'
-ADD ./resources/config /root/.config
-ADD ./resources/vnc /root/.vnc
-ADD ./resources/fluxbox /root/.fluxbox
-ADD ./resources/start-vnc_obs.sh /root/start-vnc_obs.sh
-ADD ./resources/init-yt-key.py /root/init-yt-key.py
-ADD ./resources/bgm.mp3 /root/
+ADD ./dockerfiles/config /root/.config
+ADD ./dockerfiles/vnc /root/.vnc
+ADD ./dockerfiles/fluxbox /root/.fluxbox
+ADD ./dockerfiles/start-vnc_obs.sh /root/start-vnc_obs.sh
+ADD ./dockerfiles/init-yt-key.py /root/init-yt-key.py
+ADD ./dockerfiles/bgm.mp3 /root/
 
 # CRLF to LF
 RUN sed -i 's/\r$//' /root/start-vnc_obs.sh && \
@@ -43,8 +43,8 @@ RUN echo vnc | vncpasswd -f > /root/.vnc/passwd
 RUN chmod 600 /root/.vnc/passwd
 
 # Install App
-ADD ./app /app
-RUN cd /app && poetry install
+ADD ./ /workspaces/ai-tuber
+#RUN cd /app && poetry install
 
 # START
 WORKDIR /root
