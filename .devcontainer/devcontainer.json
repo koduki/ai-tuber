@@ -1,8 +1,10 @@
 {
 	"name": "devenv-aituber",
-	"build": {
-		"dockerfile": "Dockerfile"
-	},
+	"image": "koduki/ai-tuber",
+	"forwardPorts": [6080],
+	// "build": {
+	// 	"dockerfile": "Dockerfile"
+	// },
 	"mounts": [
 		"source=${localEnv:USERPROFILE}/.secret,target=/secret,type=bind"
    ],

@@ -44,7 +44,7 @@ RUN chmod 600 /root/.vnc/passwd
 
 # Install App
 ADD ./ /workspaces/ai-tuber
-#RUN cd /app && poetry install
+RUN cd /workspaces/ai-tuber && poetry install
 
 # START
 WORKDIR /root

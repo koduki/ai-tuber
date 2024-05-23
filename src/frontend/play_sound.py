@@ -12,6 +12,7 @@ class PlaySound:
         print("find sound device:" + output_device_name)
 
         for device in devices:
+            print(device)
             is_output_device_name = output_device_name in device["name"]
             print(device["name"] + ":" + str(is_output_device_name))
             is_output_device_host_api = device["hostapi"] == output_device_host_api
