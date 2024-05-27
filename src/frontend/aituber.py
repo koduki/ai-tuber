@@ -12,7 +12,7 @@ from apscheduler.schedulers.background import BackgroundScheduler
 class AITuber:
     def __init__(self, ai) -> None:
         self.ai = ai
-        self.play_sound = PlaySound("CABLE Input")
+        self.play_sound = PlaySound("pulse")
         self.voicevox_adapter = VoicevoxAdapter()
 
         self.obs = ObsAdapter()

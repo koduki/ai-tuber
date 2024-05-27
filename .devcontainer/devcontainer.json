@@ -1,6 +1,6 @@
 {
 	"name": "devenv-aituber",
-	"image": "koduki/ai-tuber",
+	"image": "gcr.io/ren-studio-ai/ai-tuber",
 	"forwardPorts": [6080],
 	// "build": {
 	// 	"dockerfile": "Dockerfile"

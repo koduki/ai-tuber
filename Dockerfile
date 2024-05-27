@@ -17,6 +17,8 @@ RUN apt install -y obs-studio
 # INSTALL others
 RUN apt install -y \ 
     python3-pip \
+    pulseaudio \
+    libportaudio2 \
     curl
 
 RUN curl -sSL https://install.python-poetry.org | python3 -
