@@ -24,6 +24,9 @@ grandalf = "^0.8"
 chromadb = "^0.4.22"
 flask = "^3.0.2"
 apscheduler = "^3.10.4"
+google-api-python-client = "^2.127.0"
+google-auth-oauthlib = "^1.2.0"
+google-auth = "^2.29.0"
 
 [build-system]
 requires = ["poetry-core"]

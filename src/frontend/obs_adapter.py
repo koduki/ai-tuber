@@ -14,7 +14,7 @@ class ObsAdapter:
             item_id = item["sceneItemId"]
             if item["sourceName"] == name:
                 self.client.set_scene_item_enabled("s001", item_id, True)
-            elif(not item["sourceName"].startswith("LLM") and not item["sourceName"].startswith("BGM")):
+            elif(not item["sourceName"].startswith("LLM") and not item["sourceName"].startswith("BGM") and not item["sourceName"].startswith("Audio")):
                 self.client.set_scene_item_enabled("s001", item_id, False)
 
     def visible_llm(self, name):
@@ -22,7 +22,7 @@ class ObsAdapter:
             item_id = item["sceneItemId"]
             if item["sourceName"] == "LLM_" + name:
                 self.client.set_scene_item_enabled("s001", item_id, True)
-            elif(item["sourceName"].startswith("LLM") and not item["sourceName"].startswith("BGM")):
+            elif(item["sourceName"].startswith("LLM") and not item["sourceName"].startswith("BGM") and not item["sourceName"].startswith("Audio")):
                 self.client.set_scene_item_enabled("s001", item_id, False)
 
 if __name__ == "__main__":

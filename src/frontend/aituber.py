@@ -12,7 +12,7 @@ from apscheduler.schedulers.background import BackgroundScheduler
 class AITuber:
     def __init__(self, ai) -> None:
         self.ai = ai
-        self.play_sound = PlaySound("CABLE Input")
+        self.play_sound = PlaySound("pulse")
         self.voicevox_adapter = VoicevoxAdapter()
 
         self.obs = ObsAdapter()
@@ -27,8 +27,6 @@ class AITuber:
         self.scheduler.add_job(self.task_chat, 'interval', seconds=1)
         self.scheduler.add_job(self.task_voice, 'interval', seconds=1)
         self.scheduler.add_job(self.task_short_talk, 'interval', seconds=60)
-
-        self.scheduler.start()
 
     def _task_gen_voice(self, text):
         ss = time.perf_counter()
@@ -103,6 +101,7 @@ class AITuber:
 
     def exec(self, video_id):
         self.comments = YouTubeCommentAdapter(video_id)
+        self.scheduler.start()
         print("Ready Streaming.")
 
         # self.voice({"character_reply":"良く来たの。今日は何をするのじゃ？", "current_emotion":"joyful"})

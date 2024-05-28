@@ -1,7 +1,7 @@
 import sounddevice as sd
 
 class PlaySound:
-    def __init__(self, output_device_name="CABLE Input") -> None:
+    def __init__(self, output_device_name="pulse") -> None:
         output_device_id = self._search_output_device_id(output_device_name)
         input_device_id = 0
         sd.default.device = [input_device_id, output_device_id]
@@ -12,6 +12,7 @@ class PlaySound:
         print("find sound device:" + output_device_name)
 
         for device in devices:
+            print(device)
             is_output_device_name = output_device_name in device["name"]
             print(device["name"] + ":" + str(is_output_device_name))
             is_output_device_host_api = device["hostapi"] == output_device_host_api
