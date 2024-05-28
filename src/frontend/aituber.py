@@ -28,8 +28,6 @@ class AITuber:
         self.scheduler.add_job(self.task_voice, 'interval', seconds=1)
         self.scheduler.add_job(self.task_short_talk, 'interval', seconds=60)
 
-        self.scheduler.start()
-
     def _task_gen_voice(self, text):
         ss = time.perf_counter()
         data, rate = self.voicevox_adapter.get_voice(text)
@@ -103,6 +101,7 @@ class AITuber:
 
     def exec(self, video_id):
         self.comments = YouTubeCommentAdapter(video_id)
+        self.scheduler.start()
         print("Ready Streaming.")
 
         # self.voice({"character_reply":"良く来たの。今日は何をするのじゃ？", "current_emotion":"joyful"})

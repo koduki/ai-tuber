@@ -5,7 +5,7 @@ import soundfile
 import aiohttp
 
 class VoicevoxAdapter:
-    URL = 'http://localhost:50021/'
+    URL = 'http://voicevox:50021/'
 
     def __init__(self) -> None:
         pass

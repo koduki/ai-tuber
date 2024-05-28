@@ -37,7 +37,7 @@ def start():
 if __name__ == '__main__':
     try:
         print("Admin console is `http://localhost:5000/`")
-        app.run(use_reloader=False, debug=True, port=5000)
+        app.run(use_reloader=False, debug=True, host='0.0.0.0', port=5000)
     except (KeyboardInterrupt, SystemExit):
         pass
     finally:
