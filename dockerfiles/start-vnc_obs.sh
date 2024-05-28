@@ -7,6 +7,10 @@ pactl load-module module-null-sink sink_name=SpeakerOutput sink_properties=devic
 ## Setup OBS Config
 python3 /root/init-yt-key.py
 
+## Run App
+cd /workspaces/ai-tuber
+poetory run python src/app.py
+
 ## Run VNC & OBS
 vncserver -localhost :1
 DISPLAY=:1 obs &

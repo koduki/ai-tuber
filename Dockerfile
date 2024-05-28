@@ -49,5 +49,6 @@ ADD ./ /workspaces/ai-tuber
 RUN cd /workspaces/ai-tuber && poetry install
 
 # START
-WORKDIR /workspaces/ai-tuber
-CMD [ "poetry", "run", "python", "src/app.py"] 
+WORKDIR /root
+RUN chmod a+x /root/start-vnc_obs.sh
+ENTRYPOINT ["/root/start-vnc_obs.sh"]
