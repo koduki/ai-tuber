@@ -9,13 +9,20 @@ services:
       - ./:/workspaces/ai-tuber
       - C:\Users\koduki\.secret\:/secret
     ports:
-      - "6080:6080"
-      - "5901:5901"
       - "5000:5000"
     stdin_open: true
     tty: true
     restart: always
-
+  obs:
+    image: gcr.io/ren-studio-ai/ai-tuber
+    environment:
+      - YT_LIVE_KEY=5cq7-dwud-6fb8-vrs6-8hpk
+    ports:
+      - "6080:6080"
+      - "5901:5901"
+    stdin_open: true
+    tty: true
+    restart: always
   voicevox:
     image: voicevox/voicevox_engine:nvidia-ubuntu20.04-latest
     deploy:
