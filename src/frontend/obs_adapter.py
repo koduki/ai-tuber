@@ -3,7 +3,7 @@ import obsws_python as obs
 
 class ObsAdapter:
     def __init__(self) -> None:
-        host = "obs"
+        host = "localhost"
         port = 4455
         password = os.environ["OBS_WS_PASSWORD"]
 
