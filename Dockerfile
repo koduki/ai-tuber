@@ -30,12 +30,11 @@ RUN echo 'no cache'
 ADD ./dockerfiles/config /root/.config
 ADD ./dockerfiles/vnc /root/.vnc
 ADD ./dockerfiles/fluxbox /root/.fluxbox
-ADD ./dockerfiles/start-vnc_obs.sh /root/start-vnc_obs.sh
+ADD ./dockerfiles/start.sh /root/start.sh
 ADD ./dockerfiles/init-yt-key.py /root/init-yt-key.py
-ADD ./dockerfiles/bgm.mp3 /root/
 
 # CRLF to LF
-RUN sed -i 's/\r$//' /root/start-vnc_obs.sh && \
+RUN sed -i 's/\r$//' /root/start.sh && \
     sed -i 's/\r$//' /root/init-yt-key.py && \
     sed -i 's/\r$//' /root/.fluxbox/apps && \
     sed -i 's/\r$//' /root/.vnc/xstartup
@@ -50,5 +49,5 @@ RUN cd /workspaces/ai-tuber && poetry install
 
 # START
 WORKDIR /root
-RUN chmod a+x /root/start-vnc_obs.sh
-ENTRYPOINT ["/root/start-vnc_obs.sh"]
+RUN chmod a+x /root/start.sh
+ENTRYPOINT ["/root/start.sh"]
