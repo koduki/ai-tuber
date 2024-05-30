@@ -6,17 +6,32 @@
 </head>
 <body>
     <h1>Ren Studio</h1>
-    <input type="text" id="video_id" name="name">
-    <button id="btn_stream-start">配信開始</button>
+    <input type="text" id="title" name="name" value="今日の晩御飯">
+    <button id="btn-stream_start">配信開始</button>
+    <button id="btn-stream_stop">配信終了</button>
+    <button id="btn-ai_start">AITuber起動</button>
+
     <p id="message"></p>
 
     <script>
-        const btn_stream = document.getElementById("btn_stream-start");
+        const btn_stream_start = document.getElementById("btn-stream_start");
+        const btn_stream_stop = document.getElementById("btn-stream_stop");
+        const btn_ai_start = document.getElementById("btn-ai_start");
         const messageElement = document.getElementById("message");
 
-        btn_stream.addEventListener("click", async () => {
-            const video_id = document.getElementById("video_id").value;
-            const data = await post("/start", { "video_id":video_id });
+        btn_stream_start.addEventListener("click", async () => {
+            const title = document.getElementById("title").value;
+            const data = await post("/start_stream", { "title":title });
+            messageElement.textContent = data.message;
+        });
+
+        btn_stream_stop.addEventListener("click", async () => {
+            const data = await post("/stop_stream");
+            messageElement.textContent = data.message;
+        });
+
+        btn_ai_start.addEventListener("click", async () => {
+            const data = await post("/start_ai");
             messageElement.textContent = data.message;
         });
 

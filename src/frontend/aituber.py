@@ -99,10 +99,13 @@ class AITuber:
         print("Shutting down comments...")
         self.comments.close()
 
-    def exec(self, video_id):
-        self.comments = YouTubeCommentAdapter(video_id)
+    def exec(self):
+        self.comments = YouTubeCommentAdapter(self.video_id)
         self.scheduler.start()
-        print("Ready Streaming.")
+        print("Start AITuber.")
+
+    def set_broadcast_id(self, video_id):
+        self.video_id = video_id
 
         # self.voice({"character_reply":"良く来たの。今日は何をするのじゃ？", "current_emotion":"joyful"})
 

@@ -26,13 +26,13 @@ app = Flask(__name__)
 def index():
     return render_template('index.html', title = 'flask test')
 
-@app.route("/start", methods=["post"])
-def start():
-    # data = json.loads(request.data)
+@app.route("/start_stream", methods=["post"])
+def start_stream():
+    data = json.loads(request.data)
     ytlive = YoutubeLiveAdapter()
     youtube_client = ytlive.authenticate_youtube()
 
-    title = "【AI配信テスト】test 【#紅月れん】"
+    title = data["title"]
     description = """AITuber「紅月恋（れん）」の配信テストです。良ければコメントで話しかけてみてください。
 
     # クレジット＆テクノロジー
@@ -52,11 +52,26 @@ def start():
     obs = ObsAdapter()
     obs.start_stream(stream_key)
 
-    # YouTube & OBS, Voice
-    video_id = live_response["broadcast"]["id"]
-    aituber.exec(video_id)
+    aituber.set_broadcast_id(live_response["broadcast"]["id"])
 
-    return live_response
+    print(live_response)
+
+    return {"Message":"Start stream."}
+
+@app.route("/stop_stream", methods=["post"])
+def stop_stream():
+
+    obs = ObsAdapter()
+    obs.stop_stream()
+    # live_response = ytlive.create_live(youtube_client, title, description, start_date, thumbnail_path, "private")
+
+    return {"Message":"Stop stream."}
+
+@app.route("/start_ai", methods=["post"])
+def start_ai():
+    aituber.exec()
+    return {"Message":"Start AI."}
+
 
 if __name__ == '__main__':
     try:
