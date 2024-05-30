@@ -37,7 +37,14 @@ class YoutubeLiveAdapter:
         youtube = build('youtube', 'v3', credentials=creds)
         return youtube
     
-    def create_broadcast(self, youtube, title, description, scheduledStartTime, privacy_status="private"):
+    def create_live(self, youtube, title, description, scheduledStartTime, thumbnail_path, privacy_status="private"):
+        broadcast_response = self._create_broadcast(youtube, title, description, scheduledStartTime, privacy_status)
+        thumbnail_response = self._set_thumbnail(youtube, broadcast_response['id'], thumbnail_path)
+        stream_response = self._create_stream(youtube, title + "_Stream")
+        bind_response = self._bind_broadcast_to_stream(youtube, broadcast_response['id'], stream_response['id'])
+        return {"broadcast":broadcast_response, "thumbnail":thumbnail_response, "stream":stream_response, "bind":bind_response}
+    
+    def _create_broadcast(self, youtube, title, description, scheduledStartTime, privacy_status="private"):
         """Create a live broadcast on YouTube."""
         res = youtube.liveBroadcasts().insert(
             part="snippet,status,contentDetails",
@@ -48,17 +55,28 @@ class YoutubeLiveAdapter:
                     scheduledStartTime=scheduledStartTime
                 ),
                 contentDetails=dict(
-                    enableAutoStart=True
+                    enableAutoStart=True,
+                    latencyPreference="ultraLow"  # 超低遅延
                 ),
                 status=dict(
                     privacyStatus=privacy_status
                 )
             )
         ).execute()
-        
+         
         return res
-
-    def create_stream(self, youtube, title):
+    
+    def _set_thumbnail(self, youtube, broadcast_id, thumbnail_path):
+        """Set the thumbnail for a YouTube live broadcast."""
+        request = youtube.thumbnails().set(
+            videoId=broadcast_id,
+            media_body=thumbnail_path
+        )
+        response = request.execute()
+        
+        return response
+    
+    def _create_stream(self, youtube, title):
         res = youtube.liveStreams().insert(
             part="snippet,cdn",
             body=dict(
@@ -66,28 +84,28 @@ class YoutubeLiveAdapter:
                     title=title
                 ),
                 cdn=dict(
-                    format="1080p",
+                    format="720p",
                     ingestionType="rtmp",
-                    resolution="1080p",  # 解像度を追加
+                    resolution="720p",  # 解像度を720pに設定
                     frameRate="30fps"  # フレームレートを追加
                 )
             )
         ).execute()
-
+        
         return res
-
-    def bind_broadcast_to_stream(self, youtube, broadcast_id, stream_id):
+    
+    def _bind_broadcast_to_stream(self, youtube, broadcast_id, stream_id):
         bind_response = youtube.liveBroadcasts().bind(
             part="id,contentDetails",
             id=broadcast_id,
             streamId=stream_id
         ).execute()
-
+    
         return bind_response
-
-    def stop_broadcast(self, youtube, broadcast_id):
+    
+    def stop_live(self, youtube, broadcast_id):
         """Stop a live broadcast on YouTube."""
-
+        
         res = youtube.liveBroadcasts().transition(
             broadcastStatus="complete",
             id=broadcast_id,
@@ -102,15 +120,24 @@ if __name__ == "__main__":
 
     youtube_client = ytlive.authenticate_youtube()
 
-    title = "Hello World4"
-    desc  = "こんにいてゃ"
+    title = "【AI配信テスト】test 【#紅月れん】"
+    description = """AITuber「紅月恋（れん）」の配信テストです。良ければコメントで話しかけてみてください。
+
+    # クレジット＆テクノロジー
+    キャラ絵はStable Diffusionで生成しました。
+    LLMはChatGPTまたはGemini Proを利用しています。
+    BGMはSuno.aiで作成しました。
+    音声は「VOICEVOX:猫使ビィ」を利用させていただいています。
+    - https://voicevox.hiroshiba.jp/
+    - https://nekotukarb.wixsite.com/nekonohako/%E5%88%A9%E7%94%A8%E8%A6%8F%E7%B4%84
+    """
     start_date = '2024-06-30T00:00:00.000Z'
-    broadcast_response = ytlive.create_broadcast(youtube_client, title, desc, start_date)
-    stream_response = ytlive.create_stream(youtube_client, title + "_Stream")
-    bind_response = ytlive.bind_broadcast_to_stream(youtube_client, broadcast_response['id'], stream_response['id'])
+    thumbnail_path = '/workspaces/ai-tuber/obs_data/ai_normal.png'
+
+    live_response = ytlive.create_live(youtube_client, title, description, start_date, thumbnail_path, "private")
 
     # Extract the stream key:
-    stream_key = stream_response['cdn']['ingestionInfo']['streamName']
+    stream_key = live_response['stream']['cdn']['ingestionInfo']['streamName']
 
 
     import obsws_python as obs
@@ -124,4 +151,4 @@ if __name__ == "__main__":
     client.start_stream()
 
     client.stop_stream()
-    stop_response = ytlive.stop_broadcast(youtube_client, broadcast_response['id'])
+    stop_response = ytlive.stop_live(youtube_client, broadcast_response['id'])

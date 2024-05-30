@@ -24,6 +24,16 @@ class ObsAdapter:
                 self.client.set_scene_item_enabled("s001", item_id, True)
             elif(item["sourceName"].startswith("LLM") and not item["sourceName"].startswith("BGM") and not item["sourceName"].startswith("Audio")):
                 self.client.set_scene_item_enabled("s001", item_id, False)
+    
+    def start_stream(self, stream_key):
+        settings = self.client.get_stream_service_settings().stream_service_settings
+        settings['key'] = stream_key
+        
+        self.client.set_stream_service_settings("rtmp_common", settings)
+        return self.client.start_stream()
+
+    def stop_stream(self):
+        return self.client.stop_stream()
 
 if __name__ == "__main__":
     import time

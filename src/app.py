@@ -3,6 +3,8 @@ import json
 
 from backend.chatai import ChatAI
 from frontend.aituber import AITuber
+from frontend.obs_adapter import ObsAdapter
+from frontend.youtube_live_adapter import YoutubeLiveAdapter
 
 from flask import Flask, render_template, request
 
@@ -26,13 +28,35 @@ def index():
 
 @app.route("/start", methods=["post"])
 def start():
-    data = json.loads(request.data)
-    video_id = data.get("video_id")
+    # data = json.loads(request.data)
+    ytlive = YoutubeLiveAdapter()
+    youtube_client = ytlive.authenticate_youtube()
+
+    title = "【AI配信テスト】test 【#紅月れん】"
+    description = """AITuber「紅月恋（れん）」の配信テストです。良ければコメントで話しかけてみてください。
+
+    # クレジット＆テクノロジー
+    キャラ絵はStable Diffusionで生成しました。
+    LLMはChatGPTまたはGemini Proを利用しています。
+    BGMはSuno.aiで作成しました。
+    音声は「VOICEVOX:猫使ビィ」を利用させていただいています。
+    - https://voicevox.hiroshiba.jp/
+    - https://nekotukarb.wixsite.com/nekonohako/%E5%88%A9%E7%94%A8%E8%A6%8F%E7%B4%84
+    """
+    start_date = '2024-06-30T00:00:00.000Z'
+    thumbnail_path = '/workspaces/ai-tuber/obs_data/ai_normal.png'
+
+    live_response = ytlive.create_live(youtube_client, title, description, start_date, thumbnail_path, "private")
+    stream_key = live_response['stream']['cdn']['ingestionInfo']['streamName']
+
+    obs = ObsAdapter()
+    obs.start_stream(stream_key)
 
     # YouTube & OBS, Voice
+    video_id = live_response["broadcast"]["id"]
     aituber.exec(video_id)
 
-    return {"message":"Success: " + video_id}
+    return live_response
 
 if __name__ == '__main__':
     try:
