@@ -45,6 +45,13 @@ ai.say_chat({"speaker":"koduki", "message":"今日の東京都の天気は？"})
 ai.say_short_talk()
 ```
 
+Google認証の実行
+
+```python
+from frontend.youtube_live_adapter import YoutubeLiveAdapter
+YoutubeLiveAdapter().authenticate_youtube()
+```
+
 ## Special Thanks.
 
 以下のコードやプロンプトを参考にさせて頂いています。

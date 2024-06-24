@@ -6,7 +6,7 @@ services:
     environment:
       - YT_LIVE_KEY=xxx-xxx-xxx-xxx-xxx
     volumes:
-      # - ./:/workspaces/ai-tuber
+      - ./:/workspaces/ai-tuber
       - C:\Users\koduki\.secret\:/secret
     ports:
       - "6080:6080"

@@ -1,6 +1,6 @@
 import os
 from google.oauth2.credentials import Credentials
-from google_auth_oauthlib.flow import InstalledAppFlow
+from google_auth_oauthlib.flow import Flow
 from googleapiclient.discovery import build
 from google.auth.transport.requests import Request 
 
@@ -27,9 +27,23 @@ class YoutubeLiveAdapter:
             if creds and creds.expired and creds.refresh_token:
                 creds.refresh(Request())
             else:
-                flow = InstalledAppFlow.from_client_secrets_file(
-                    'C:\\Users\\koduki\\.secret\\google_client_secret.json', scopes)
-                creds = flow.run_local_server(port=0)
+                flow = Flow.from_client_secrets_file(
+                    '/secret/google_client_secret.json',
+                    scopes=scopes,
+                    redirect_uri='urn:ietf:wg:oauth:2.0:oob')
+                auth_url, _ = flow.authorization_url(prompt='consent')
+                print('Please go to this URL: {}'.format(auth_url))
+                code = input('Enter the authorization code: ')
+                credential = flow.fetch_token(code=code)
+                creds = Credentials(
+                    token=credential['access_token'],
+                    refresh_token=credential['refresh_token'],
+                    token_uri=flow.client_config['token_uri'],
+                    client_id=flow.client_config['client_id'],
+                    client_secret=flow.client_config['client_secret'],
+                    scopes=scopes
+                )
+
             # Save the credentials for the next run
             with open(token_file, 'w') as token:
                 token.write(creds.to_json())
