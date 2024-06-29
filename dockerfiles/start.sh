@@ -9,7 +9,7 @@ python3 /root/init-yt-key.py
 
 ## Run App
 cd /workspaces/ai-tuber
-poetry run python src/app.py &
+poetry run python -u src/app.py &
 
 ## Run VNC & OBS
 vncserver -localhost :1

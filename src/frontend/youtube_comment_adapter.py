@@ -8,7 +8,6 @@ class YouTubeCommentAdapter:
     def __init__(self, video_id):
         script_path = os.path.join(os.path.dirname(__file__), 'fetch_comments.py')
         self.process = subprocess.Popen(['python', script_path, video_id], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, bufsize=1)
-
         self.q = queue.Queue()
         self.thread = threading.Thread(target=self.enqueue_output, args=(self.process.stdout, self.q))
         self.thread.daemon = True  # スレッドがデーモン化され、メインプログラム終了時に終了
