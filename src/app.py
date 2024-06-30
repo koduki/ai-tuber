@@ -28,10 +28,12 @@ def index():
 
 @app.route("/start_stream", methods=["post"])
 def start_stream():
-    import sys
-    sys.stdout.flush()
     print("click start_stream")
-
+    import logging
+    app.logger.setLevel(logging.INFO)
+    app.logger.info('hello')
+    app.logger.info("click start_stream")
+    
     data = json.loads(request.data)
     ytlive = YoutubeLiveAdapter()
     youtube_client = ytlive.authenticate_youtube()
@@ -47,7 +49,7 @@ def start_stream():
     - https://voicevox.hiroshiba.jp/
     - https://nekotukarb.wixsite.com/nekonohako/%E5%88%A9%E7%94%A8%E8%A6%8F%E7%B4%84
     """
-    start_date = '2024-06-30T00:00:00.000Z'
+    start_date = '2024-07-30T00:00:00.000Z'
     thumbnail_path = '/workspaces/ai-tuber/obs_data/ai_normal.png'
 
     live_response = ytlive.create_live(youtube_client, title, description, start_date, thumbnail_path, "unlisted")

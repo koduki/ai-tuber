@@ -2,6 +2,7 @@
 FROM debian:12-slim
 
 ENV YT_LIVE_KEY=
+ENV PYTHONUNBUFFERED 1
 EXPOSE 6080
 
 # Set Timezone

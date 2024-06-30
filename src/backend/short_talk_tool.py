@@ -47,15 +47,17 @@ def _update_news():
     # xs = list(map(lambda item: item.find('{http://purl.org/rss/1.0/}link').text, root.findall('./{http://purl.org/rss/1.0/}item')))
     # urls.extend(xs)
 
-    root = _parse_rss("https://www.theguardian.com/world/extreme-weather/rss")
-    xs = list(map(lambda item: item.find("link").text, root.findall("channel/item")))
-    urls.extend(xs)
+    # root = _parse_rss("https://www.theguardian.com/world/extreme-weather/rss")
+    # xs = list(map(lambda item: item.find("link").text, root.findall("channel/item")))
+    # urls.extend(xs)
     
-    root = _parse_rss("https://www.jstage.jst.go.jp/AF05S010NewRssDld?btnaction=JT0041&sryCd=jmsj&rssLang=en")
+    # root = _parse_rss("https://www.jstage.jst.go.jp/AF05S010NewRssDld?btnaction=JT0041&sryCd=jmsj&rssLang=en")
+    # xs = list(map(lambda item: item.find('{http://www.w3.org/2005/Atom}link').attrib['href'], root.findall('./{http://www.w3.org/2005/Atom}entry')))
+    # urls.extend(xs)
+    
+    root = _parse_rss("https://www.publickey1.jp/atom.xml")
     xs = list(map(lambda item: item.find('{http://www.w3.org/2005/Atom}link').attrib['href'], root.findall('./{http://www.w3.org/2005/Atom}entry')))
     urls.extend(xs)
-    
-    
     
     # root = self._parse_rss("https://gigazine.net/news/rss_2.0/")
     # software_items = [item for item in root.findall("channel/item") if "ソフトウェア" in item.find("{http://purl.org/dc/elements/1.1/}subject").text]
