@@ -44,6 +44,21 @@ class ChatAI:
         ]).partial(format_instructions=parser.get_format_instructions())
 
         return prompt
+    
+    def _mk_prompt4chat_without_tools(self):
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        file_path = os.path.join(script_dir, 'prompt_system.txt')
+        prompt_system = open(file_path, "r", encoding='utf-8').read()
+
+        parser = self._mk_parser()
+
+        prompt = ChatPromptTemplate.from_messages([
+            ("system", prompt_system),
+            ("user", "{input}"),
+            MessagesPlaceholder(variable_name="chat_history"),
+        ]).partial(format_instructions=parser.get_format_instructions())
+
+        return prompt
         
     def use_llm(self, llm_model):
         self.llm_model = llm_model
@@ -54,7 +69,7 @@ class ChatAI:
         from langchain_google_genai import ChatGoogleGenerativeAI
 
         if llm_model == 'gpt4':
-            llm = ChatOpenAI(model_name="gpt-4-turbo", temperature=0).bind(response_format={"type": "json_object"})
+            llm = ChatOpenAI(model_name="gpt-4o-2024-05-13", temperature=0).bind(response_format={"type": "json_object"})
         elif llm_model == 'gpt3':
             llm = ChatOpenAI(model_name="gpt-3.5-turbo", temperature=0)
         elif llm_model == 'gemini':
@@ -64,19 +79,21 @@ class ChatAI:
 
         # チェインを作成
         from langchain.memory import ConversationBufferWindowMemory
-        memory = ConversationBufferWindowMemory(memory_key="chat_history", return_messages=True, k=10)
+        self.aimemory = ConversationBufferWindowMemory(memory_key="chat_history", return_messages=True, k=10)
         prompt_for_tools = ChatPromptTemplate.from_messages([
             ("system", "You are agentai"),
             ("user", "{input}"),
         ])
         prompt_for_chat = self._mk_prompt4chat()
 
-        tools = [weather_tool.weather_api, short_talk_tool.talk]
+        # tools = [weather_tool.weather_api, short_talk_tool.talk]
+        tools = [weather_tool.weather_api]
 
         llm_for_chat = llm
         llm_with_tools = ChatOpenAI(temperature=0, model='gpt-3.5-turbo').bind(functions=[convert_to_openai_function(t) for t in tools])
 
-        rooter = (
+        # 会話用LLM
+        self.chat_chain = lambda memory: (
             RunnablePassthrough().assign(
                 chat_history=RunnableLambda(memory.load_memory_variables) | itemgetter("chat_history"),
                 agent_scratchpad=prompt_for_tools | llm_with_tools | OpenAIFunctionsAgentOutputParser() | call_func(tools) | format_to_openai_functions
@@ -85,9 +102,14 @@ class ChatAI:
             )| store_memory(memory) | to_json
         )
 
-        self.chat_chain = rooter
-
-    #
+        # 特殊トーク用LLM
+        self.chat_chain_without_tools = lambda memory: (
+            RunnablePassthrough().assign(
+                chat_history=RunnableLambda(memory.load_memory_variables) | itemgetter("chat_history")
+            ) | RunnablePassthrough().assign(
+                return_values=self._mk_prompt4chat_without_tools() | llm_for_chat | OpenAIFunctionsAgentOutputParser(),
+            ) | store_memory(memory) | to_json
+        )
     # methods
     #
     def _say(self, comment):
@@ -96,7 +118,7 @@ class ChatAI:
         print("start:llm")
         ls = time.perf_counter()
         msg = json.dumps(comment)
-        res = self.chat_chain.invoke({"input":msg}) # {"speaker":c.author.name, "message":c.message}
+        res = self.chat_chain_without_tools(self.aimemory).invoke({"input":msg}) # {"speaker":c.author.name, "message":c.message}
         le = time.perf_counter()
         print("finish:llm response(sec): " + str(le - ls))
         print("res: " + str(res))

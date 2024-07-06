@@ -104,9 +104,18 @@ class AITuber:
         self.scheduler.start()
         print("Start AITuber.")
 
+        import time
+
+        self.voice({"character_reply":"みなのものおはよう。紅月れんなのじゃ。朝活配信をやっていくぞ。", "current_emotion":"joyful"})
+        time.sleep(1)
+
+        self.voice({"character_reply":"まずは今日の天気からじゃな。", "current_emotion":"joyful"})
+        self.voice({"character_reply":"札幌の天気は晴れ、東京の天気は32度、福岡は雨じゃな。", "current_emotion":"joyful"})
+        self.voice({"character_reply":"2日も梅雨前線が西日本から東日本に延びて、", "current_emotion":"joyful"})
+        self.voice({"character_reply":"活動の活発な状態が続く見込みのようじゃから注意が必要じゃぞ。", "current_emotion":"joyful"})
+        self.voice({"character_reply":"天気に関して聞きたいことは何かあるのか？", "current_emotion":"joyful"})
+
+
     def set_broadcast_id(self, video_id):
         self.video_id = video_id
-
-        # self.voice({"character_reply":"良く来たの。今日は何をするのじゃ？", "current_emotion":"joyful"})
-
 
