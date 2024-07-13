@@ -27,6 +27,7 @@ google-api-python-client = "^2.127.0"
 google-auth-oauthlib = "^1.2.0"
 google-auth = "^2.29.0"
 yfinance = "^0.2.40"
+feedparser = "^6.0.11"
 
 [build-system]
 requires = ["poetry-core"]

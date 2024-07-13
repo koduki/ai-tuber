@@ -47,13 +47,18 @@ def _parse2json(json_text):
 
 def store_memory(memory):
     def f(response):
-        print("raw_output: " + str(response["return_values"].return_values['output']))
-        print("history: " + _format_messges(response['chat_history']))
+        # raw_output: return_values={'output': '{\n  "current_emotion": "joyful",\n  "character_reply": "はじめましてなのじゃ。お ぬしの名前はなんというのじゃ？"\n}'} log='{\n  "current_emotion": "joyful",\n  "character_reply": "はじめましてなのじゃ 。おぬしの名前はなんというのじゃ？"\n}'
+        
+        # print("raw_output: " + str(response["return_values"].return_values['output']))
+        print("raw_output: " + str(response.return_values['output']))
 
-        input = {"input":response["input"]}
-        output = {"output": _parse2json(response["return_values"].return_values['output'])}
+        # print("history: " + _format_messges(response['chat_history']))
 
-        memory.save_context(input, output)
+        # input = {"input":response["input"]}
+        # output = {"output": _parse2json(response["return_values"].return_values['output'])}
+        output = {"output": _parse2json(response.return_values['output'])}
+
+        # memory.save_context(input, output)
         return output
     
     return f

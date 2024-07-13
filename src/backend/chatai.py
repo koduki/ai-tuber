@@ -55,7 +55,6 @@ class ChatAI:
         prompt = ChatPromptTemplate.from_messages([
             ("system", prompt_system),
             ("user", "{input}"),
-            MessagesPlaceholder(variable_name="chat_history"),
         ]).partial(format_instructions=parser.get_format_instructions())
 
         return prompt
@@ -104,11 +103,13 @@ class ChatAI:
 
         # 特殊トーク用LLM
         self.chat_chain_without_tools = lambda memory: (
-            RunnablePassthrough().assign(
-                chat_history=RunnableLambda(memory.load_memory_variables) | itemgetter("chat_history")
-            ) | RunnablePassthrough().assign(
-                return_values=self._mk_prompt4chat_without_tools() | llm_for_chat | OpenAIFunctionsAgentOutputParser(),
-            ) | store_memory(memory) | to_json
+            # RunnablePassthrough().assign(
+            #     chat_history=RunnableLambda(memory.load_memory_variables) | itemgetter("chat_history")
+            # ) | RunnablePassthrough().assign(
+            #     return_values=self._mk_prompt4chat_without_tools() | llm_for_chat | OpenAIFunctionsAgentOutputParser(),
+            # ) | store_memory(memory) | to_json
+
+           self._mk_prompt4chat_without_tools() | llm_for_chat | OpenAIFunctionsAgentOutputParser()| store_memory(memory) | to_json
         )
     # methods
     #
