@@ -111,6 +111,7 @@ class ChatAI:
 
            self._mk_prompt4chat_without_tools() | llm_for_chat | OpenAIFunctionsAgentOutputParser()| store_memory(memory) | to_json
         )
+ 
     # methods
     #
     def _say(self, comment):

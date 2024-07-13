@@ -26,7 +26,7 @@ class AITuber:
         self.scheduler = BackgroundScheduler()
         self.scheduler.add_job(self.task_chat, 'interval', seconds=1)
         self.scheduler.add_job(self.task_voice, 'interval', seconds=1)
-        self.scheduler.add_job(self.task_short_talk, 'interval', seconds=60)
+        # self.scheduler.add_job(self.task_short_talk, 'interval', seconds=60)
 
     def _task_gen_voice(self, text):
         ss = time.perf_counter()
@@ -99,6 +99,10 @@ class AITuber:
         print("Shutting down comments...")
         self.comments.close()
 
+    def syscall(self, message):
+        reply = self.ai.say_chat({"speaker":"system", "message":message})
+        self.voice_q.put(reply)    
+
     def exec(self):
         self.comments = YouTubeCommentAdapter(self.video_id)
         self.scheduler.start()
@@ -106,14 +110,35 @@ class AITuber:
 
         import time
 
-        self.voice({"character_reply":"みなのものおはよう。紅月れんなのじゃ。朝活配信をやっていくぞ。", "current_emotion":"joyful"})
-        time.sleep(1)
+        import datetime
+        today = datetime.date.today().strftime("%Y/%m/%d")
+        self.syscall(f"今日は{today}です。朝活配信として適当な出だしの雑談をしてください。今日の日付や季節にちなんだ話題が良いです。雑談は400文字程度。雑談の後は天気予報を話すので、続けやすい締めにしてください。出だしは「みなのものおはよう。紅月れんなのじゃ。朝活配信をやっていくぞ。」です。")
+        time.sleep(30)
 
-        self.voice({"character_reply":"まずは今日の天気からじゃな。", "current_emotion":"joyful"})
-        self.voice({"character_reply":"札幌の天気は晴れ、東京の天気は32度、福岡は雨じゃな。", "current_emotion":"joyful"})
-        self.voice({"character_reply":"2日も梅雨前線が西日本から東日本に延びて、", "current_emotion":"joyful"})
-        self.voice({"character_reply":"活動の活発な状態が続く見込みのようじゃから注意が必要じゃぞ。", "current_emotion":"joyful"})
-        self.voice({"character_reply":"天気に関して聞きたいことは何かあるのか？", "current_emotion":"joyful"})
+        from backend.weather_api import weather_all_japan_api
+        weather = weather_all_japan_api()
+        self.syscall(f"今日は{today}です。次の情報を元に全国の天気の解説してください。出だし「まずは今日の天気じゃ」です。天気の情報を元に300文字程度でアドバイスや小話をして、「この後は為替とその辺の話じゃ」で締めてください。{weather}")
+        time.sleep(60)
+        
+        from backend.finantial_tool import get_finance_index
+        idx = get_finance_index()
+        self.syscall(f"今日の為替や株価を次の情報を元に解説してください。気になるポイントを経済の知識と照らし合わせてコメントしてください。出だしは「つづいて経済の話をしよう」です。締めは「みんな儲かっとるかの？」です。{idx}")
+        time.sleep(45)
+        
+        from backend.breaking_news_tool import get_news_by_rss
+        r1 = get_news_by_rss("https://news.yahoo.co.jp/rss/topics/top-picks.xml")
+        r2 = get_news_by_rss("https://news.yahoo.co.jp/rss/topics/domestic.xml")
+        combined = [frozenset(d.items()) for d in r1 + r2]
+        unique_dicts = [dict(fs) for fs in set(combined)]
+        self.syscall(f"「本日の世の中の動き」として、次のニュースの見出しを読み上げて、それぞれ感想を視聴者に語ってください。出だしは「それでは今日の世の中の動きをすこしみてみるかの」です。見出しを読み上げた後に総括を400文字でしてください。{unique_dicts}")
+        time.sleep(39)
+        
+        from backend.memorial_day_tool import get_memorial
+        memorial = get_memorial()
+        self.syscall(f"今日は「{memorial}」です。関連する話を500文字で話して。出だしは「最後に今日は何の日？のコーナーじゃ。今日は」です")
+        time.sleep(60)
+
+        self.syscall(f"朝の配信の締めをしてください。「ハッピーハッキング」で終わってください。")
 
 
     def set_broadcast_id(self, video_id):
