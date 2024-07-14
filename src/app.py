@@ -18,8 +18,8 @@ from backend.chatai import ChatAI
 ai = ChatAI("gpt4")
 aituber = AITuber(ai)
 
-
 # Start Web
+stream_key = None 
 app = Flask(__name__)
 
 @app.route('/')
@@ -28,6 +28,8 @@ def index():
 
 @app.route("/start_stream", methods=["post"])
 def start_stream():
+    global stream_key
+    
     print("click start_stream")
     import logging
     app.logger.setLevel(logging.INFO)
@@ -54,12 +56,9 @@ def start_stream():
 
     live_response = ytlive.create_live(youtube_client, title, description, start_date, thumbnail_path, "unlisted")
     stream_key = live_response['stream']['cdn']['ingestionInfo']['streamName']
-
-    obs = ObsAdapter()
-    obs.start_stream(stream_key)
-
     aituber.set_broadcast_id(live_response["broadcast"]["id"])
 
+    print(f"Stream Key: {stream_key}")  # デバッグ出力
     print(live_response)
     print("/click start_stream")
     return {"Message":"Start stream."}
@@ -76,7 +75,13 @@ def stop_stream():
 
 @app.route("/start_ai", methods=["post"])
 def start_ai():
+    global stream_key
+
     print("click start_ai")
+    print(stream_key)
+    print("--------")
+    obs = ObsAdapter()
+    obs.start_stream(stream_key)
     aituber.exec()
     print("/click start_ai")
     return {"Message":"Start AI."}
