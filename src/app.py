@@ -28,13 +28,9 @@ def index():
 
 @app.route("/create_stream", methods=["post"])
 def create_stream():
-    global stream_key
-    
     print("click create_stream")
     
     data = json.loads(request.data)
-    ytlive = YoutubeLiveAdapter()
-    youtube_client = ytlive.authenticate_youtube()
 
     title = data["title"]
     description = data["description"]
@@ -44,24 +40,13 @@ def create_stream():
     print(thumbnail_path)
     privacy_status = data["privacy_status"]
 
-    live_response = ytlive.create_live(youtube_client, title, description, start_date, thumbnail_path, privacy_status)
-    stream_key = live_response['stream']['cdn']['ingestionInfo']['streamName']
+    ytlive = YoutubeLiveAdapter()
+    live_response = ytlive.create_live(title, description, start_date, thumbnail_path, privacy_status)
 
-    print(f"Stream Key: {stream_key}")  # デバッグ出力
     print(live_response)
     print("/click create_stream")
 
     return live_response
-
-@app.route("/stop_stream", methods=["post"])
-def stop_stream():
-    print("click stop_stream")
-    obs = ObsAdapter()
-    obs.stop_stream()
-    print("/click stop_stream")
-    # live_response = ytlive.create_live(youtube_client, title, description, start_date, thumbnail_path, "private")
-
-    return {"Message":"Stop stream."}
 
 @app.route("/start_ai", methods=["post"])
 def start_ai():
@@ -81,6 +66,23 @@ def start_ai():
     print("/click start_ai")
     return {"Message":"Start AI."}
 
+@app.route("/stop_stream", methods=["post"])
+def stop_stream():
+    print("click stop_stream")
+
+    data = json.loads(request.data)
+    print(data)
+    broadcast_id = data["broadcastId"]
+
+    obs = ObsAdapter()
+    obs.stop_stream()
+
+    ytlive = YoutubeLiveAdapter()
+    ytlive.stop_live(broadcast_id)
+
+    print("/click stop_stream")
+
+    return {"Message":"Stop stream."}
 
 if __name__ == '__main__':
     try:

@@ -113,17 +113,17 @@ class AITuber:
         import datetime
         today = datetime.date.today().strftime("%Y/%m/%d")
         self.syscall(f"今日は{today}です。朝活配信として適当な出だしの雑談をしてください。今日の日付や季節にちなんだ話題が良いです。雑談は400文字程度。雑談の後は天気予報を話すので、続けやすい締めにしてください。出だしは「みなのものおはよう。紅月れんなのじゃ。朝活配信をやっていくぞ。」です。")
-        time.sleep(36)
+        time.sleep(32)
 
         from backend.weather_api import weather_all_japan_api
         weather = weather_all_japan_api()
         self.syscall(f"今日は{today}です。次の情報を元に全国の天気の解説してください。出だし「まずは今日の天気じゃ」です。天気の情報を元に300文字程度でアドバイスや小話をして、「この後は為替とその辺の話じゃ」で締めてください。{weather}")
-        time.sleep(50)
+        time.sleep(53)
         
         from backend.finantial_tool import get_finance_index
         idx = get_finance_index()
         self.syscall(f"今日の為替や株価を次の情報を元に解説してください。気になるポイントを経済の知識と照らし合わせてコメントしてください。出だしは「つづいて経済の話をしよう」です。締めは「みんな儲かっとるかの？」です。{idx}")
-        time.sleep(45)
+        time.sleep(42)
         
         from backend.breaking_news_tool import get_news_by_rss
         r1 = get_news_by_rss("https://news.yahoo.co.jp/rss/topics/top-picks.xml")

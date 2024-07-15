@@ -78,7 +78,7 @@ BGMはSuno.aiで作成しました。
                 row.innerHTML = `
                     <td>
                         <div class="title">
-                            <a href="https://studio.youtube.com/video/${stream.id}/livestreaming">
+                            <a href="https://studio.youtube.com/video/${stream.broadcastId}/livestreaming">
                                 <img src="${stream.thumbnail}" alt="${stream.title}" class="thumbnail">
                                 <span>${stream.title}</span>
                             </a>
@@ -95,6 +95,13 @@ BGMはSuno.aiで作成しました。
                     const streamName = event.target.getAttribute('data-stream-name');
                     console.log(`ID: ${broadcastId}, Stream Name: ${streamName}`);
                     const res = await post("/start_ai", { broadcastId: broadcastId, streamName: streamName });
+                    console.log(res);
+                }));
+
+                row.querySelector('.btn-stream_stop').addEventListener('click', (async (event) => {
+                    const broadcastId = event.target.getAttribute('data-id');
+                    console.log(`ID: ${broadcastId}`);
+                    const res = await post("/stop_stream", { broadcastId: broadcastId });
                     console.log(res);
                 }));
                 tableBody.appendChild(row);

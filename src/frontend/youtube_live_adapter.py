@@ -6,6 +6,7 @@ from google.auth.transport.requests import Request
 
 class YoutubeLiveAdapter:
     def __init__(self) -> None:
+        self.youtube_client = self.authenticate_youtube()
         pass
     
     # Step 2: Set up credentials and YouTube API client
@@ -51,11 +52,11 @@ class YoutubeLiveAdapter:
         youtube = build('youtube', 'v3', credentials=creds)
         return youtube
     
-    def create_live(self, youtube, title, description, scheduledStartTime, thumbnail_path, privacy_status="private"):
-        broadcast_response = self._create_broadcast(youtube, title, description, scheduledStartTime, privacy_status)
-        thumbnail_response = self._set_thumbnail(youtube, broadcast_response['id'], thumbnail_path)
-        stream_response = self._create_stream(youtube, title + "_Stream")
-        bind_response = self._bind_broadcast_to_stream(youtube, broadcast_response['id'], stream_response['id'])
+    def create_live(self, title, description, scheduledStartTime, thumbnail_path, privacy_status="private"):
+        broadcast_response = self._create_broadcast(self.youtube_client, title, description, scheduledStartTime, privacy_status)
+        thumbnail_response = self._set_thumbnail(self.youtube_client, broadcast_response['id'], thumbnail_path)
+        stream_response = self._create_stream(self.youtube_client, title + "_Stream")
+        bind_response = self._bind_broadcast_to_stream(self.youtube_client, broadcast_response['id'], stream_response['id'])
         return {"broadcast":broadcast_response, "thumbnail":thumbnail_response, "stream":stream_response, "bind":bind_response}
     
     def _create_broadcast(self, youtube, title, description, scheduledStartTime, privacy_status="private"):
@@ -117,10 +118,10 @@ class YoutubeLiveAdapter:
     
         return bind_response
     
-    def stop_live(self, youtube, broadcast_id):
+    def stop_live(self, broadcast_id):
         """Stop a live broadcast on YouTube."""
         
-        res = youtube.liveBroadcasts().transition(
+        res = self.youtube_client.liveBroadcasts().transition(
             broadcastStatus="complete",
             id=broadcast_id,
             part="id,status"
