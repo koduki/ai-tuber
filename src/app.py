@@ -51,7 +51,7 @@ def start_stream():
     - https://voicevox.hiroshiba.jp/
     - https://nekotukarb.wixsite.com/nekonohako/%E5%88%A9%E7%94%A8%E8%A6%8F%E7%B4%84
     """
-    start_date = '2024-07-30T00:00:00.000Z'
+    start_date = '2024-07-15T01:00:00.000Z'
     thumbnail_path = '/workspaces/ai-tuber/obs_data/ai_normal.png'
 
     live_response = ytlive.create_live(youtube_client, title, description, start_date, thumbnail_path, "unlisted")

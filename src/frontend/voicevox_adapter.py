@@ -2,13 +2,25 @@ import json
 import requests
 import io
 import soundfile
-import aiohttp
 
 class VoicevoxAdapter:
     URL = 'http://voicevox:50021/'
 
     def __init__(self) -> None:
-        pass
+        import requests
+        import json
+
+        # JSONファイルを読み込む
+        with open('/workspaces/ai-tuber/user_dict.json', 'r') as file:
+            data = json.load(file)
+
+        # POSTリクエストを送信する
+        url = self.URL + 'import_user_dict?override=true'
+        headers = {'Content-Type': 'application/json'}
+        response = requests.post(url, headers=headers, json=data)
+
+        # レスポンスを表示する
+        print(response.status_code)
 
     def __create_audio_query(self, text: str, speaker_id: int) -> json:
         item_data = {
