@@ -118,6 +118,16 @@ class YoutubeLiveAdapter:
     
         return bind_response
     
+    def list_live(self):
+        """List all live broadcasts on YouTube."""
+        
+        res = self.youtube_client.liveBroadcasts().list(
+            part="id,snippet,status",
+            broadcastStatus="all"
+        ).execute()
+        
+        return res
+    
     def stop_live(self, broadcast_id):
         """Stop a live broadcast on YouTube."""
         

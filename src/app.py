@@ -42,10 +42,9 @@ def create_stream():
 
     ytlive = YoutubeLiveAdapter()
     live_response = ytlive.create_live(title, description, start_date, thumbnail_path, privacy_status)
-
     print(live_response)
-    print("/click create_stream")
 
+    print("/click create_stream")
     return live_response
 
 @app.route("/start_ai", methods=["post"])
