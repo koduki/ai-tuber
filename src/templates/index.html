@@ -1,21 +1,58 @@
 <!DOCTYPE html>
 <html lang="ja">
+
 <head>
     <meta charset="UTF-8">
     <title>Ren Studio</title>
 </head>
+
 <body>
     <h1>Ren Studio</h1>
-    <input type="text" id="title" name="name" value="">
-    <input type="text" id="title" name="date" value="【AITuber】7/15の朝活配信【プロトタイプ】">
-    <button id="btn-stream_start">配信予約</button>
-    <button id="btn-ai_start">配信開始</button>
-    <button id="btn-stream_stop">配信終了</button>
-
     <p id="message"></p>
+    <div>
+        <header>
+            <button id="btn-stream_create">配信予約</button>
+        </header>
+        <p>タイトル: <input type="text" id="title" value="" style=" width:500px"></p>
+        <p>配信日時: <input type="datetime-local" id="date" value=""></p>
+        <p>公開: <input type="checkbox" id="is_public"></p>
+        <p>
+            詳細: <br />
+            <textarea id="description" style="height: 200px; width:640px">
+AITuber「紅月恋（れん）」の朝のニュース配信です。良ければコメントで話しかけてみてください。
+
+# クレジット＆テクノロジー
+キャラ絵はStable Diffusionで生成しました。
+LLMはChatGPTまたはGemini Proを利用しています。
+BGMはSuno.aiで作成しました。
+音声は「VOICEVOX:猫使ビィ」を利用させていただいています。
+- https://voicevox.hiroshiba.jp/
+- https://nekotukarb.wixsite.com/nekonohako/%E5%88%A9%E7%94%A8%E8%A6%8F%E7%B4%84
+ニュース記事はYahoo Newsより引用しています。
+今日の記念日はapi.whatistoday.cyouを利用しています。
+            </textarea>
+        </p>
+    </div>
+
+    <h2>配信一覧</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>ライブ配信</th>
+                <th>日付</th>
+                <th>公開設定</th>
+                <th></th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody id="livestreamTable">
+            <!-- JavaScript will populate this -->
+        </tbody>
+    </table>
+
 
     <script>
-        const btn_stream_start = document.getElementById("btn-stream_start");
+        const btn_stream_create = document.getElementById("btn-stream_create");
         const btn_stream_stop = document.getElementById("btn-stream_stop");
         const btn_ai_start = document.getElementById("btn-ai_start");
         const messageElement = document.getElementById("message");
@@ -26,25 +63,81 @@
             const month = ('0' + (today.getMonth() + 1)).slice(-2);
             const day = ('0' + today.getDate()).slice(-2);
             document.getElementById("title").value = `【AITuber】${month}/${day}の朝活配信【プロトタイプ】`;
+            document.getElementById("date").value = `${year}-${month}-${day}T08:00:00`;
+
+            populateTable();
         });
 
-        btn_stream_start.addEventListener("click", async () => {
+        const livestreams = [];
+        function populateTable() {
+            const tableBody = document.getElementById('livestreamTable');
+            tableBody.innerHTML = '';
+
+            livestreams.forEach(stream => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>
+                        <div class="title">
+                            <a href="https://studio.youtube.com/video/${stream.id}/livestreaming">
+                                <img src="${stream.thumbnail}" alt="${stream.title}" class="thumbnail">
+                                <span>${stream.title}</span>
+                            </a>
+                        </div>
+                    </td>
+                    <td>${stream.date}</td>
+                    <td><span class="privacy-status">${stream.privacyStatus}</span></td>
+                    <td><button class="btn-ai_start" data-id="${stream.broadcastId}" data-stream-name="${stream.streamName}">配信開始</button></td>
+                    <td><button class="btn-stream_stop" data-id="${stream.broadcastId}">配信終了</button></td>
+                `;
+
+                row.querySelector('.btn-ai_start').addEventListener('click', (async (event) => {
+                    const broadcastId = event.target.getAttribute('data-id');
+                    const streamName = event.target.getAttribute('data-stream-name');
+                    console.log(`ID: ${broadcastId}, Stream Name: ${streamName}`);
+                    const res = await post("/start_ai", { broadcastId: broadcastId, streamName: streamName });
+                    console.log(res);
+                }));
+                tableBody.appendChild(row);
+            });
+        }
+
+        btn_stream_create.addEventListener("click", async () => {
             const title = document.getElementById("title").value;
-            const data = await post("/start_stream", { "title":title });
-            messageElement.textContent = data.message;
+            const date = new Date(document.getElementById("date").value);
+            const description = document.getElementById("description").value;
+            const privacy_status = document.getElementById("is_public").checked ? "public" : "unlisted";
+
+            const res = await post("/create_stream", {
+                "title": title,
+                "date": date.toISOString(),
+                "description": description,
+                "privacy_status": privacy_status
+            });
+            window.hoge = res;
+
+            item = {
+                broadcastId: res.broadcast.id,
+                streamName: res.stream.cdn.ingestionInfo.streamName,
+                title: res.broadcast.snippet.title,
+                thumbnail: res.thumbnail.items[0].standard.url,
+                date: new Date(res.broadcast.snippet.scheduledStartTime).toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo' }),
+                privacyStatus: res.broadcast.status.privacyStatus
+            }
+            livestreams.push(item);
+            populateTable();
+
+            console.log(item)
         });
 
-        btn_stream_stop.addEventListener("click", async () => {
-            const data = await post("/stop_stream");
-            messageElement.textContent = data.message;
+        document.querySelectorAll('.btn-stream_stop').forEach(button => {
+            button.addEventListener('click', async (event) => {
+                const streamId = event.target.getAttribute('data-id');
+                const res = await post("/stop_stream", { id: streamId });
+                messageElement.textContent = res.message;
+            });
         });
 
-        btn_ai_start.addEventListener("click", async () => {
-            const data = await post("/start_ai");
-            messageElement.textContent = data.message;
-        });
-
-        async function post(url, data){
+        async function post(url, data) {
             const response = await fetch(url, {
                 method: "POST",
                 headers: {
@@ -52,9 +145,62 @@
                 },
                 body: JSON.stringify(data),
             });
-            return await response.json(); 
+            return await response.json();
         }
 
     </script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f9f9f9;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background-color: #fff;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+
+        th,
+        td {
+            padding: 12px 15px;
+            text-align: left;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        th {
+            background-color: #f2f2f2;
+            font-weight: bold;
+            color: #333;
+        }
+
+        .thumbnail {
+            width: 120px;
+            height: 67px;
+            object-fit: cover;
+            vertical-align: middle;
+        }
+
+        .title {
+            display: flex;
+            align-items: center;
+        }
+
+        .title span {
+            margin-left: 10px;
+        }
+
+        .privacy-status {
+            display: inline-block;
+            padding: 2px 5px;
+            border-radius: 3px;
+            font-size: 0.8em;
+            background-color: #e0e0e0;
+        }
+    </style>
 </body>
+
 </html>

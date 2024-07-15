@@ -26,42 +26,32 @@ app = Flask(__name__)
 def index():
     return render_template('index.html', title = 'flask test')
 
-@app.route("/start_stream", methods=["post"])
-def start_stream():
+@app.route("/create_stream", methods=["post"])
+def create_stream():
     global stream_key
     
-    print("click start_stream")
-    import logging
-    app.logger.setLevel(logging.INFO)
-    app.logger.info('hello')
-    app.logger.info("click start_stream")
+    print("click create_stream")
     
     data = json.loads(request.data)
     ytlive = YoutubeLiveAdapter()
     youtube_client = ytlive.authenticate_youtube()
 
     title = data["title"]
-    description = """AITuber「紅月恋（れん）」の配信テストです。良ければコメントで話しかけてみてください。
-
-    # クレジット＆テクノロジー
-    キャラ絵はStable Diffusionで生成しました。
-    LLMはChatGPTまたはGemini Proを利用しています。
-    BGMはSuno.aiで作成しました。
-    音声は「VOICEVOX:猫使ビィ」を利用させていただいています。
-    - https://voicevox.hiroshiba.jp/
-    - https://nekotukarb.wixsite.com/nekonohako/%E5%88%A9%E7%94%A8%E8%A6%8F%E7%B4%84
-    """
-    start_date = '2024-07-15T01:00:00.000Z'
+    description = data["description"]
+    start_date = data["date"]
+    print(start_date)
     thumbnail_path = '/workspaces/ai-tuber/obs_data/ai_normal.png'
+    print(thumbnail_path)
+    privacy_status = data["privacy_status"]
 
-    live_response = ytlive.create_live(youtube_client, title, description, start_date, thumbnail_path, "unlisted")
+    live_response = ytlive.create_live(youtube_client, title, description, start_date, thumbnail_path, privacy_status)
     stream_key = live_response['stream']['cdn']['ingestionInfo']['streamName']
-    aituber.set_broadcast_id(live_response["broadcast"]["id"])
 
     print(f"Stream Key: {stream_key}")  # デバッグ出力
     print(live_response)
-    print("/click start_stream")
-    return {"Message":"Start stream."}
+    print("/click create_stream")
+
+    return live_response
 
 @app.route("/stop_stream", methods=["post"])
 def stop_stream():
@@ -75,14 +65,19 @@ def stop_stream():
 
 @app.route("/start_ai", methods=["post"])
 def start_ai():
-    global stream_key
-
     print("click start_ai")
-    print(stream_key)
-    print("--------")
+
+    data = json.loads(request.data)
+    print(data)
+    broadcast_id = data["broadcastId"]
+    stream_name = data["streamName"]
+
     obs = ObsAdapter()
-    obs.start_stream(stream_key)
+    obs.start_stream(stream_name)
+
+    aituber.set_broadcast_id(broadcast_id)
     aituber.exec()
+
     print("/click start_ai")
     return {"Message":"Start AI."}
 
@@ -90,7 +85,7 @@ def start_ai():
 if __name__ == '__main__':
     try:
         print("Admin console is `http://localhost:5000/`")
-        app.run(use_reloader=False, debug=False, host='0.0.0.0', port=5000)
+        app.run(use_reloader=False, debug=True, host='0.0.0.0', port=5000)
     except (KeyboardInterrupt, SystemExit):
         pass
     finally:
