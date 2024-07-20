@@ -112,7 +112,7 @@ class AITuber:
 
         import datetime
         today = datetime.date.today().strftime("%Y/%m/%d")
-        self.syscall(f"今日は{today}です。朝活配信として適当な出だしの雑談をしてください。今日の日付や季節にちなんだ話題が良いです。雑談は400文字程度。雑談の後は天気予報を話すので、続けやすい締めにしてください。出だしは「みなのものおはよう。紅月れんなのじゃ。朝活配信をやっていくぞ。」です。")
+        self.syscall(f"今日は{today}です。朝活配信として適当な出だしの雑談をしてください。今日の日付や季節にちなんだ話題が良いです。雑談は500文字程度。雑談の後は天気予報を話すので、続けやすい締めにしてください。出だしは「みなのものおはよう。紅月れんなのじゃ。朝活配信をやっていくぞ。」です。")
         time.sleep(32)
 
         from backend.weather_api import weather_all_japan_api
