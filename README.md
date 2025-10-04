@@ -2,6 +2,8 @@
 
 これはAITuber「紅月れん」を動かすためのスクリプトです。
 
+https://zenn.dev/koduki/articles/f0d8739ca87ebe
+
 ## OBSの起動
 
 以下のシーン、ソースでセットする必要あり。
