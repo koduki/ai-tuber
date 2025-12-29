@@ -1,95 +1,79 @@
-# AI Tuber Modular MVP (CLI Mode)
+# AI Tuber Modular Architecture (ADK + MCP)
 
-AI TuberのModular MVP（CLI Body版）です。
-Brain（Gemini）とBody（MCP Server）が分離した設計になっています。
-現在は開発用モードとして、ターミナルで会話が可能です。
+このプロジェクトは、AI Tuber の機能を「Saint Graph (魂)」と「肉体（Body）」に分離したモジュール型アーキテクチャの MVP です。Google の **Agent Development Kit (ADK)** と **Model Context Protocol (MCP)** を活用しています。
+
+## アーキテクチャ概要
+
+システムは大きく3つの要素で構成されています：
+
+1.  **Saint Graph (魂)**: `src/saint_graph/`
+    *   **Gemini 2.0 Flash Lite** を搭載したエージェント。
+    *   ADK を使用して、思考プロセスとツール実行を管理します。
+    *   `mcp_client.py` を介して Body と通信します。
+2.  **Body (肉体/外部IF)**: `src/body/cli_tool/`
+    *   **MCP Server** として実装されています。
+    *   `speak`（発話）、`change_emotion`（表情変更）、`get_comments`（コメント取得）などのツールを提供します。
+    *   現在は CLI モードで動作し、ターミナル上で対話が可能です。
+3.  **Mind (人格)**: `src/mind/`
+    *   キャラクターの性格、口調、行動指針を定義する `persona.md` を含みます。
+
+## ディレクトリ構造
+
+```text
+/
+├── src/
+│   ├── body/            # MCP Server (Body) の実装
+│   │   └── cli_tool/    # CLI用インターフェース
+│   ├── mind/            # キャラクター設定 (Persona)
+│   └── saint_graph/     # エージェントロジック (Saint Graph/魂)
+│       ├── main.py      # メインループ
+│       └── mcp_client.py # Body接続用クライアント
+├── .devcontainer/       # 開発環境設定
+└── docker-compose.yml   # 実行環境定義
+```
 
 ## 前提条件
-- Docker Desktop がインストールされていること
-- Google Gemini API Key を持っていること
 
-## セットアップ
+*   Docker / Docker Compose
+*   Google Gemini API Key
 
-1. **環境変数の設定**
-   `.env` ファイルをプロジェクトルートに作成し、APIキーを設定してください。
-   ```bash
-   GOOGLE_API_KEY=AIzr...
-   RUN_MODE=cli
-   ```
+## セットアップ & 実行
 
-2. **ビルド**
-   ```powershell
-   docker-compose build
-   ```
+### 1. 環境変数の設定
+`.env` ファイルを作成してください。
+```bash
+GOOGLE_API_KEY=あなたのAPIキー
+RUN_MODE=cli
+```
 
-## 起動と会話の方法
-
-このシステムは2つのターミナルウィンドウを使用します。
-1つは**システムの起動ログ用**、もう1つは**AIへの入力（会話）用**です。
-
-### 手順 1: システムの起動
-ターミナルを開き、以下のコマンドでシステムを起動します。
-```powershell
+### 2. システムの起動
+```bash
 docker-compose up
 ```
-ログが表示され、システムが動き出します（Brainが定期的に周囲を確認し始めます）。
-このターミナルはそのままにしておいてください。
+これにより、Saint Graph と Body の両方のコンテナが立ち上がります。
 
-### 手順 2: 会話への参加（入力）
-**新しいターミナルウィンドウ**を開き、以下のコマンドを実行してBody（肉体）に接続します。
-```powershell
-docker attach ai-tuber-mcp-cli-1
-```
-
-### 手順 3: 会話する
-接続したターミナルで、AIにかけたい言葉を入力して **Enter** を押してください。
-（※入力プロンプトは表示されませんが、入力は受け付けられています）
-
-例:
-```text
-こんにちは！
-```
-
-しばらく待つと（約10秒間隔）、AIが反応し、手順1（または手順2）のログに以下のように表示されます。
-
-```text
-[Expression]: happy
-[AI (happy)]: こんにちは！今日も元気？
-```
-
-### 終了方法
-`docker-compose up` を実行したターミナルで `Ctrl+C` を押して終了してください。
-
-## DevContainer での開発方法
-
-VS Code の DevContainer を使用すると、依存関係がインストール済みの環境ですぐに開発を開始できます。
-
-### 1. DevContainer の起動
-1. VS Code でプロジェクトを開きます。
-2. 「Reopen in Container」を選択してコンテナを起動します。
-
-### 2. Brain の起動（コンテナ内ターミナル）
-DevContainer 内のターミナル（`saint-graph` コンテナ）で、思考エンジンを起動します。
-```bash
-# 環境変数の確認
-export GOOGLE_API_KEY="your_api_key_here"
-
-# 実行
-python3 src/saint_graph/main.py
-```
-
-### 3. Body への接続（ホスト側ターミナル）
-開発コンテナ内からは他のコンテナに `attach` できないため、**ホストマシン（Windows/Mac/Linux）のターミナル**から実行します。
+### 3. AI との会話
+新しいターミナルを開き、Body コンテナにアタッチします。
 ```bash
 docker attach ai-tuber-mcp-cli-1
 ```
-ここに文字を入力することで、コンテナ内で動いている Brain にコメントを送信できます。
+ここでメッセージを入力すると、約10秒間隔の思考ループにより Saint Graph が反応を返します。
 
-### 4. ログの確認
-- **Brain の思考プロセス**: VS Code のターミナル（`saint-graph`）に表示されます。
-- **Body の出力（発話・表情）**: `docker attach` しているホスト側のターミナル、または `docker compose logs -f mcp-cli` で確認できます。
+## 開発ガイド (DevContainer)
 
-## トラブルシューティング
-- **429 RESOURCE_EXHAUSTED**: APIのレート制限です。Gemini Experimentalモデルなどは制限が厳しいため、少し待つか `src/saint_graph/main.py` の待機時間を延ばしてください。
-- **404 NOT_FOUND**: モデル名が間違っているか、キーでそのモデルが使えません。
-- **反応がない**: `docker attach` しているか確認してください。ログに `User Comments: No new comments` と出続けている場合、入力が届いていません。
+VS Code の **DevContainer** を使用すると、コンテナ内で直接 Saint Graph のコードを修正・再起動できます。
+
+1. VS Code で開き、「Reopen in Container」を選択。
+2. `saint-graph` ターミナルで実行：
+   ```bash
+   python3 src/saint_graph/main.py
+   ```
+3. ログを確認しながら、`src/` 配下のファイルを編集することでリアルタイムに挙動を変更できます。
+
+## 技術スタック
+
+*   **LLM**: Gemini 2.0 Flash Lite
+*   **Agent Framework**: Google Agent Development Kit (ADK)
+*   **Protocol**: Model Context Protocol (MCP)
+*   **Language**: Python 3.11
+*   **Infrastructure**: Docker / Docker Compose
