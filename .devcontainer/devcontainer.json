@@ -1,0 +1,24 @@
+{
+	"name": "AI Tuber Dev Container",
+	"dockerComposeFile": [
+		"../docker-compose.yml",
+		"docker-compose.yml"
+	],
+	"service": "saint-graph",
+	"workspaceFolder": "/workspaces/ai-tuber",
+	"customizations": {
+		"vscode": {
+			"extensions": [
+				"ms-python.python",
+				"ms-python.vscode-pylance",
+				"ms-azuretools.vscode-docker",
+                "mhutchie.git-graph"
+			],
+            "settings": {
+                "python.defaultInterpreterPath": "/usr/local/bin/python",
+                "python.analysis.extraPaths": ["/workspaces/ai-tuber/src"]
+            }
+		}
+	},
+    "postCreateCommand": "echo 'DevContainer Ready!'"
+}

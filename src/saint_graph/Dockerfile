@@ -6,7 +6,8 @@ WORKDIR /app
 # google-genai: Gemini API
 # httpx: Async HTTP client
 # sseclient-py: For consuming Server-Sent Events from MCP
-RUN pip install google-genai httpx sseclient-py
+# google-adk: Agent Development Kit
+RUN pip install google-genai httpx sseclient-py google-adk
 
 # Copy source code (optional, since we mount volumes in dev)
 # COPY . .

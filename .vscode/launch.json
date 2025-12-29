@@ -1,0 +1,33 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Debug Saint Graph",
+            "type": "python",
+            "request": "launch",
+            "program": "src/saint_graph/main.py",
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}/src/saint_graph",
+            "justMyCode": true,
+            "env": {
+                "RUN_MODE": "cli"
+            }
+        },
+        {
+            "name": "Debug MCP CLI Body (Local)",
+            "type": "python",
+            "request": "launch",
+            "module": "uvicorn",
+            "args": [
+                "server:app",
+                "--host",
+                "0.0.0.0",
+                "--port",
+                "8000",
+                "--reload"
+            ],
+            "cwd": "${workspaceFolder}/src/body/cli_tool",
+            "console": "integratedTerminal"
+        }
+    ]
+}
