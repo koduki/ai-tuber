@@ -32,7 +32,7 @@ async def main():
         return
 
     # 2. Initialize Mind (Gemini)
-    with open("mind/soul.md", "r", encoding="utf-8") as f:
+    with open("mind/persona.md", "r", encoding="utf-8") as f:
         system_instruction = f.read()
 
     # We need to map MCP tools to Gemini Tools
