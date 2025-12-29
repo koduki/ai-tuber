@@ -20,6 +20,8 @@ services:
       # Mount the entire repository for development inside the container.
       # This single mount is sufficient for devcontainer purposes.
       - .:/workspaces/ai-tuber:cached
+      # Mount Docker socket for docker-out-of-docker pattern
+      - /var/run/docker.sock:/var/run/docker.sock
     # Keep the container running for the devcontainer.
     command: sleep infinity
 

@@ -9,13 +9,18 @@
 				"ms-python.python",
 				"ms-python.vscode-pylance",
 				"ms-azuretools.vscode-docker",
-                "mhutchie.git-graph"
+				"mhutchie.git-graph"
 			],
-            "settings": {
-                "python.defaultInterpreterPath": "/usr/local/bin/python",
-                "python.analysis.extraPaths": ["/workspaces/ai-tuber/src"]
-            }
+			"settings": {
+				"python.defaultInterpreterPath": "/usr/local/bin/python",
+				"python.analysis.extraPaths": [
+					"/workspaces/ai-tuber/src"
+				]
+			}
 		}
 	},
-    "postCreateCommand": "echo 'DevContainer Ready!'"
+	"features": {
+		"ghcr.io/devcontainers/features/docker-outside-of-docker:1": {}
+	},
+	"postCreateCommand": "git config --global --add safe.directory /workspaces/ai-tuber && echo 'DevContainer Ready!'"
 }
