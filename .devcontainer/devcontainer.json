@@ -1,9 +1,6 @@
 {
 	"name": "AI Tuber Dev Container",
-	"dockerComposeFile": [
-		"../docker-compose.yml",
-		"docker-compose.yml"
-	],
+	"dockerComposeFile": "../docker-compose.yml",
 	"service": "saint-graph",
 	"workspaceFolder": "/workspaces/ai-tuber",
 	"customizations": {

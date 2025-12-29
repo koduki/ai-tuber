@@ -1,19 +1,27 @@
 services:
   # --- Saint Graph (Spirit/Logic) ---
+  # This service is configured for use as a devcontainer.
   saint-graph:
-    build: ./src/saint_graph
+    # The build context is the repository root, using the devcontainer Dockerfile.
+    build:
+      context: .
+      dockerfile: .devcontainer/Dockerfile
     environment:
-      - RUN_MODE=${RUN_MODE:-cli}
-      # In CLI mode, connect to the CLI Body
+      - RUN_MODE=cli # Set for development
       - MCP_URLS_CLI=http://mcp-cli:8000/sse
       # Examples for production (placeholder)
       - MCP_URLS_PROD=http://mcp-obs:8000/sse,http://mcp-voicevox:8000/sse,http://mcp-youtube:8000/sse
       - GOOGLE_API_KEY=${GOOGLE_API_KEY}
+      # PYTHONPATH is set for the devcontainer environment.
+      - PYTHONPATH=/workspaces/ai-tuber/src
     depends_on:
       - mcp-cli
     volumes:
-      - ./src/saint_graph:/app
-      - ./src/mind/ren:/app/mind
+      # Mount the entire repository for development inside the container.
+      # This single mount is sufficient for devcontainer purposes.
+      - .:/workspaces/ai-tuber:cached
+    # Keep the container running for the devcontainer.
+    command: sleep infinity
 
   # --- Dev Body (CLI) ---
   mcp-cli:

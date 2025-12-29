@@ -60,6 +60,35 @@ docker attach ai-tuber-mcp-cli-1
 ### 終了方法
 `docker-compose up` を実行したターミナルで `Ctrl+C` を押して終了してください。
 
+## DevContainer での開発方法
+
+VS Code の DevContainer を使用すると、依存関係がインストール済みの環境ですぐに開発を開始できます。
+
+### 1. DevContainer の起動
+1. VS Code でプロジェクトを開きます。
+2. 「Reopen in Container」を選択してコンテナを起動します。
+
+### 2. Brain の起動（コンテナ内ターミナル）
+DevContainer 内のターミナル（`saint-graph` コンテナ）で、思考エンジンを起動します。
+```bash
+# 環境変数の確認
+export GOOGLE_API_KEY="your_api_key_here"
+
+# 実行
+python3 src/saint_graph/main.py
+```
+
+### 3. Body への接続（ホスト側ターミナル）
+開発コンテナ内からは他のコンテナに `attach` できないため、**ホストマシン（Windows/Mac/Linux）のターミナル**から実行します。
+```bash
+docker attach ai-tuber-mcp-cli-1
+```
+ここに文字を入力することで、コンテナ内で動いている Brain にコメントを送信できます。
+
+### 4. ログの確認
+- **Brain の思考プロセス**: VS Code のターミナル（`saint-graph`）に表示されます。
+- **Body の出力（発話・表情）**: `docker attach` しているホスト側のターミナル、または `docker compose logs -f mcp-cli` で確認できます。
+
 ## トラブルシューティング
 - **429 RESOURCE_EXHAUSTED**: APIのレート制限です。Gemini Experimentalモデルなどは制限が厳しいため、少し待つか `src/saint_graph/main.py` の待機時間を延ばしてください。
 - **404 NOT_FOUND**: モデル名が間違っているか、キーでそのモデルが使えません。
