@@ -13,15 +13,16 @@ services:
       - mcp-cli
     volumes:
       - ./src/saint_graph:/app
+      - ./src/mind/ren:/app/mind
 
   # --- Dev Body (CLI) ---
   mcp-cli:
-    build: ./src/mcp/cli_body
+    build: ./src/body/cli_tool
     ports:
       - "8000:8000"
-    stdin_open: true 
+    stdin_open: true
     tty: true
     environment:
       - PORT=8000
     volumes:
-      - ./src/mcp/cli_body:/app
+      - ./src/body/cli_tool:/app
