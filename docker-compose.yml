@@ -1,0 +1,27 @@
+services:
+  # --- Saint Graph (Spirit/Logic) ---
+  saint-graph:
+    build: ./src/saint_graph
+    environment:
+      - RUN_MODE=${RUN_MODE:-cli}
+      # In CLI mode, connect to the CLI Body
+      - MCP_URLS_CLI=http://mcp-cli:8000/sse
+      # Examples for production (placeholder)
+      - MCP_URLS_PROD=http://mcp-obs:8000/sse,http://mcp-voicevox:8000/sse,http://mcp-youtube:8000/sse
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY}
+    depends_on:
+      - mcp-cli
+    volumes:
+      - ./src/saint_graph:/app
+
+  # --- Dev Body (CLI) ---
+  mcp-cli:
+    build: ./src/mcp/cli_body
+    ports:
+      - "8000:8000"
+    stdin_open: true 
+    tty: true
+    environment:
+      - PORT=8000
+    volumes:
+      - ./src/mcp/cli_body:/app
