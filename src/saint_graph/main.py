@@ -15,7 +15,7 @@ from mcp_client import MCPClient
 RUN_MODE = os.getenv("RUN_MODE", "cli")
 MCP_URL = os.getenv("MCP_URLS_CLI") if RUN_MODE == "cli" else os.getenv("MCP_URLS_PROD").split(",")[0]
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
-MODEL_NAME = "gemini-2.0-flash-lite" # Use the requested lite model
+MODEL_NAME = "gemini-2.5-flash-lite" # Use the requested lite model
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("saint-graph")
