@@ -97,3 +97,74 @@ Google ADK は、生成AIエージェントを構築するためのフレーム�
 - **Protocol**: Model Context Protocol (MCP) - コンポーネント間の疎結合な通信を実現
 - **Language**: Python 3.11
 - **Container**: Docker / Docker Compose
+
+## 詳細実装: Body (CLI Tool)
+
+`src/body/cli_tool/main.py` は、MCPサーバーとして動作するCLIアプリケーションです。
+主な実装ポイントを以下に解説します。
+
+### 1. 入力処理 (Input Handling)
+
+ユーザーからの入力（標準入力）をノンブロッキングで処理するため、別スレッドで読み込みを行い、Queueに格納しています。
+
+```python
+# input_queue に入力を溜める
+input_queue = Queue()
+
+def stdin_reader():
+    """標準入力を読み込み、Queueに追加するスレッド"""
+    while True:
+        try:
+            line = sys.stdin.readline()
+            if line:
+                input_queue.put(line.strip())
+        except Exception:
+            break
+
+# デーモンスレッドとして起動
+threading.Thread(target=stdin_reader, daemon=True).start()
+```
+
+### 2. ツール実装 (Tools Implementation)
+
+LLMが実行する実際の関数です。CLI版では `print` 文で動作をシミュレートしています。
+
+```python
+async def speak(text: str, style: Optional[str] = None):
+    """発話機能"""
+    style_str = f" ({style})" if style else ""
+    print(f"\n[AI{style_str}]: {text}")
+    return "Speaking completed"
+
+async def change_emotion(emotion: str):
+    """表情変更"""
+    print(f"\n[Expression]: {emotion}")
+    return "Emotion changed"
+```
+
+### 3. MCP エンドポイント
+
+FastAPI を使用して、MCP プロトコルに必要なエンドポイントを提供しています。
+
+- **GET /sse**: Server-Sent Events (SSE) による接続確立。
+- **POST /messages**: JSON-RPC によるリクエスト処理（ツール実行など）。
+
+```python
+@app.post("/messages")
+async def handle_messages(request: Request):
+    """JSON-RPC メッセージの処理"""
+    data = await request.json()
+    method = data.get("method")
+
+    # ツール一覧の要求
+    if method == "tools/list":
+        return {
+            "jsonrpc": "2.0",
+            "result": { "tools": TOOL_DEFINITIONS },
+            "id": data.get("id")
+        }
+
+    # ツールの実行
+    if method == "tools/call":
+        # ... (ツール名と引数を取得して実行) ...
+```
