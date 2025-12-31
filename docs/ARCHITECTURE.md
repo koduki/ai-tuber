@@ -3,7 +3,7 @@
 ## 概要
 
 本プロジェクトは、Google Agent Development Kit (ADK) と Model Context Protocol (MCP) を活用した、モジュール構成のAI Tuberシステムです。
-「思考（Soul）」、「身体（Body）」、「記憶・人格（Mind）」を明確に分離することで、拡張性と保守性を高めています。
+「思考（Saint Graph）」、「身体（Body）」、「記憶・人格（Mind）」を明確に分離することで、拡張性と保守性を高めています。
 
 ## アーキテクチャ図
 
@@ -13,7 +13,7 @@ graph TD
         Persona[persona.md]
     end
 
-    subgraph Soul ["Saint Graph (魂)"]
+    subgraph SaintGraph ["Saint Graph (魂)"]
         Gemini[Gemini 2.0 Flash Lite]
         ADK[Google ADK]
         Logic[main.py]
