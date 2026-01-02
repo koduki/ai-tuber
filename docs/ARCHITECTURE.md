@@ -10,13 +10,14 @@
 ```mermaid
 graph TD
   subgraph Mind ["Mind (人格・記憶)"]
-    Persona["persona.md"]
+    Persona["src/mind/{name}/persona.md"]
   end
 
   subgraph SaintGraph ["Saint Graph (魂)"]
     Gemini["Gemini 2.0 Flash Lite"]
     ADK["Google ADK"]
-    Logic["main.py"]
+    Logic["main.py (Outer Loop)"]
+    Soul["saint_graph.py (Inner Loop)"]
     Client["mcp_client.py"]
   end
 
@@ -28,8 +29,9 @@ graph TD
 
   Persona --> Logic
   Gemini <--> ADK
-  ADK --> Logic
-  Logic --> Client
+  ADK --> Soul
+  Logic --> Soul
+  Soul --> Client
   Client -- "MCP (JSON-RPC)" --> Server
   Server --> CLI
   CLI -- "User Input" --> Server
@@ -40,8 +42,12 @@ graph TD
 ### 1. Saint Graph (魂)
 - **パス**: `src/saint_graph/`
 - **役割**: 思考、意思決定、行動の選択。
-- **主要ファイル**:
-    - `main.py`: メインの思考ループ。`get_comments` で状況を観測し、LLMにコンテキストを与え、適切なツール（`speak`, `change_emotion` 等）を実行します。
+- **構成**:
+    - `main.py`: **Outer Loop**。システム全体のライフサイクル管理、Bodyへの接続、ポーリングの制御を行います。
+    - `saint_graph.py`: **Inner Loop**。`SaintGraph` クラスを含み、LLMとの対話履歴管理、ストリーミング応答の処理、ツール実行ループを担当します。
+    - `persona.py`: Mindからキャラクター設定を読み込むローダー。
+    - `tools.py`: LLMに提供するツール定義（`speak`, `change_emotion` 等）。
+    - `config.py`: 環境変数や定数の管理。
     - `mcp_client.py`: Body (MCP Server) と通信するためのクライアント。
 - **技術**: Google ADK, Gemini API (Gemini 2.0 Flash Lite), Python AsyncIO
 
@@ -56,7 +62,8 @@ graph TD
 - **パス**: `src/mind/`
 - **役割**: キャラクターの性格、口調、行動指針の定義。
 - **主要ファイル**:
-    - `ren/persona.md`: 「紅月れん」というキャラクターの定義ファイル。プロンプトエンジニアリングにより、LLMの振る舞いを制御します。
+    - `{name}/persona.md`: キャラクターごとの定義ファイル（例：`ren/persona.md`）。プロンプトエンジニアリングにより、LLMの振る舞いを制御します。
+    - `src/saint_graph/persona.py` の `load_persona(name)` 関数により、指定されたキャラクター名のディレクトリから厳密に読み込まれます。
 
 ## Google Agent Development Kit (ADK) について
 
@@ -79,11 +86,11 @@ Google ADK は、生成AIエージェントを構築するためのフレーム�
 ## データフロー
 
 1. **観測 (Observation)**:
-    - Saint Graph が `get_comments` ツールを呼び出します。
+    - Saint Graph (`main.py`) が `get_comments` ツールを定期的に呼び出します。
     - Body がユーザーからのコメント（標準入力など）を返します。
 
 2. **思考 (Thinking)**:
-    - Saint Graph は観測結果と `persona.md` の内容を合わせて Gemini に送信します。
+    - Saint Graph (`saint_graph.py`) は観測結果と `persona.md` の内容を合わせて Gemini に送信します。
     - Gemini は状況に応じて、発話 (`speak`) や表情変更 (`change_emotion`) などのツール呼び出しを決定します。
 
 3. **行動 (Action)**:
@@ -169,37 +176,41 @@ async def handle_messages(request: Request):
         # ... (ツール名と引数を取得して実行) ...
 ```
 
-## 詳細解説: src/saint_graph/main.py の二重ループとチャンクストリーミングの振る舞い
+## 詳細解説: Saint Graph の実装と振る舞い
 
-以下は `src/saint_graph/main.py`（commit 9ce7adb3） の実装に基づく正確な解析と運用上の注記です。特に `main()` 内にある「外側（監督）ループ」と「内側（思考/行動）ループ」、および Gemini のストリーミング応答（チャンク）周りの処理を詳述します。
+`src/saint_graph/` 配下の実装に基づく解析です。特に `main.py` の「Outer Loop」と `saint_graph.py` の「Inner Loop」の役割分担、および Gemini のストリーミング処理について詳述します。
 
-### 外側ループ（監督ループ）
-- 役割: プロセス全体のライフサイクルを管理し、MCP クライアントの接続やリトライ、例外発生時の待機などを担います。
-- 実装上の振る舞い:
-  - `while True:` でプロセスを継続させ、`get_comments` のポーリングやソリロキュー（無入力時の自発的発話）を管理します。
-  - ネットワーク等の一時的エラーが発生した場合は例外を捕捉して `await asyncio.sleep(5)` で待機後に再試行します。
-  - 内側ループを抜ける（例: 致命的エラーや接続喪失）と、外側で再初期化やクリーンアップを試みる設計になっています。
+### Outer Loop (ライフサイクル管理)
+- **ファイル**: `src/saint_graph/main.py`
+- **役割**: プロセス全体の監督。
+- **振る舞い**:
+  - `MCPClient` の接続確立と維持。
+  - `SaintGraph` インスタンス（脳）の初期化。
+  - 定期的な観測（`get_comments`）の実行と、自発的な発話（ソリロキュー）のトリガー管理。
+  - ネットワークエラー等の例外を捕捉し、システムが停止しないようにリトライ制御を行います。
 
-### 内側ループ（思考→行動ループ、Soul cycle）
-- 役割: 1サイクルごとに観測を受け、LLM に文脈を送り、生成された応答を処理（ツール呼び出し等）します。
-- 実装のポイント:
-  - 観測（`get_comments`）を元に `chat_history` を更新し、LLM に送る `LlmRequest` を構築します。
-  - 内側で `while True:` を回すのは、LLM がツール呼び出し（function_call）を返し、その実行結果をフィードバックしてさらに追加のツール呼び出しやテキスト生成が必要かを継続的に処理するためです。
-  - この内側ループは、LLM の応答が「ツール呼び出しを含む限り」継続し、ツール呼び出しが無くなった段階で break して内側ループを終了します。
+### Inner Loop (思考→行動ループ)
+- **ファイル**: `src/saint_graph/saint_graph.py` (`SaintGraph` クラス)
+- **役割**: 1回の対話ターンを完結させるための自律的な思考サイクル。
+- **振る舞い**:
+  - `process_turn(user_input)` が呼び出されると、ユーザー入力を履歴に追加し、Gemini へのリクエストを開始します。
+  - このループは `while True:` で構成されており、Gemini が「ツール呼び出し（Function Calling）」を返し続ける限り、ループを継続します。
+  - Gemini が発話（通常のテキスト応答）を返した場合、あるいはツール呼び出しがない場合にループを終了します。
 
-### llm_request が二回代入されている理由（コード上の事実と判断）
-- 元の実装では外側で一度 `llm_request` を作成した直後、内側ループ開始直前で再生成して上書きしていました。現状は二度目が有効で最初の代入は使われていないため冗長と判断しました。
-- 推奨: テンプレートを残すなら `base_request` を用意して内側ループでコピーするか、不要なら最初の代入を削除すること。
+### チャンクストリーミング (Chunk Streaming) の詳細
 
-### チャンクストリーミング（model.generate_content_async の扱い）
-- 各チャンクの parts を逐次累積して最終的に統合する実装にする必要があります（最終チャンクだけに依存すると text や function_call を取りこぼす場合があるため）。
-- 差分ログは「累積テキスト」に対して printed_len を比較して出力するのが安全です。
-- function_call の args は文字列(JSON)かオブジェクトか両方の可能性があるため、呼び出し前に正規化（json.loads を試す等）し、ツール実行失敗時のエラーを履歴に含めて LLM にフィードバックする。
+Google ADK を介した Gemini との通信には `model.generate_content_async(stream=True)` を使用しています。この非同期ストリーミング処理において、以下の点に注意して実装されています。
 
-### 推奨修正点（まとめ）
-1. `llm_request` の重複代入を解消し、テンプレートを明示する（`base_request` を導入）。
-2. ストリーミングは累積バッファ（parts/text）を用いて最終 content を構築する。
-3. `fc.args` の正規化とツール実行失敗時のエラーを `FunctionResponse` として履歴に追加する。
-4. 単体/統合テストで複数チャンク・複数 function_call のシナリオを検証する。
+1.  **チャンクの蓄積**:
+    - LLMからの応答は複数のチャンク（断片）に分割されて届きます。
+    - 単一のチャンク（特に最後のチャンク）だけを参照すると、生成されたテキストや関数呼び出しの引数が不完全になる可能性があります。
+    - そのため、ループ内で `accum_parts`（Content Partのリスト）と `accum_text`（テキスト全文）に全てのチャンクの内容を累積させています。
 
-（既存の詳細は本ファイルに保持しています）
+2.  **リアルタイムログ出力**:
+    - 累積された `accum_text` の長さを前回の出力時と比較し、増分（差分）だけをログに出力しています。
+    - これにより、ユーザーはAIが思考・発話している様子をリアルタイムに確認できます。
+
+3.  **Function Calling の扱い**:
+    - ストリーミングが完了した時点で、蓄積された `final_content` の `parts` を検査します。
+    - `function_call` が含まれている場合、引数（args）を正規化（JSONパース等）した上でツールを実行します。
+    - 実行結果（またはエラー）は `FunctionResponse` として履歴に追加され、次回の Gemini への入力としてフィードバックされます。

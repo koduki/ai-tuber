@@ -11,4 +11,5 @@ RUN pip install google-genai httpx google-adk
 # Copy source code (optional, since we mount volumes in dev)
 # COPY . .
 
-CMD ["python", "-u", "main.py"]
+# Run as a module to handle relative imports correctly
+CMD ["python", "-m", "src.saint_graph.main"]
