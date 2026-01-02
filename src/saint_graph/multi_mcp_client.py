@@ -1,8 +1,10 @@
 import asyncio
 import logging
 from typing import List, Dict, Any
+from google.genai import types
 
 from .mcp_client import MCPClient
+from .tools_mapper import convert_mcp_tool_to_genai
 
 logger = logging.getLogger(__name__)
 

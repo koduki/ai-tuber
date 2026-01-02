@@ -24,8 +24,10 @@ async def main():
     # デフォルトで 'ren' を読み込むが、将来的に設定変更可能にする
     system_instruction = load_persona(name="ren")
 
-    # 3. ツールの定義
-    tool_definitions = get_tool_definitions()
+    # 3. ツールの定義 (動的取得)
+    # MCPから取得したツールリストをGoogle GenAI形式に変換して使用する
+    tool_definitions = client.get_google_genai_tools()
+    logger.info(f"Loaded {len(tool_definitions[0].function_declarations) if tool_definitions else 0} tools from MCP.")
 
     # 4. Saint Graph の初期化
     saint_graph = SaintGraph(mcp_client=client, system_instruction=system_instruction, tools=tool_definitions)
