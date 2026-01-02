@@ -3,7 +3,13 @@ import logging
 
 # 環境設定
 RUN_MODE = os.getenv("RUN_MODE", "cli")
-MCP_URL = os.getenv("MCP_URLS_CLI") if RUN_MODE == "cli" else os.getenv("MCP_URLS_PROD").split(",")[0]
+# MCP_URLS can be a comma-separated list
+if RUN_MODE == "cli":
+    _urls = os.getenv("MCP_URLS_CLI", "http://mcp-cli:8000/sse")
+else:
+    _urls = os.getenv("MCP_URLS_PROD", "")
+MCP_URLS = [url.strip() for url in _urls.split(",") if url.strip()]
+
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
 MODEL_NAME = "gemini-2.5-flash-lite" # リクエストされたliteモデルを使用
 
@@ -11,6 +17,7 @@ MODEL_NAME = "gemini-2.5-flash-lite" # リクエストされたliteモデルを�
 POLL_INTERVAL = 0.5
 SOLILOQUY_INTERVAL = 30.0 # 30秒間の沈黙でランダムな発話
 HISTORY_LIMIT = 12
+NEWS_DIR = os.getenv("NEWS_DIR", "/app/data/news")
 
 # ログ設定
 logging.basicConfig(level=logging.INFO)

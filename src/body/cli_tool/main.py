@@ -64,6 +64,8 @@ TOOLS = {
     "speak": speak,
     "change_emotion": change_emotion,
     "switch_scene": switch_scene,
+    "show_headline": show_headline,
+    "show_image": show_image,
     "get_comments": get_comments,
 }
 
