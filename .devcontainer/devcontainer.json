@@ -19,6 +19,9 @@
 			}
 		}
 	},
+	"containerEnv": {
+		"DOCKER_API_VERSION": "1.43"
+	},
 	"features": {
 		"ghcr.io/devcontainers/features/docker-outside-of-docker:1": {}
 	},
