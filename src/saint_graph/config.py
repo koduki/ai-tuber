@@ -11,6 +11,7 @@ MODEL_NAME = "gemini-2.5-flash-lite" # リクエストされたliteモデルを�
 POLL_INTERVAL = 0.5
 SOLILOQUY_INTERVAL = 30.0 # 30秒間の沈黙でランダムな発話
 HISTORY_LIMIT = 12
+NEWS_DIR = os.getenv("NEWS_DIR", "/app/data/news")
 
 # ログ設定
 logging.basicConfig(level=logging.INFO)

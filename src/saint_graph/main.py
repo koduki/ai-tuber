@@ -1,7 +1,7 @@
 import asyncio
 
 # モジュールのインポート
-from .config import logger, RUN_MODE, MCP_URL, POLL_INTERVAL, SOLILOQUY_INTERVAL
+from .config import logger, RUN_MODE, MCP_URL, POLL_INTERVAL, SOLILOQUY_INTERVAL, NEWS_DIR
 from .mcp_client import MCPClient
 from .persona import load_persona
 from .tools import get_tool_definitions
