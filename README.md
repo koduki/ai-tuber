@@ -10,7 +10,7 @@
     *   **LLM** を搭載したエージェント。
     *   ADK を使用して、思考プロセスとツール実行を管理します。
     *   モジュール化された構造（`saint_graph.py`, `main.py`, `persona.py`, `tools.py`）により、保守性が向上しています。
-2.  **Body (肉体/外部IF)**: `src/body/cli_tool/`
+2.  **Body (肉体/外部IF)**: `src/body/cli/`
     *   **MCP Server** として実装されています。
     *   `speak`（発話）、`change_emotion`（表情変更）、`get_comments`（コメント取得）などのツールを提供します。
     *   現在は CLI モードで動作し、ターミナル上で対話が可能です。
@@ -25,7 +25,7 @@
 /
 ├── src/
 │   ├── body/            # MCP Server (Body) の実装
-│   │   └── cli_tool/    # CLI用インターフェース
+│   │   └── cli/         # CLI用インターフェース
 │   ├── mind/            # キャラクター設定 (Persona)
 │   └── saint_graph/     # エージェントロジック (Saint Graph/魂)
 │       ├── main.py      # Outer Loop / ライフサイクル管理
