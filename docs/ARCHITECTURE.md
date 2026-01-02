@@ -23,7 +23,7 @@ graph TD
 
   subgraph Body ["Body (肉体・入出力)"]
     Server["MCP Server"]
-    CLI["CLI Tool / CLI View"]
+    CLI["CLI / CLI View"]
     Obs["OBS (Future)"]
   end
 
@@ -56,7 +56,7 @@ graph TD
 - **役割**: 外部世界とのインターフェース。音声出力、表情変更、コメント取得などの「能力」を提供します。
 - **実装**: Model Context Protocol (MCP) サーバーとして実装されています。現在はCLIベースですが、将来的にはOBS連携やVTube Studio連携などの「異なる肉体」との連携を想定しています。
 - **主要ファイル**:
-    - `cli_tool/main.py`: CLI版のBody実装。標準入力からのコメント受け取りや、標準出力への発話ログ表示を行います。
+    - `cli/main.py`: CLI版のBody実装。標準入力からのコメント受け取りや、標準出力への発話ログ表示を行います。
 
 ### 3. Mind (人格)
 - **パス**: `src/mind/`
@@ -105,9 +105,9 @@ Google ADK は、生成AIエージェントを構築するためのフレーム�
 - **Language**: Python 3.11
 - **Container**: Docker / Docker Compose
 
-## 詳細実装: Body (CLI Tool)
+## 詳細実装: Body (CLI)
 
-`src/body/cli_tool/main.py` は、MCPサーバーとして動作するCLIアプリケーションです。
+`src/body/cli/main.py` は、MCPサーバーとして動作するCLIアプリケーションです。
 主な実装ポイントを以下に解説します。
 
 ### 1. 入力処理 (Input Handling)

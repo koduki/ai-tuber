@@ -28,7 +28,7 @@ services:
 
   # --- Dev Body (CLI) ---
   mcp-cli:
-    build: ./src/body/cli_tool
+    build: ./src/body/cli
     ports:
       - "8000:8000"
     stdin_open: true
@@ -36,7 +36,7 @@ services:
     environment:
       - PORT=8000
     volumes:
-      - ./src/body/cli_tool:/app
+      - ./src/body/cli:/app
 
   # --- News Body (News Tool) ---
   mcp-news:
