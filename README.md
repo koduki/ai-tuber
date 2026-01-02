@@ -7,7 +7,7 @@
 システムは大きく3つの要素で構成されています：
 
 1.  **Saint Graph (魂)**: `src/saint_graph/`
-    *   **Gemini 2.0 Flash Lite** を搭載したエージェント。
+    *   **LLM** を搭載したエージェント。
     *   ADK を使用して、思考プロセスとツール実行を管理します。
     *   モジュール化された構造（`saint_graph.py`, `main.py`, `persona.py`, `tools.py`）により、保守性が向上しています。
 2.  **Body (肉体/外部IF)**: `src/body/cli_tool/`
