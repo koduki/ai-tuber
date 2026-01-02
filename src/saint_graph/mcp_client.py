@@ -21,16 +21,18 @@ class MCPClient:
         # In a real MCP SSE implementation, we keep the connection open for events.
         # For this MVP body implementation, the server sends the endpoint immediately.
         # We'll just perform a quick read to get the endpoint.
-        
-        async with httpx.AsyncClient() as client:
-            async with client.stream("GET", self.base_url) as response:
-                async for line in response.aiter_lines():
-                    if line.startswith("data:"):
-                        # Parse the data payload
-                        data_str = line[len("data:"):].strip()
-                        # For now, we assume this is the endpoint config or we just proceed.
-                        # We must break here to avoid hanging forever on the keepalive stream.
-                        break
+        try:
+            async with httpx.AsyncClient() as client:
+                async with client.stream("GET", self.base_url) as response:
+                    async for line in response.aiter_lines():
+                        if line.startswith("data:"):
+                            # Parse the data payload
+                            data_str = line[len("data:"):].strip()
+                            # For now, we assume this is the endpoint config or we just proceed.
+                            # We must break here to avoid hanging forever on the keepalive stream.
+                            break
+        except Exception as e:
+            logger.warning(f"Failed to SSE handshake with {self.base_url}, using fallback: {e}")
 
                             
         # To simplify robustly:

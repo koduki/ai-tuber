@@ -8,7 +8,7 @@ services:
       dockerfile: .devcontainer/Dockerfile
     environment:
       - RUN_MODE=cli # Set for development
-      - MCP_URLS_CLI=http://mcp-cli:8000/sse
+      - MCP_URLS_CLI=http://mcp-cli:8000/sse,http://mcp-news:8001/sse
       # Examples for production (placeholder)
       - MCP_URLS_PROD=http://mcp-obs:8000/sse,http://mcp-voicevox:8000/sse,http://mcp-youtube:8000/sse
       - GOOGLE_API_KEY=${GOOGLE_API_KEY}
@@ -37,3 +37,13 @@ services:
       - PORT=8000
     volumes:
       - ./src/body/cli_tool:/app
+
+  # --- News Body (News Tool) ---
+  mcp-news:
+    build: ./src/body/news_tool
+    ports:
+      - "8001:8001"
+    environment:
+      - PORT=8001
+    volumes:
+      - ./src/body/news_tool:/app
