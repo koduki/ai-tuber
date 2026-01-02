@@ -176,9 +176,9 @@ async def handle_messages(request: Request):
         # ... (ツール名と引数を取得して実行) ...
 ```
 
-## 詳細解説: Saint Graph (旧 Soul) の実装と振る舞い
+## 詳細解説: Saint Graph の実装と振る舞い
 
-`src/saint_graph/` 配下の実装に基づく解析です。特に `main.py` の「Outer Loop」と `saint_graph.py` の「Inner Loop」の役割分担が重要です。
+`src/saint_graph/` 配下の実装に基づく解析です。特に `main.py` の「Outer Loop」と `saint_graph.py` の「Inner Loop」の役割分担、および Gemini のストリーミング処理について詳述します。
 
 ### Outer Loop (ライフサイクル管理)
 - **ファイル**: `src/saint_graph/main.py`
@@ -187,18 +187,30 @@ async def handle_messages(request: Request):
   - `MCPClient` の接続確立と維持。
   - `SaintGraph` インスタンス（脳）の初期化。
   - 定期的な観測（`get_comments`）の実行と、自発的な発話（ソリロキュー）のトリガー管理。
-  - エラー発生時のリトライ制御。
+  - ネットワークエラー等の例外を捕捉し、システムが停止しないようにリトライ制御を行います。
 
 ### Inner Loop (思考→行動ループ)
 - **ファイル**: `src/saint_graph/saint_graph.py` (`SaintGraph` クラス)
-- **役割**: 1回の対話ターンの完結。
+- **役割**: 1回の対話ターンを完結させるための自律的な思考サイクル。
 - **振る舞い**:
-  - `process_turn(user_input)` メソッドがエントリーポイント。
-  - 観測結果を履歴に追加し、Gemini にリクエストを送信します。
-  - **再帰的ツール実行**: Gemini がツール呼び出し（Function Calling）を返した場合、それを直ちに実行し、結果を履歴に追加して再度 Gemini に問い合わせます。これを Gemini が「発話（テキスト生成）」のみを返すまで繰り返します。
-  - **ストリーミング処理**: `generate_content_async` を使用し、レスポンスのチャンク（断片）を蓄積して完全な応答を再構築します。これにより、途中経過のログ出力と完全なデータ整合性の両立を図っています。
+  - `process_turn(user_input)` が呼び出されると、ユーザー入力を履歴に追加し、Gemini へのリクエストを開始します。
+  - このループは `while True:` で構成されており、Gemini が「ツール呼び出し（Function Calling）」を返し続ける限り、ループを継続します。
+  - Gemini が発話（通常のテキスト応答）を返した場合、あるいはツール呼び出しがない場合にループを終了します。
 
-### 構成変更のポイント (Refactoring)
-- **モジュール化**: `main.py` に集中していたロジックを `config.py`, `persona.py`, `tools.py`, `saint_graph.py` に分散させました。
-- **名称変更**: コアロジッククラスを `Soul` から `SaintGraph` に変更し、ディレクトリ名との整合性をとりました。
-- **Persona読み込み**: `src/mind/{name}/persona.md` を直接参照する厳格なパス解決に変更し、将来的な多重人格/複数キャラクター対応の基礎を築きました。
+### チャンクストリーミング (Chunk Streaming) の詳細
+
+Google ADK を介した Gemini との通信には `model.generate_content_async(stream=True)` を使用しています。この非同期ストリーミング処理において、以下の点に注意して実装されています。
+
+1.  **チャンクの蓄積**:
+    - LLMからの応答は複数のチャンク（断片）に分割されて届きます。
+    - 単一のチャンク（特に最後のチャンク）だけを参照すると、生成されたテキストや関数呼び出しの引数が不完全になる可能性があります。
+    - そのため、ループ内で `accum_parts`（Content Partのリスト）と `accum_text`（テキスト全文）に全てのチャンクの内容を累積させています。
+
+2.  **リアルタイムログ出力**:
+    - 累積された `accum_text` の長さを前回の出力時と比較し、増分（差分）だけをログに出力しています。
+    - これにより、ユーザーはAIが思考・発話している様子をリアルタイムに確認できます。
+
+3.  **Function Calling の扱い**:
+    - ストリーミングが完了した時点で、蓄積された `final_content` の `parts` を検査します。
+    - `function_call` が含まれている場合、引数（args）を正規化（JSONパース等）した上でツールを実行します。
+    - 実行結果（またはエラー）は `FunctionResponse` として履歴に追加され、次回の Gemini への入力としてフィードバックされます。
