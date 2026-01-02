@@ -9,30 +9,30 @@
 
 ```mermaid
 graph TD
-    subgraph Mind ["Mind (人格・記憶)"]
-        Persona[persona.md]
-    end
+  subgraph Mind ["Mind (人格・記憶)"]
+    Persona["persona.md"]
+  end
 
-    subgraph SaintGraph ["Saint Graph (魂)"]
-        Gemini[Gemini 2.0 Flash Lite]
-        ADK[Google ADK]
-        Logic[main.py]
-        Client[mcp_client.py]
-    end
+  subgraph SaintGraph ["Saint Graph (魂)"]
+    Gemini["Gemini 2.0 Flash Lite"]
+    ADK["Google ADK"]
+    Logic["main.py"]
+    Client["mcp_client.py"]
+  end
 
-    subgraph Body ["Body (肉体・入出力)"]
-        Server[MCP Server]
-        CLI[CLI Tool / CLI View]
-        Obs[OBS (Future)]
-    end
+  subgraph Body ["Body (肉体・入出力)"]
+    Server["MCP Server"]
+    CLI["CLI Tool / CLI View"]
+    Obs["OBS (Future)"]
+  end
 
-    Persona --> Logic
-    Gemini <--> ADK
-    ADK --> Logic
-    Logic --> Client
-    Client -- "MCP (JSON-RPC)" --> Server
-    Server --> CLI
-    CLI -- "User Input" --> Server
+  Persona --> Logic
+  Gemini <--> ADK
+  ADK --> Logic
+  Logic --> Client
+  Client -- "MCP (JSON-RPC)" --> Server
+  Server --> CLI
+  CLI -- "User Input" --> Server
 ```
 
 ## コンポーネント詳細
@@ -48,7 +48,7 @@ graph TD
 ### 2. Body (肉体)
 - **パス**: `src/body/`
 - **役割**: 外部世界とのインターフェース。音声出力、表情変更、コメント取得などの「能力」を提供します。
-- **実装**: Model Context Protocol (MCP) サーバーとして実装されています。現在はCLIベースですが、将来的にはOBS連携やVTube Studio連携などの「異なる肉体」への差し替えが容易な設計です。
+- **実装**: Model Context Protocol (MCP) サーバーとして実装されています。現在はCLIベースですが、将来的にはOBS連携やVTube Studio連携などの「異なる肉体」との連携を想定しています。
 - **主要ファイル**:
     - `cli_tool/main.py`: CLI版のBody実装。標準入力からのコメント受け取りや、標準出力への発話ログ表示を行います。
 
@@ -168,3 +168,98 @@ async def handle_messages(request: Request):
     if method == "tools/call":
         # ... (ツール名と引数を取得して実行) ...
 ```
+
+## 詳細解説: src/saint_graph/main.py の二重ループとチャンクストリーミングの振る舞い
+
+以下は `src/saint_graph/main.py`（commit 9ce7adb3） の実装に基づく正確な解析と運用上の注記です。特に `main()` 内にある「外側（監督）ループ」と「内側（思考/行動）ループ」、および Gemini のストリーミング応答（チャンク）周りの処理を詳述します。
+
+### 外側ループ（監督ループ）
+- 役割: プロセス全体のライフサイクルを管理し、MCP クライアントの接続やリトライ、例外発生時の待機などを担います。
+- 実装上の振る舞い:
+  - `while True:` でプロセスを継続させ、`get_comments` のポーリングやソリロキュー（無入力時の自発的発話）を管理します。
+  - ネットワーク等の一時的エラーが発生した場合は例外を捕捉して `await asyncio.sleep(5)` で待機後に再試行します。
+  - 内側ループを抜ける（例: 致命的エラーや接続喪失）と、外側で再初期化やクリーンアップを試みる設計になっています。
+
+### 内側ループ（思考→行動ループ、Soul cycle）
+- 役割: 1サイクルごとに観測を受け、LLM に文脈を送り、生成された応答を処理（ツール呼び出し等）します。
+- 実装のポイント:
+  - 観測（`get_comments`）を元に `chat_history` を更新し、LLM に送る `LlmRequest` を構築します。
+  - 内側で `while True:` を回すのは、LLM がツール呼び出し（function_call）を返し、その実行結果をフィードバックしてさらに追加のツール呼び出しやテキスト生成が必要かを継続的に処理するためです。
+  - この内側ループは、LLM の応答が「ツール呼び出しを含む限り」継続し、ツール呼び出しが無くなった段階で break して内側ループを終了します。
+
+### llm_request が二回代入されている理由（コード上の事実と判断）
+- コード行 135-143 で `llm_request` を一旦作成していますが、その直後（内側ループ開始）で行 147-155 にて同一内容で再度 `llm_request` を作成しています。
+- 事実: 1回目の代入は内側ループの2回目の代入によって即座に上書きされ、1回目のインスタンス自体は実際の LLM 呼び出しには使用されていません。
+- 判断: 現状のコードでは「冗長」であり、意図的に保持する理由は見当たりません。恐らくリファクタリング途中の残骸、あるいは将来的に base_request を用いて inner loop でコピーして更新することを想定していた名残と推測されます。
+- 推奨修正:
+  - 意図的にテンプレートを保持したい場合は `base_request`（または `base_llm_request`）のように別名で保持し、内側ループでコピーして更新する。
+  - 単に不要なら外側での最初の代入を削除して、内側でのみ生成するようにする。
+
+例（改善案）:
+```python
+base_request = LlmRequest(...)
+while True:
+    # 必要に応じて base_request をコピーして入力を追加
+    req = copy.deepcopy(base_request)
+    req.contents = chat_history
+    async for chunk in model.generate_content_async(req, stream=True):
+        ...
+```
+
+### チャンクストリーミング（model.generate_content_async の扱い）
+- 実装の流れ（現コード）:
+  1. `async for chunk in model.generate_content_async(llm_request, stream=True):` でストリームを受け取る。
+  2. 各 chunk の `chunk.content.parts` の `text` を結合して `full_text` として扱い、`printed_len` を使って差分をログ出力しようとしている。
+  3. `if not chunk.partial: final_response = chunk` により、非部分チャンク（ストリームの終端）を最終応答として保持する。
+  4. ループ終了後、`final_response.content` を `chat_history` に追加し、function_call があればその処理へ進む。
+
+- 技術的な問題点（現コードに見られる潜在的バグ）:
+  1. ログ差分の算出が不正確
+     - `full_text` は各チャンクごとにそのチャンク内のテキストのみを結合したものであり、これを `printed_len`（チャンクを跨いで保持）と比較しているため、累積文字列に対する差分計算として機能していません。
+     - 結果として一度ログ出力して以降は新しいチャンクのテキストが小さければログされなくなる可能性があります。
+     - 対策: ストリーム全体の蓄積用変数（例: `accum_text`）を用意し、新しいチャンクのテキストを append してから `accum_text[printed_len:]` をログする。
+
+  2. `final_response` の扱い
+     - `final_response = chunk` としているため、最終チャンクの `chunk.content` のみが保存されます。API のチャンク構造によっては最終チャンクに全てのテキストや function_call 情報が含まれない可能性があります（プロバイダ実装に依存）。
+     - 対策: チャンクが持つ `content.parts` を逐次的に統合し、ストリームの最後に統合済みの `Content` オブジェクトを作成して履歴に追加する方が堅牢です。
+
+- 改善案（擬似コード）:
+```python
+accum_parts = []
+accum_text = ""
+async for chunk in model.generate_content_async(req, stream=True):
+    if chunk.content and chunk.content.parts:
+        for p in chunk.content.parts:
+            # テキストは累積
+            if getattr(p, 'text', None):
+                accum_text += p.text
+            accum_parts.append(p)
+    # 差分ログ
+    if len(accum_text) > printed_len:
+        logger.info(f"Gemini: {accum_text[printed_len:]}")
+        printed_len = len(accum_text)
+    if not chunk.partial:
+        # ストリーム完了
+        final_content = types.Content(role="assistant", parts=accum_parts)
+        break
+
+# final_content を chat_history に追加する
+chat_history.append(final_content)
+```
+
+### ツール呼び出し（function_call）のループ処理
+- 現状の設計では、`final_response.content.parts` 内の `function_call` を検出し、順に `client.call_tool(fc.name, fc.args)` を呼び出して実行結果を `types.FunctionResponse` としてパートに包み、`chat_history` に `role='user'` の形で追加しています。
+- これにより、LLM はツール実行結果を次の入力文脈として受け取り、必要なら追加の function_call を返して連鎖的に処理できます（ツールチェーンの実現）。
+- 注意点:
+  - `fc.args` のフォーマット（文字列か JSON か）に依存するため、`client.call_tool` 側で受け取り可能な形に正規化する必要があります。
+  - ツール実行で失敗した場合は、ツール実行結果としてエラー情報を含めること。現状はログにエラーを出すのみで履歴に失敗情報を入れていないため、LLM に状況を伝えられない可能性があります。
+
+### 実運用上の推奨事項（まとめ）
+1. `llm_request` の重複代入を解消する: 意図的にテンプレートを保持する場合は別名で保持し、内側ループではコピーを作る。
+2. ストリーミングは累積バッファを用いて正確に差分ログと最終コンテンツを構築する。
+3. `fc.args` の正規化と、ツール実行失敗時の結果（エラー）を `chat_history` に含めてフィードバックする。
+4. ロギングを充実させ、外側ループは高レベルイベント、内側ループは LLM サイクル単位の詳細ログを残す。
+
+---
+
+以上を `docs/ARCHITECTURE.md` に追記しました。実運用上の修正案も併記しているので、コード側の修正（リファクタリング）を行う場合は私の代わりに PR を作成できます。
