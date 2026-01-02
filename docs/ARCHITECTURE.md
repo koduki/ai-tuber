@@ -188,78 +188,18 @@ async def handle_messages(request: Request):
   - この内側ループは、LLM の応答が「ツール呼び出しを含む限り」継続し、ツール呼び出しが無くなった段階で break して内側ループを終了します。
 
 ### llm_request が二回代入されている理由（コード上の事実と判断）
-- コード行 135-143 で `llm_request` を一旦作成していますが、その直後（内側ループ開始）で行 147-155 にて同一内容で再度 `llm_request` を作成しています。
-- 事実: 1回目の代入は内側ループの2回目の代入によって即座に上書きされ、1回目のインスタンス自体は実際の LLM 呼び出しには使用されていません。
-- 判断: 現状のコードでは「冗長」であり、意図的に保持する理由は見当たりません。恐らくリファクタリング途中の残骸、あるいは将来的に base_request を用いて inner loop でコピーして更新することを想定していた名残と推測されます。
-- 推奨修正:
-  - 意図的にテンプレートを保持したい場合は `base_request`（または `base_llm_request`）のように別名で保持し、内側ループでコピーして更新する。
-  - 単に不要なら外側での最初の代入を削除して、内側でのみ生成するようにする。
-
-例（改善案）:
-```python
-base_request = LlmRequest(...)
-while True:
-    # 必要に応じて base_request をコピーして入力を追加
-    req = copy.deepcopy(base_request)
-    req.contents = chat_history
-    async for chunk in model.generate_content_async(req, stream=True):
-        ...
-```
+- 元の実装では外側で一度 `llm_request` を作成した直後、内側ループ開始直前で再生成して上書きしていました。現状は二度目が有効で最初の代入は使われていないため冗長と判断しました。
+- 推奨: テンプレートを残すなら `base_request` を用意して内側ループでコピーするか、不要なら最初の代入を削除すること。
 
 ### チャンクストリーミング（model.generate_content_async の扱い）
-- 実装の流れ（現コード）:
-  1. `async for chunk in model.generate_content_async(llm_request, stream=True):` でストリームを受け取る。
-  2. 各 chunk の `chunk.content.parts` の `text` を結合して `full_text` として扱い、`printed_len` を使って差分をログ出力しようとしている。
-  3. `if not chunk.partial: final_response = chunk` により、非部分チャンク（ストリームの終端）を最終応答として保持する。
-  4. ループ終了後、`final_response.content` を `chat_history` に追加し、function_call があればその処理へ進む。
+- 各チャンクの parts を逐次累積して最終的に統合する実装にする必要があります（最終チャンクだけに依存すると text や function_call を取りこぼす場合があるため）。
+- 差分ログは「累積テキスト」に対して printed_len を比較して出力するのが安全です。
+- function_call の args は文字列(JSON)かオブジェクトか両方の可能性があるため、呼び出し前に正規化（json.loads を試す等）し、ツール実行失敗時のエラーを履歴に含めて LLM にフィードバックする。
 
-- 技術的な問題点（現コードに見られる潜在的バグ）:
-  1. ログ差分の算出が不正確
-     - `full_text` は各チャンクごとにそのチャンク内のテキストのみを結合したものであり、これを `printed_len`（チャンクを跨いで保持）と比較しているため、累積文字列に対する差分計算として機能していません。
-     - 結果として一度ログ出力して以降は新しいチャンクのテキストが小さければログされなくなる可能性があります。
-     - 対策: ストリーム全体の蓄積用変数（例: `accum_text`）を用意し、新しいチャンクのテキストを append してから `accum_text[printed_len:]` をログする。
+### 推奨修正点（まとめ）
+1. `llm_request` の重複代入を解消し、テンプレートを明示する（`base_request` を導入）。
+2. ストリーミングは累積バッファ（parts/text）を用いて最終 content を構築する。
+3. `fc.args` の正規化とツール実行失敗時のエラーを `FunctionResponse` として履歴に追加する。
+4. 単体/統合テストで複数チャンク・複数 function_call のシナリオを検証する。
 
-  2. `final_response` の扱い
-     - `final_response = chunk` としているため、最終チャンクの `chunk.content` のみが保存されます。API のチャンク構造によっては最終チャンクに全てのテキストや function_call 情報が含まれない可能性があります（プロバイダ実装に依存）。
-     - 対策: チャンクが持つ `content.parts` を逐次的に統合し、ストリームの最後に統合済みの `Content` オブジェクトを作成して履歴に追加する方が堅牢です。
-
-- 改善案（擬似コード）:
-```python
-accum_parts = []
-accum_text = ""
-async for chunk in model.generate_content_async(req, stream=True):
-    if chunk.content and chunk.content.parts:
-        for p in chunk.content.parts:
-            # テキストは累積
-            if getattr(p, 'text', None):
-                accum_text += p.text
-            accum_parts.append(p)
-    # 差分ログ
-    if len(accum_text) > printed_len:
-        logger.info(f"Gemini: {accum_text[printed_len:]}")
-        printed_len = len(accum_text)
-    if not chunk.partial:
-        # ストリーム完了
-        final_content = types.Content(role="assistant", parts=accum_parts)
-        break
-
-# final_content を chat_history に追加する
-chat_history.append(final_content)
-```
-
-### ツール呼び出し（function_call）のループ処理
-- 現状の設計では、`final_response.content.parts` 内の `function_call` を検出し、順に `client.call_tool(fc.name, fc.args)` を呼び出して実行結果を `types.FunctionResponse` としてパートに包み、`chat_history` に `role='user'` の形で追加しています。
-- これにより、LLM はツール実行結果を次の入力文脈として受け取り、必要なら追加の function_call を返して連鎖的に処理できます（ツールチェーンの実現）。
-- 注意点:
-  - `fc.args` のフォーマット（文字列か JSON か）に依存するため、`client.call_tool` 側で受け取り可能な形に正規化する必要があります。
-  - ツール実行で失敗した場合は、ツール実行結果としてエラー情報を含めること。現状はログにエラーを出すのみで履歴に失敗情報を入れていないため、LLM に状況を伝えられない可能性があります。
-
-### 実運用上の推奨事項（まとめ）
-1. `llm_request` の重複代入を解消する: 意図的にテンプレートを保持する場合は別名で保持し、内側ループではコピーを作る。
-2. ストリーミングは累積バッファを用いて正確に差分ログと最終コンテンツを構築する。
-3. `fc.args` の正規化と、ツール実行失敗時の結果（エラー）を `chat_history` に含めてフィードバックする。
-4. ロギングを充実させ、外側ループは高レベルイベント、内側ループは LLM サイクル単位の詳細ログを残す。
-
----
-
-以上を `docs/ARCHITECTURE.md` に追記しました。実運用上の修正案も併記しているので、コード側の修正（リファクタリング）を行う場合は私の代わりに PR を作成できます。
+（既存の詳細は本ファイルに保持しています）
