@@ -10,7 +10,7 @@ from google.adk.models.llm_request import LlmRequest
 from .config import logger, MODEL_NAME, HISTORY_LIMIT
 from .mcp_client import MCPClient
 
-class Soul:
+class SaintGraph:
     def __init__(self, mcp_client: MCPClient, system_instruction: str, tools: List[types.Tool]):
         self.client = mcp_client
         self.model = Gemini(model=MODEL_NAME)
@@ -26,7 +26,7 @@ class Soul:
                 temperature=1.0,
             )
         )
-        logger.info(f"Soul initialized with model {MODEL_NAME}")
+        logger.info(f"SaintGraph initialized with model {MODEL_NAME}")
 
     def add_history(self, content: types.Content):
         """チャット履歴に追加し、制限を超えたら古いものを削除します。"""
@@ -48,7 +48,7 @@ class Soul:
         llm_request = copy.deepcopy(self.base_request)
         llm_request.contents = self.chat_history
 
-        # Soul Cycle (モデルとの往復)
+        # Inner Loop (モデルとの往復)
         while True:
             # 内部ループのたびにリクエストをコピー (更新された履歴を反映するため)
             req = copy.deepcopy(llm_request)
@@ -57,10 +57,10 @@ class Soul:
             final_content = await self._generate_and_accumulate(req)
 
             if final_content is None or not getattr(final_content, "parts", None):
-                logger.warning("Empty or missing final response from model; aborting this Soul cycle.")
+                logger.warning("Empty or missing final response from model; aborting this Inner Loop.")
                 break
 
-            # Soulの応答を履歴に追加
+            # SaintGraphの応答を履歴に追加
             self.add_history(final_content)
 
             # 関数呼び出しの確認
