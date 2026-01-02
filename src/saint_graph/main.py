@@ -1,6 +1,8 @@
 import os
 import asyncio
 import logging
+import copy
+import json
 from typing import List
 
 # Google ADK & GenAI
@@ -108,6 +110,17 @@ async def main():
     POLL_INTERVAL = 0.5
     SOLILOQUY_INTERVAL = 30.0 # 30 seconds of silence triggers a random talk
 
+    # Prepare a base LlmRequest template to copy per-turn (keeps intent explicit)
+    base_request = LlmRequest(
+        model=MODEL_NAME,
+        contents=[],
+        config=types.GenerateContentConfig(
+            system_instruction=system_instruction,
+            tools=tool_definitions,
+            temperature=1.0,
+        )
+    )
+
     while True:
         try:
             # Observation: Fetch new comments from Body (Fast Polling)
@@ -131,59 +144,64 @@ async def main():
             # Add user message to history
             chat_history.append(types.Content(role="user", parts=[types.Part(text=user_message)]))
 
-            # Prepare request
-            llm_request = LlmRequest(
-                model=MODEL_NAME,
-                contents=chat_history,
-                config=types.GenerateContentConfig(
-                    system_instruction=system_instruction,
-                    tools=tool_definitions,
-                    temperature=1.0,
-                )
-            )
+            # Build per-turn request from template
+            llm_request = copy.deepcopy(base_request)
+            llm_request.contents = chat_history
 
             # Process response (Soul cycle)
             while True:
-                llm_request = LlmRequest(
-                    model=MODEL_NAME,
-                    contents=chat_history,
-                    config=types.GenerateContentConfig(
-                        system_instruction=system_instruction,
-                        tools=tool_definitions,
-                        temperature=1.0,
-                    )
-                )
+                # Use a fresh copy each inner iteration to reflect updated history
+                req = copy.deepcopy(llm_request)
 
-                final_response = None
+                # Streaming receive: accumulate parts and text across chunks
+                accum_parts = []
+                accum_text = ""
                 printed_len = 0
-                async for chunk in model.generate_content_async(llm_request, stream=True):
-                    if chunk.content and chunk.content.parts:
-                        # Stream text deltas to logger for speed feel
-                        full_text = "".join(p.text for p in chunk.content.parts if p.text)
-                        if len(full_text) > printed_len:
-                            logger.info(f"Gemini: {full_text[printed_len:]}")
-                            printed_len = len(full_text)
-                    
-                    if not chunk.partial:
-                        final_response = chunk
+                final_content = None
 
-                if not final_response or not final_response.content:
+                async for chunk in model.generate_content_async(req, stream=True):
+                    if getattr(chunk, "content", None) and getattr(chunk.content, "parts", None):
+                        for p in chunk.content.parts:
+                            accum_parts.append(p)
+                            if getattr(p, "text", None):
+                                accum_text += p.text
+
+                    # Log only the new delta since last printed_len
+                    if len(accum_text) > printed_len:
+                        logger.info(f"Gemini: {accum_text[printed_len:]}")
+                        printed_len = len(accum_text)
+
+                    # If chunk.partial is False the stream is complete for this generation
+                    if not getattr(chunk, "partial", False):
+                        final_content = types.Content(role="assistant", parts=accum_parts)
+                        break
+
+                if final_content is None or not getattr(final_content, "parts", None):
+                    logger.warning("Empty or missing final response from model; aborting this Soul cycle.")
                     break
 
                 # Record Soul's response once to history
-                chat_history.append(final_response.content)
+                chat_history.append(final_content)
                 
-                # Check for tool calls
-                fcs = [p.function_call for p in final_response.content.parts if p.function_call]
+                # Check for function calls across all parts
+                fcs = [p.function_call for p in final_content.parts if getattr(p, "function_call", None)]
                 if not fcs:
                     break # Soul is satisfied for this observation
                 
-                # Execute tools
+                # Execute tools and collect responses
                 tool_results = []
                 for fc in fcs:
                     logger.info(f"ACTION: {fc.name}({fc.args})")
+                    args = fc.args
+                    # Normalize args: try to parse JSON strings into objects
+                    if isinstance(args, str):
+                        try:
+                            args = json.loads(args)
+                        except Exception:
+                            # leave as string if not JSON
+                            args = args
                     try:
-                        res = await client.call_tool(fc.name, fc.args)
+                        res = await client.call_tool(fc.name, args or {})
                         tool_results.append(
                             types.Part(
                                 function_response=types.FunctionResponse(
@@ -194,8 +212,17 @@ async def main():
                         )
                     except Exception as e:
                         logger.error(f"Tool execution failed: {e}")
+                        # Include error in history so the LLM can react to tool failures
+                        tool_results.append(
+                            types.Part(
+                                function_response=types.FunctionResponse(
+                                    name=fc.name,
+                                    response={"error": str(e)}
+                                )
+                            )
+                        )
                 
-                # Feed tool results back and continue Soul cycle immediately
+                # Feed tool results back to LLM as user content and continue Soul cycle
                 chat_history.append(types.Content(role="user", parts=tool_results))
 
             # Prune history to keep context windows reasonable
