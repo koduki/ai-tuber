@@ -4,7 +4,6 @@ import asyncio
 from .config import logger, RUN_MODE, MCP_URL, POLL_INTERVAL, SOLILOQUY_INTERVAL, NEWS_DIR
 from .mcp_client import MCPClient
 from .persona import load_persona
-from .tools import get_tool_definitions
 from .saint_graph import SaintGraph
 from .news_reader import NewsReader
 
