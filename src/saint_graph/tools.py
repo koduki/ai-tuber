@@ -42,6 +42,24 @@ def get_tool_definitions() -> List[types.Tool]:
                         required=["scene"]
                     )
                 ),
+                types.FunctionDeclaration(
+                    name="show_headline",
+                    description="Display a news headline on the screen.",
+                    parameters=types.Schema(
+                        type="OBJECT",
+                        properties={"text": types.Schema(type="STRING")},
+                        required=["text"]
+                    )
+                ),
+                types.FunctionDeclaration(
+                    name="show_image",
+                    description="Display an image on the screen.",
+                    parameters=types.Schema(
+                        type="OBJECT",
+                        properties={"url": types.Schema(type="STRING")},
+                        required=["url"]
+                    )
+                ),
             ]
         )
     ]

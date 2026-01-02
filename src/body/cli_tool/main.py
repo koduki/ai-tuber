@@ -47,6 +47,16 @@ async def switch_scene(scene: str):
     print(f"\n[Scene]: {scene}")
     return "Scene switched"
 
+async def show_headline(text: str):
+    """Display a news headline."""
+    print(f"\n[Headline]: {text}")
+    return "Headline displayed"
+
+async def show_image(url: str):
+    """Display an image."""
+    print(f"\n[Image]: {url}")
+    return "Image displayed"
+
 async def get_comments():
     """Get comments from the queue (stdin)."""
     comments = []

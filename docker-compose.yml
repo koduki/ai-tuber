@@ -17,6 +17,7 @@ services:
     depends_on:
       - mcp-cli
     volumes:
+      - ./data/news:/app/data/news
       # Mount the entire repository for development inside the container.
       # This single mount is sufficient for devcontainer purposes.
       - .:/workspaces/ai-tuber:cached
