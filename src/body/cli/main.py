@@ -2,7 +2,6 @@ import asyncio
 import sys
 import json
 import threading
-from glob import glob
 from typing import List, Optional
 from queue import Queue, Empty
 
@@ -16,14 +15,14 @@ input_queue = Queue()
 
 def stdin_reader():
     """Reads lines from stdin and puts them in a queue."""
-    sys.stderr.write("DEBUG: Starting stdin_reader thread\\n")
+    sys.stderr.write("DEBUG: Starting stdin_reader thread\n")
     while True:
         try:
             line = sys.stdin.readline()
             if line:
                 input_queue.put(line.strip())
         except Exception as e:
-            sys.stderr.write(f"Error reading stdin: {e}\\n")
+            sys.stderr.write(f"Error reading stdin: {e}\n")
             break
 
 # Start stdin reader in background
@@ -60,12 +59,11 @@ async def get_comments():
         return "No new comments."
     return "\n".join(comments)
 
+# 修正箇所: 未定義の show_headline, show_image を削除しました
 TOOLS = {
     "speak": speak,
     "change_emotion": change_emotion,
     "switch_scene": switch_scene,
-    "show_headline": show_headline,
-    "show_image": show_image,
     "get_comments": get_comments,
 }
 
@@ -120,19 +118,12 @@ TOOL_DEFINITIONS = [
 async def handle_sse(request: Request):
     """Handle SSE connections (MCP initialization)."""
     async def event_generator():
-        # Send capabilities/tool list on connection
-        # This is a simplification; normally capability negotiation happens via JSON-RPC
-        # But for this Body-Server, sending tools aggressively or waiting for 'initialize' is fine.
-        # We will assume the client knows to query tools or we can push an update.
         yield {
             "event": "endpoint",
             "data": "/messages"
         }
-        
         while True:
-            # Keepalive
             await asyncio.sleep(1)
-            # We could push specific events here if needed
             
     return EventSourceResponse(event_generator())
 
@@ -148,7 +139,6 @@ async def handle_messages(request: Request):
     msg_id = data.get("id")
     params = data.get("params", {})
 
-    # JSON-RPC Handling
     if method == "tools/list":
         return {
             "jsonrpc": "2.0",
@@ -164,8 +154,6 @@ async def handle_messages(request: Request):
         
         if tool_name in TOOLS:
             try:
-                # Call the tool function
-                # Note: Assuming simpler sync/async handling for MVP
                 result = await TOOLS[tool_name](**args)
                 return {
                     "jsonrpc": "2.0",
@@ -187,7 +175,6 @@ async def handle_messages(request: Request):
                 "id": msg_id
             }
 
-    # Initialize (Handshake)
     if method == "initialize":
          return {
             "jsonrpc": "2.0",
@@ -205,4 +192,3 @@ async def handle_messages(request: Request):
         }
 
     return {"jsonrpc": "2.0", "error": {"code": -32601, "message": "Method not found"}, "id": msg_id}
-

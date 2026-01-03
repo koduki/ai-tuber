@@ -60,37 +60,25 @@ class MCPClient:
         self.post_url = None
         self.tools = []
         self.session_id = 0
+        # 修正: クライアントセッションを保持
+        self.http_client = httpx.AsyncClient(timeout=30.0)
 
     async def connect(self):
-        """
-        Connect to the MCP server via SSE to discover the POST endpoint.
-        """
         logger.info(f"Connecting to MCP at {self.base_url}...")
-        
-        # In a real MCP SSE implementation, we keep the connection open for events.
-        # For this MVP body implementation, the server sends the endpoint immediately.
-        # We'll just perform a quick read to get the endpoint.
         try:
-            async with httpx.AsyncClient() as client:
-                async with client.stream("GET", self.base_url) as response:
-                    async for line in response.aiter_lines():
-                        if line.startswith("data:"):
-                            # Parse the data payload
-                            data_str = line[len("data:"):].strip()
-                            # For now, we assume this is the endpoint config or we just proceed.
-                            # We must break here to avoid hanging forever on the keepalive stream.
-                            break
+            # SSEハンドシェイク (簡易版)
+            async with self.http_client.stream("GET", self.base_url) as response:
+                 async for line in response.aiter_lines():
+                    if line.startswith("data:"):
+                        break
         except Exception as e:
-            logger.warning(f"Failed to SSE handshake with {self.base_url}, using fallback: {e}")
+            logger.warning(f"Failed to SSE handshake with {self.base_url}: {e}")
 
-        # Fallback/Assumption for endpoint
         self.post_url = self.base_url.replace("/sse", "/messages")
-        
-        # Now Initialize
         await self.initialize()
 
     async def _send_rpc(self, method: str, params: dict = None):
-        """Send a JSON-RPC 2.0 request."""
+        """Send a JSON-RPC 2.0 request using the persistent client."""
         self.session_id += 1
         payload = {
             "jsonrpc": "2.0",
@@ -99,10 +87,10 @@ class MCPClient:
             "id": self.session_id
         }
         
-        async with httpx.AsyncClient() as client:
-            resp = await client.post(self.post_url, json=payload)
-            resp.raise_for_status()
-            return resp.json()
+        # 修正: self.http_client を使用
+        resp = await self.http_client.post(self.post_url, json=payload)
+        resp.raise_for_status()
+        return resp.json()
 
     async def initialize(self):
         """Perform MCP Handshake."""
