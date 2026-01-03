@@ -1,14 +1,15 @@
 import asyncio
+import sys
 
 # モジュールのインポート
-from .config import logger, RUN_MODE, MCP_URL, POLL_INTERVAL, SOLILOQUY_INTERVAL, NEWS_DIR
+from .config import logger, MCP_URL, NEWS_DIR
 from .mcp_client import MCPClient
 from .persona import load_persona
 from .saint_graph import SaintGraph
 from .news_reader import NewsReader
 
 async def main():
-    logger.info(f"Starting Saint Graph in {RUN_MODE} mode (Modular Refactored)...")
+    logger.info("Starting Saint Graph in News Delivery Mode...")
 
     # 1. Body (MCP) への接続
     await asyncio.sleep(2) # 接続待機
@@ -20,87 +21,59 @@ async def main():
         return
 
     # 2. Mind (Persona) の初期化
-    # デフォルトで 'ren' を読み込むが、将来的に設定変更可能にする
     system_instruction = load_persona(name="ren")
 
     # 3. ツールの定義 (動的取得)
-    # MCPから取得したツールリストをGoogle GenAI形式に変換して使用する
     tool_definitions = client.get_google_genai_tools()
     logger.info(f"Loaded {len(tool_definitions[0].function_declarations) if tool_definitions else 0} tools from MCP.")
 
     # 4. Saint Graph の初期化
     saint_graph = SaintGraph(mcp_client=client, system_instruction=system_instruction, tools=tool_definitions)
 
-    # 5. メインループ (Outer Loop)
-    poll_count = 0
-    news_reader = NewsReader("/app/data/news")
-    # Store processed news files to avoid reading them repeatedly in the loop
-    # In a production system, this state should probably persist or files should be moved.
-    # For this MVP, we will cache the latest file processing in memory.
-    last_news_content = None
+    # 5. ニュース読み込み
+    news_reader = NewsReader(NEWS_DIR)
+    news_chunks = news_reader.get_latest_news_chunks()
 
-    while True:
-        try:
-            # --- ニュース配信モード ---
-            # ニュースがあるかチェック
-            news_chunks = news_reader.get_latest_news_chunks()
+    if not news_chunks:
+        logger.warning(f"No news found in {NEWS_DIR}. Exiting.")
+        return
 
-            # ニュースの内容が変わった場合のみ配信（簡易的な重複防止）
-            # chunksを結合してハッシュ代わりにする
-            current_news_content = "".join(news_chunks) if news_chunks else None
+    logger.info(f"Found {len(news_chunks)} news chunks. Starting delivery.")
 
-            if news_chunks and current_news_content != last_news_content:
-                logger.info("New news found. Starting News Delivery Mode.")
-                last_news_content = current_news_content
-
-                for i, chunk in enumerate(news_chunks):
-                    # 1. 割り込みチェック (Interruption Check)
-                    comments = await client.call_tool("get_comments", {})
-                    if comments and comments != "No new comments.":
-                        logger.info("Interruption detected.")
-                        interruption_msg = f"[System/Interruption]:\nUser Comments:\n{comments}\n(Answer briefly and explicitly say 'それではニュースに戻るのじゃ' to resume)"
-                        await saint_graph.process_turn(interruption_msg)
-                        await asyncio.sleep(1)
-
-                    # 2. ニュース読み上げ (Read News Chunk)
-                    logger.info(f"Reading news chunk {i+1}/{len(news_chunks)}")
-                    news_msg = f"[System/NewsFeed] (Chunk {i+1}/{len(news_chunks)}):\n{chunk}"
-                    await saint_graph.process_turn(news_msg)
-
-                    # チャンク間の少し長い間
-                    await asyncio.sleep(2)
-
-                # ニュース終了後はコメント待ち受けに戻る
-                continue
-
-            # --- 通常モード (雑談待ち受け) ---
-            # 観察: Bodyから新しいコメントを取得 (ポーリング)
+    # 6. メインループ (News Loop)
+    # 起動毎に固定のニュースを順番に処理して終了する
+    try:
+        for i, chunk in enumerate(news_chunks):
+            # 1. コメント/割り込みチェック (Interruption Check)
+            # ニュースを読む前に、常に新しいコメントがないか確認する ("適宜コメントを拾う")
             comments = await client.call_tool("get_comments", {})
             
-            # Saint Graphを起動するか判定
-            has_comments = comments != "No new comments."
-            is_time_for_soliloquy = (poll_count * POLL_INTERVAL) >= SOLILOQUY_INTERVAL
-            
-            if not has_comments and not is_time_for_soliloquy:
-                poll_count += 1
-                await asyncio.sleep(POLL_INTERVAL)
-                continue
+            if comments and comments != "No new comments.":
+                logger.info("Interruption detected (Comments found).")
+                interruption_msg = f"[System/Interruption]:\nUser Comments:\n{comments}\n(Answer briefly and explicitly say 'それではニュースに戻るのじゃ' to resume)"
+                await saint_graph.process_turn(interruption_msg)
+                await asyncio.sleep(1)
 
-            # カウンターリセット
-            poll_count = 0
+            # 2. ニュース読み上げ (または指示の実行)
+            logger.info(f"Processing news chunk {i+1}/{len(news_chunks)}")
             
-            # コンテキスト構築
-            user_message = f"[System/Observation]:\nUser Comments:\n{comments}"
-            
-            # Saint Graphにターンを委譲 (Inner Loop)
-            await saint_graph.process_turn(user_message)
+            # チャンク自体に指示(例: [ここで短い雑談])が含まれている場合、LLMはその指示に従う
+            news_msg = f"[System/NewsFeed] (Chunk {i+1}/{len(news_chunks)}):\n{chunk}"
+            await saint_graph.process_turn(news_msg)
 
-            # 連続投稿を防ぐための短い待機
-            await asyncio.sleep(1)
-            
-        except Exception as e:
-            logger.error(f"Error in Main Loop: {e}", exc_info=True)
-            await asyncio.sleep(5)
+            # チャンク間の待機
+            await asyncio.sleep(2)
+
+        # 7. 終了処理
+        logger.info("News delivery finished. Speaking closing words.")
+        closing_msg = "[System/Instruction]: News ended. Speak closing words to the audience and say goodbye."
+        await saint_graph.process_turn(closing_msg)
+
+    except Exception as e:
+        logger.error(f"Error in News Loop: {e}", exc_info=True)
+    finally:
+        logger.info("Exiting Saint Graph.")
+        sys.exit(0)
 
 if __name__ == "__main__":
     asyncio.run(main())
