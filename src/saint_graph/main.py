@@ -3,17 +3,15 @@ import sys
 import os
 
 # モジュールのインポート
-from .config import logger, MCP_URL, NEWS_DIR
+# 修正: news_reader は不要なので削除
+from .config import logger, MCP_URL, POLL_INTERVAL
 from .mcp_client import MCPClient
 from .saint_graph import SaintGraph
-from .news_reader import NewsReader
 
 def load_persona(name: str = "ren") -> str:
     """
     指定されたキャラクター名のpersona.mdファイルを読み込んでシステム指示として返します。
-    探索は行わず、src/mind/{name}/persona.md を直接参照します。
     """
-    # src/mind/{name}/persona.md を絶対パスで構築
     base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__))) # src/
     persona_path = os.path.join(base_dir, "mind", name, "persona.md")
     persona_path = os.path.normpath(persona_path)
@@ -31,7 +29,7 @@ def load_persona(name: str = "ren") -> str:
         return "You are a helpful AI Tuber."
 
 async def main():
-    logger.info("Starting Saint Graph in News Delivery Mode...")
+    logger.info("Starting Saint Graph in Chat Mode...")
 
     # 1. Body (MCP) への接続
     await asyncio.sleep(2) # 接続待機
@@ -52,50 +50,29 @@ async def main():
     # 4. Saint Graph の初期化
     saint_graph = SaintGraph(mcp_client=client, system_instruction=system_instruction, tools=tool_definitions)
 
-    # 5. ニュース読み込み
-    news_reader = NewsReader(NEWS_DIR)
-    news_chunks = news_reader.get_latest_news_chunks()
+    # 5. メインループ (Chat Loop)
+    logger.info("Entering Chat Loop. Waiting for comments...")
 
-    if not news_chunks:
-        logger.warning(f"No news found in {NEWS_DIR}. Exiting.")
-        return
-
-    logger.info(f"Found {len(news_chunks)} news chunks. Starting delivery.")
-
-    # 6. メインループ (News Loop)
-    # 起動毎に固定のニュースを順番に処理して終了する
-    try:
-        for i, chunk in enumerate(news_chunks):
-            # 1. コメント/割り込みチェック (Interruption Check)
-            # ニュースを読む前に、常に新しいコメントがないか確認する ("適宜コメントを拾う")
+    while True:
+        try:
+            # 1. コメント確認
             comments = await client.call_tool("get_comments", {})
             
             if comments and comments != "No new comments.":
-                logger.info("Interruption detected (Comments found).")
-                interruption_msg = f"[System/Interruption]:\nUser Comments:\n{comments}\n(Answer briefly and explicitly say 'それではニュースに戻るのじゃ' to resume)"
-                await saint_graph.process_turn(interruption_msg)
-                await asyncio.sleep(1)
-
-            # 2. ニュース読み上げ (または指示の実行)
-            logger.info(f"Processing news chunk {i+1}/{len(news_chunks)}")
+                logger.info("Comments received.")
+                # ユーザーの発言として処理
+                await saint_graph.process_turn(comments)
             
-            # チャンク自体に指示(例: [ここで短い雑談])が含まれている場合、LLMはその指示に従う
-            news_msg = f"[System/NewsFeed] (Chunk {i+1}/{len(news_chunks)}):\n{chunk}"
-            await saint_graph.process_turn(news_msg)
+            else:
+                # コメントがない場合は待機 (将来的にここで独り言のロジックを入れることも可能)
+                pass
 
-            # チャンク間の待機
-            await asyncio.sleep(2)
+            # 定期ポーリングの間隔
+            await asyncio.sleep(POLL_INTERVAL)
 
-        # 7. 終了処理
-        logger.info("News delivery finished. Speaking closing words.")
-        closing_msg = "[System/Instruction]: News ended. Speak closing words to the audience and say goodbye."
-        await saint_graph.process_turn(closing_msg)
-
-    except Exception as e:
-        logger.error(f"Error in News Loop: {e}", exc_info=True)
-    finally:
-        logger.info("Exiting Saint Graph.")
-        sys.exit(0)
+        except Exception as e:
+            logger.error(f"Error in Chat Loop: {e}", exc_info=True)
+            await asyncio.sleep(5) # エラー時は少し長く待機
 
 if __name__ == "__main__":
     asyncio.run(main())
