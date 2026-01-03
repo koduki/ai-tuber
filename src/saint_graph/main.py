@@ -10,14 +10,28 @@ from google.genai import types
 from google.adk.models import Gemini
 from google.adk.models.llm_request import LlmRequest
 
-# Custom MCP Client
-from mcp_client import MCPClient
-
-# Configuration
-RUN_MODE = os.getenv("RUN_MODE", "cli")
-MCP_URL = os.getenv("MCP_URLS_CLI") if RUN_MODE == "cli" else os.getenv("MCP_URLS_PROD").split(",")[0]
-GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
-MODEL_NAME = "gemini-2.5-flash-lite" # Use the requested lite model
+# Internal modules (relative imports for -m execution)
+try:
+    from .mcp_client import MCPClient
+    from .config import (
+        MCP_URL,
+        GOOGLE_API_KEY,
+        MODEL_NAME,
+        POLL_INTERVAL,
+        SOLILOQUY_INTERVAL,
+        RUN_MODE
+    )
+except ImportError:
+    # Fallback for direct script execution or different path structures
+    from mcp_client import MCPClient
+    from config import (
+        MCP_URL,
+        GOOGLE_API_KEY,
+        MODEL_NAME,
+        POLL_INTERVAL,
+        SOLILOQUY_INTERVAL,
+        RUN_MODE
+    )
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("saint-graph")
@@ -29,6 +43,7 @@ logging.getLogger("google_adk").setLevel(logging.WARNING)
 
 async def main():
     logger.info(f"Starting Saint Graph in {RUN_MODE} mode (ADK-based)...")
+    logger.info(f"Target MCP URL: {MCP_URL}")
 
     # 1. Connect to Body (MCP) via mcp_client.py
     await asyncio.sleep(2) # Give body some time to start if needed
@@ -40,10 +55,12 @@ async def main():
         return
 
     # 2. Initialize Mind (Persona)
-    persona_path = os.path.join(os.path.dirname(__file__), "..", "mind", "ren", "persona.md")
+    # Determine path relative to this file
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    persona_path = os.path.join(base_dir, "..", "mind", "ren", "persona.md")
     persona_path = os.path.normpath(persona_path)
 
-    # Simple search for persona.md
+    # Fallback search
     if not os.path.exists(persona_path):
         paths_to_try = ["/workspaces/ai-tuber/src/mind/ren/persona.md", "src/mind/ren/persona.md", "mind/ren/persona.md"]
         for p in paths_to_try:
@@ -107,8 +124,7 @@ async def main():
     # 5. Main Loop
     chat_history: List[types.Content] = []
     poll_count = 0
-    POLL_INTERVAL = 0.5
-    SOLILOQUY_INTERVAL = 30.0 # 30 seconds of silence triggers a random talk
+    # Intervals from config
 
     # Prepare a base LlmRequest template to copy per-turn (keeps intent explicit)
     base_request = LlmRequest(
