@@ -1,85 +1,46 @@
-# AI Tuber Modular Architecture (ADK + MCP)
+# AI Tuber (Architecture Refactored)
 
-このプロジェクトは、AI Tuber の機能を「Saint Graph (魂)」と「肉体（Body）」に分離したモジュール型アーキテクチャの MVP です。Google の **Agent Development Kit (ADK)** と **Model Context Protocol (MCP)** を活用しています。
+This project explores the construction of an AI Agent using the Model Context Protocol (MCP) and Google's Agent Development Kit (ADK).
 
-## アーキテクチャ概要
+## Architecture: "Saint Graph" & "Single Body"
 
-システムは大きく3つの要素で構成されています：
+The architecture is simplified into a central reasoning engine (Saint Graph) and a single capability provider (Body).
 
-1.  **Saint Graph (魂)**: `src/saint_graph/`
-    *   **LLM** を搭載したエージェント。
-    *   ADK を使用して、思考プロセスとツール実行を管理します。
-    *   モジュール化された構造（`saint_graph.py`, `main.py`, `persona.py`, `tools.py`）により、保守性が向上しています。
-2.  **Body (肉体/外部IF)**: `src/body/cli/`
-    *   **MCP Server** として実装されています。
-    *   `speak`（発話）、`change_emotion`（表情変更）、`get_comments`（コメント取得）などのツールを提供します。
-    *   現在は CLI モードで動作し、ターミナル上で対話が可能です。
-3.  **Mind (人格)**: `src/mind/`
-    *   キャラクターの性格、口調、行動指針を定義する `persona.md` を含みます。
+*   **Saint Graph (The Spirit)**:
+    *   **Outer Loop (`src/saint_graph/main.py`)**: Manages the application lifecycle, connects to the MCP Body, and runs the "News Loop".
+    *   **Inner Loop (`src/saint_graph/saint_graph.py`)**: Handles the LLM interaction (Turn-based conversation). It generates content, executes tools, and loops until the model is satisfied.
+    *   **Mind (`src/mind`)**: Stores the persona/system instructions.
+    *   **MCP Client (`src/saint_graph/mcp_client.py`)**: A forward-compatible client that connects to a single MCP server. It implements standard `list_tools` and `call_tool` methods.
 
-詳細は [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) を参照してください。
+*   **Body (The Capabilities)**:
+    *   **MCP Server (e.g., `src/body/cli`)**: Provides tools and I/O capabilities. Saint Graph connects to this single endpoint.
 
-## ディレクトリ構造
+## Getting Started
 
-```text
-/
-├── src/
-│   ├── body/            # MCP Server (Body) の実装
-│   │   └── cli/         # CLI用インターフェース
-│   ├── mind/            # キャラクター設定 (Persona)
-│   └── saint_graph/     # エージェントロジック (Saint Graph/魂)
-│       ├── main.py      # Outer Loop / ライフサイクル管理
-│       ├── saint_graph.py # Inner Loop / Saint Graph クラス
-│       ├── persona.py   # Persona ロード処理
-│       ├── tools.py     # ツール定義
-│       ├── config.py    # 設定
-│       └── mcp_client.py # Body接続用クライアント
-├── .devcontainer/       # 開発環境設定
-└── docker-compose.yml   # 実行環境定義
-```
+### Prerequisites
 
-## 前提条件
-
-*   Docker / Docker Compose
+*   Docker & Docker Compose
 *   Google Gemini API Key
 
-## セットアップ & 実行
+### Configuration
 
-### 1. 環境変数の設定
-`.env` ファイルを作成してください。
+Set your API key in `.env` or environment variables:
+
 ```bash
-GOOGLE_API_KEY=あなたのAPIキー
-RUN_MODE=cli
+export GOOGLE_API_KEY="your_api_key_here"
 ```
 
-### 2. システムの起動
+### Running (Development)
+
+The project includes a `devcontainer` configuration. Open the folder in VS Code with "Reopen in Container".
+
+Or run manually:
+
 ```bash
-docker-compose up
+docker-compose up --build
 ```
-これにより、Saint Graph と Body の両方のコンテナが立ち上がります。
 
-### 3. AI との会話
-新しいターミナルを開き、Body コンテナにアタッチします。
-```bash
-docker attach ai-tuber-mcp-cli-1
-```
-ここでメッセージを入力すると、約10秒間隔の思考ループにより Saint Graph が反応を返します。
+### Key Concepts
 
-## 開発ガイド (DevContainer)
-
-VS Code の **DevContainer** を使用すると、コンテナ内で直接 Saint Graph のコードを修正・再起動できます。
-
-1. VS Code で開き、「Reopen in Container」を選択。
-2. `saint-graph` ターミナルで実行：
-   ```bash
-   python3 -m src.saint_graph.main
-   ```
-3. ログを確認しながら、`src/` 配下のファイルを編集することでリアルタイムに挙動を変更できます。
-
-## 技術スタック
-
-*   **LLM**: Gemini 2.0 Flash Lite
-*   **Agent Framework**: Google Agent Development Kit (ADK)
-*   **Protocol**: Model Context Protocol (MCP)
-*   **Language**: Python 3.11
-*   **Infrastructure**: Docker / Docker Compose
+*   **Single Connection**: Saint Graph connects to one MCP endpoint (defined by `MCP_URL`).
+*   **Standardized Interface**: The `MCPClient` is designed to mirror the official Python SDK's `ClientSession` interface (`list_tools`, `call_tool`), facilitating future migration.

@@ -116,6 +116,7 @@ class SaintGraph:
                 except Exception:
                     pass # JSONでなければそのまま
 
+            # Use standardized call_tool method
             try:
                 res = await self.client.call_tool(fc.name, args or {})
                 tool_results.append(
