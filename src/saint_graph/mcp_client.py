@@ -119,7 +119,7 @@ class MCPClient:
 
     async def list_tools(self) -> List[Dict[str, Any]]:
         """
-        [Standardization] MCPサーバーからツール一覧を取得します。
+        MCPサーバーからツール一覧を取得します。
         公式SDKの session.list_tools() と役割を合わせます。
         """
         res = await self._send_rpc("tools/list")
@@ -134,7 +134,7 @@ class MCPClient:
 
     async def call_tool(self, name: str, arguments: dict):
         """
-        [Standardization] 指定されたツールを実行します。
+        指定されたツールを実行します。
         公式SDKの session.call_tool(name, arguments) とインターフェースを合わせます。
         """
         logger.info(f"Calling tool: {name} with {arguments}")

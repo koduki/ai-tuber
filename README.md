@@ -1,46 +1,46 @@
 # AI Tuber (Architecture Refactored)
 
-This project explores the construction of an AI Agent using the Model Context Protocol (MCP) and Google's Agent Development Kit (ADK).
+Model Context Protocol (MCP) と Google Agent Development Kit (ADK) を活用した AI Agent 構築の実験プロジェクトです。
 
-## Architecture: "Saint Graph" & "Single Body"
+## アーキテクチャ: "Saint Graph" & "Single Body"
 
-The architecture is simplified into a central reasoning engine (Saint Graph) and a single capability provider (Body).
+システム構成を簡素化し、中心的な思考エンジン（Saint Graph）と単一の能力提供者（Body）に集約しました。
 
-*   **Saint Graph (The Spirit)**:
-    *   **Outer Loop (`src/saint_graph/main.py`)**: Manages the application lifecycle, connects to the MCP Body, and runs the "News Loop".
-    *   **Inner Loop (`src/saint_graph/saint_graph.py`)**: Handles the LLM interaction (Turn-based conversation). It generates content, executes tools, and loops until the model is satisfied.
-    *   **Mind (`src/mind`)**: Stores the persona/system instructions.
-    *   **MCP Client (`src/saint_graph/mcp_client.py`)**: A forward-compatible client that connects to a single MCP server. It implements standard `list_tools` and `call_tool` methods.
+*   **Saint Graph (魂)**:
+    *   **Outer Loop (`src/saint_graph/main.py`)**: アプリケーションのライフサイクルを管理し、MCP Body に接続して「ニュースループ」を実行します。
+    *   **Inner Loop (`src/saint_graph/saint_graph.py`)**: LLM との対話（ターン制会話）を処理します。コンテンツ生成、ツール実行、モデルが満足するまでのループを制御します。
+    *   **Mind (`src/mind`)**: ペルソナ設定やシステム指示を格納します。
+    *   **MCP Client (`src/saint_graph/mcp_client.py`)**: 単一の MCP サーバーに接続する、将来の互換性を考慮したクライアントです。標準的な `list_tools` と `call_tool` メソッドを実装しています。
 
-*   **Body (The Capabilities)**:
-    *   **MCP Server (e.g., `src/body/cli`)**: Provides tools and I/O capabilities. Saint Graph connects to this single endpoint.
+*   **Body (身体)**:
+    *   **MCP Server (例: `src/body/cli`)**: ツールや入出力機能を提供します。Saint Graph はこの単一のエンドポイントに接続します。
 
-## Getting Started
+## はじめに
 
-### Prerequisites
+### 必要なもの
 
 *   Docker & Docker Compose
 *   Google Gemini API Key
 
-### Configuration
+### 設定
 
-Set your API key in `.env` or environment variables:
+`.env` ファイルまたは環境変数で API キーを設定してください:
 
 ```bash
 export GOOGLE_API_KEY="your_api_key_here"
 ```
 
-### Running (Development)
+### 実行方法 (開発)
 
-The project includes a `devcontainer` configuration. Open the folder in VS Code with "Reopen in Container".
+このプロジェクトには `devcontainer` 設定が含まれています。VS Code でフォルダを開き、「コンテナーで再度開く」を選択してください。
 
-Or run manually:
+手動で実行する場合:
 
 ```bash
 docker-compose up --build
 ```
 
-### Key Concepts
+### キーコンセプト
 
-*   **Single Connection**: Saint Graph connects to one MCP endpoint (defined by `MCP_URL`).
-*   **Standardized Interface**: The `MCPClient` is designed to mirror the official Python SDK's `ClientSession` interface (`list_tools`, `call_tool`), facilitating future migration.
+*   **単一接続**: Saint Graph は単一の MCP エンドポイント (`MCP_URL` で定義) に接続します。
+*   **標準化インターフェース**: `MCPClient` は、将来の移行を容易にするため、公式 Python SDK の `ClientSession` インターフェース (`list_tools`, `call_tool`) に合わせて設計されています。
