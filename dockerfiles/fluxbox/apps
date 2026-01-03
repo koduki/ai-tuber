@@ -1,6 +1,0 @@
-[app] (name=obs)
-  [Dimensions] {800 600}
-  [Position] (UPPERLEFT) {100 100}
-  [Workspace] {0}
-  [Layer] {4}
-[end]

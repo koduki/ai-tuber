@@ -1,25 +1,37 @@
-version: '3.8'
-
 services:
-  ai-tuber:
-    image: gcr.io/ren-studio-ai/ai-tuber
+  # --- Saint Graph (Spirit/Logic) ---
+  # This service is configured for use as a devcontainer.
+  saint-graph:
+    # The build context is the repository root, using the devcontainer Dockerfile.
+    build:
+      context: .
+      dockerfile: .devcontainer/Dockerfile
     environment:
-      - YT_LIVE_KEY=xxx-xxx-xxx-xxx-xxx
+      - RUN_MODE=cli # Set for development
+      - MCP_URL=http://mcp-cli:8000/sse
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY}
+      # PYTHONPATH is set for the devcontainer environment.
+      - PYTHONPATH=/workspaces/ai-tuber/src
+    depends_on:
+      - mcp-cli
     volumes:
-      - ./:/workspaces/ai-tuber
-      - C:\Users\koduki\.secret\:/secret
+      - ./data/news:/app/data/news
+      # Mount the entire repository for development inside the container.
+      # This single mount is sufficient for devcontainer purposes.
+      - .:/workspaces/ai-tuber:cached
+      # Mount Docker socket for docker-out-of-docker pattern
+      - /var/run/docker.sock:/var/run/docker.sock
+    # Keep the container running for the devcontainer.
+    command: sleep infinity
+
+  # --- Dev Body (CLI) ---
+  mcp-cli:
+    build: ./src/body/cli
     ports:
-      - "6080:6080"
-      - "5901:5901"
-      - "5000:5000"
-    restart: always
-  voicevox:
-    image: voicevox/voicevox_engine:nvidia-ubuntu20.04-latest
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - capabilities: [gpu]
-    ports:
-      - "127.0.0.1:50021:50021"
-    restart: always
+      - "8000:8000"
+    stdin_open: true
+    tty: true
+    environment:
+      - PORT=8000
+    volumes:
+      - ./src/body/cli:/app

@@ -1,4 +1,7 @@
+.env
 __pycache__/
-.venv
-service.json
-poetry.lock
+*.py[cod]
+*$py.class
+.pytest_cache/
+.vscode/
+.DS_Store
