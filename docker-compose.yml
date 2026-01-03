@@ -8,9 +8,7 @@ services:
       dockerfile: .devcontainer/Dockerfile
     environment:
       - RUN_MODE=cli # Set for development
-      - MCP_URLS_CLI=http://mcp-cli:8000/sse
-      # Examples for production (placeholder)
-      - MCP_URLS_PROD=http://mcp-obs:8000/sse,http://mcp-voicevox:8000/sse,http://mcp-youtube:8000/sse
+      - MCP_URL=http://mcp-cli:8000/sse
       - GOOGLE_API_KEY=${GOOGLE_API_KEY}
       # PYTHONPATH is set for the devcontainer environment.
       - PYTHONPATH=/workspaces/ai-tuber/src

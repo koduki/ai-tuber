@@ -1,85 +1,46 @@
-# AI Tuber Modular Architecture (ADK + MCP)
+# AI Tuber (Architecture Refactored)
 
-このプロジェクトは、AI Tuber の機能を「Saint Graph (魂)」と「肉体（Body）」に分離したモジュール型アーキテクチャの MVP です。Google の **Agent Development Kit (ADK)** と **Model Context Protocol (MCP)** を活用しています。
+Model Context Protocol (MCP) と Google Agent Development Kit (ADK) を活用した AI Agent 構築の実験プロジェクトです。
 
-## アーキテクチャ概要
+## アーキテクチャ: "Saint Graph" & "Single Body"
 
-システムは大きく3つの要素で構成されています：
+システム構成を簡素化し、中心的な思考エンジン（Saint Graph）と単一の能力提供者（Body）に集約しました。
 
-1.  **Saint Graph (魂)**: `src/saint_graph/`
-    *   **LLM** を搭載したエージェント。
-    *   ADK を使用して、思考プロセスとツール実行を管理します。
-    *   モジュール化された構造（`saint_graph.py`, `main.py`, `persona.py`, `tools.py`）により、保守性が向上しています。
-2.  **Body (肉体/外部IF)**: `src/body/cli/`
-    *   **MCP Server** として実装されています。
-    *   `speak`（発話）、`change_emotion`（表情変更）、`get_comments`（コメント取得）などのツールを提供します。
-    *   現在は CLI モードで動作し、ターミナル上で対話が可能です。
-3.  **Mind (人格)**: `src/mind/`
-    *   キャラクターの性格、口調、行動指針を定義する `persona.md` を含みます。
+*   **Saint Graph (魂)**:
+    *   **Outer Loop (`src/saint_graph/main.py`)**: アプリケーションのライフサイクルを管理し、MCP Body に接続して「ニュースループ」を実行します。
+    *   **Inner Loop (`src/saint_graph/saint_graph.py`)**: LLM との対話（ターン制会話）を処理します。コンテンツ生成、ツール実行、モデルが満足するまでのループを制御します。
+    *   **Mind (`src/mind`)**: ペルソナ設定やシステム指示を格納します。
+    *   **MCP Client (`src/saint_graph/mcp_client.py`)**: 単一の MCP サーバーに接続する、将来の互換性を考慮したクライアントです。標準的な `list_tools` と `call_tool` メソッドを実装しています。
 
-詳細は [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) を参照してください。
+*   **Body (身体)**:
+    *   **MCP Server (例: `src/body/cli`)**: ツールや入出力機能を提供します。Saint Graph はこの単一のエンドポイントに接続します。
 
-## ディレクトリ構造
+## はじめに
 
-```text
-/
-├── src/
-│   ├── body/            # MCP Server (Body) の実装
-│   │   └── cli/         # CLI用インターフェース
-│   ├── mind/            # キャラクター設定 (Persona)
-│   └── saint_graph/     # エージェントロジック (Saint Graph/魂)
-│       ├── main.py      # Outer Loop / ライフサイクル管理
-│       ├── saint_graph.py # Inner Loop / Saint Graph クラス
-│       ├── persona.py   # Persona ロード処理
-│       ├── tools.py     # ツール定義
-│       ├── config.py    # 設定
-│       └── mcp_client.py # Body接続用クライアント
-├── .devcontainer/       # 開発環境設定
-└── docker-compose.yml   # 実行環境定義
-```
+### 必要なもの
 
-## 前提条件
-
-*   Docker / Docker Compose
+*   Docker & Docker Compose
 *   Google Gemini API Key
 
-## セットアップ & 実行
+### 設定
 
-### 1. 環境変数の設定
-`.env` ファイルを作成してください。
+`.env` ファイルまたは環境変数で API キーを設定してください:
+
 ```bash
-GOOGLE_API_KEY=あなたのAPIキー
-RUN_MODE=cli
+export GOOGLE_API_KEY="your_api_key_here"
 ```
 
-### 2. システムの起動
+### 実行方法 (開発)
+
+このプロジェクトには `devcontainer` 設定が含まれています。VS Code でフォルダを開き、「コンテナーで再度開く」を選択してください。
+
+手動で実行する場合:
+
 ```bash
-docker-compose up
+docker-compose up --build
 ```
-これにより、Saint Graph と Body の両方のコンテナが立ち上がります。
 
-### 3. AI との会話
-新しいターミナルを開き、Body コンテナにアタッチします。
-```bash
-docker attach ai-tuber-mcp-cli-1
-```
-ここでメッセージを入力すると、約10秒間隔の思考ループにより Saint Graph が反応を返します。
+### キーコンセプト
 
-## 開発ガイド (DevContainer)
-
-VS Code の **DevContainer** を使用すると、コンテナ内で直接 Saint Graph のコードを修正・再起動できます。
-
-1. VS Code で開き、「Reopen in Container」を選択。
-2. `saint-graph` ターミナルで実行：
-   ```bash
-   python3 -m src.saint_graph.main
-   ```
-3. ログを確認しながら、`src/` 配下のファイルを編集することでリアルタイムに挙動を変更できます。
-
-## 技術スタック
-
-*   **LLM**: Gemini 2.0 Flash Lite
-*   **Agent Framework**: Google Agent Development Kit (ADK)
-*   **Protocol**: Model Context Protocol (MCP)
-*   **Language**: Python 3.11
-*   **Infrastructure**: Docker / Docker Compose
+*   **単一接続**: Saint Graph は単一の MCP エンドポイント (`MCP_URL` で定義) に接続します。
+*   **標準化インターフェース**: `MCPClient` は、将来の移行を容易にするため、公式 Python SDK の `ClientSession` インターフェース (`list_tools`, `call_tool`) に合わせて設計されています。

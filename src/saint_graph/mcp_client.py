@@ -2,10 +2,57 @@ import asyncio
 import json
 import httpx
 import logging
-from .tools_mapper import convert_mcp_tool_to_genai
+from typing import Dict, Any, List
 from google.genai import types
 
 logger = logging.getLogger(__name__)
+
+def convert_schema(schema: Dict[str, Any]) -> types.Schema:
+    """
+    Recursively converts a JSON Schema dictionary to a Google GenAI types.Schema.
+    Simplified implementation for common cases.
+    """
+    if not schema:
+        return None
+
+    type_str = schema.get("type", "OBJECT").upper()
+    description = schema.get("description")
+
+    # Handle properties for Objects
+    properties = {}
+    if "properties" in schema:
+        for key, prop_schema in schema["properties"].items():
+            properties[key] = convert_schema(prop_schema)
+
+    # Handle items for Arrays
+    items = None
+    if "items" in schema:
+        items = convert_schema(schema["items"])
+
+    # Handle enum
+    enum_values = schema.get("enum")
+
+    # Handle required fields
+    required = schema.get("required", [])
+
+    return types.Schema(
+        type=getattr(types.Type, type_str, types.Type.OBJECT),
+        description=description,
+        properties=properties if properties else None,
+        items=items,
+        enum=enum_values,
+        required=required if required else None
+    )
+
+def convert_mcp_tool_to_genai(mcp_tool: Dict[str, Any]) -> types.FunctionDeclaration:
+    """
+    Converts a single MCP tool definition to a Gemini FunctionDeclaration.
+    """
+    return types.FunctionDeclaration(
+        name=mcp_tool["name"],
+        description=mcp_tool.get("description", ""),
+        parameters=convert_schema(mcp_tool.get("inputSchema", {}))
+    )
 
 class MCPClient:
     def __init__(self, base_url: str):
@@ -36,17 +83,8 @@ class MCPClient:
         except Exception as e:
             logger.warning(f"Failed to SSE handshake with {self.base_url}, using fallback: {e}")
 
-                            
-        # To simplify robustly:
-        # We know the server implementation is ours.
-        # It sends event: endpoint, data: /messages.
-        # But for 'cli-body', let's just HARDCODE the post endpoint if detection implies logic complexity.
-        # Or, we do it properly.
-        
-        # Better approach for this MVP client:
-        # Just use the known endpoint convention for our own server if discovery is tricky async.
-        # But let's try to be generic:
-        self.post_url = self.base_url.replace("/sse", "/messages") # Fallback/Assumption
+        # Fallback/Assumption for endpoint
+        self.post_url = self.base_url.replace("/sse", "/messages")
         
         # Now Initialize
         await self.initialize()
@@ -76,23 +114,29 @@ class MCPClient:
         })
         logger.info(f"Initialized: {res}")
         
-        # Get Tools
+        # Pre-fetch tools during initialization for backward compatibility/convenience
+        await self.list_tools()
+
+    async def list_tools(self) -> List[Dict[str, Any]]:
+        """
+        MCPサーバーからツール一覧を取得します。
+        公式SDKの session.list_tools() と役割を合わせます。
+        """
         res = await self._send_rpc("tools/list")
         if "result" in res and "tools" in res["result"]:
             self.tools = res["result"]["tools"]
             logger.info(f"Discovered {len(self.tools)} tools.")
+            return self.tools
         else:
             logger.warning("No tools found.")
-
-    def get_google_genai_tools(self) -> list[types.Tool]:
-        """MCPのツール定義をGemini用の形式に変換して返す"""
-        if not self.tools:
+            self.tools = []
             return []
-        genai_funcs = [convert_mcp_tool_to_genai(t) for t in self.tools]
-        return [types.Tool(function_declarations=genai_funcs)]
 
     async def call_tool(self, name: str, arguments: dict):
-        """Call a specific tool."""
+        """
+        指定されたツールを実行します。
+        公式SDKの session.call_tool(name, arguments) とインターフェースを合わせます。
+        """
         logger.info(f"Calling tool: {name} with {arguments}")
         res = await self._send_rpc("tools/call", {
             "name": name,
@@ -105,4 +149,13 @@ class MCPClient:
         # Extract content
         # Result -> content -> list of items
         # We usually return just the text for the LLM
-        return res["result"]["content"][0]["text"]
+        if "result" in res and "content" in res["result"] and len(res["result"]["content"]) > 0:
+            return res["result"]["content"][0]["text"]
+        return ""
+
+    def get_google_genai_tools(self) -> list[types.Tool]:
+        """MCPのツール定義をGemini用の形式に変換して返す"""
+        if not self.tools:
+            return []
+        genai_funcs = [convert_mcp_tool_to_genai(t) for t in self.tools]
+        return [types.Tool(function_declarations=genai_funcs)]

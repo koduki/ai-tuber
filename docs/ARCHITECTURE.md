@@ -43,12 +43,11 @@ graph TD
 - **パス**: `src/saint_graph/`
 - **役割**: 思考、意思決定、行動の選択。
 - **構成**:
-    - `main.py`: **Outer Loop**。システム全体のライフサイクル管理、Bodyへの接続、ポーリングの制御を行います。
+    - `main.py`: **Outer Loop**。システム全体のライフサイクル管理、Bodyへの接続、ニュース読み上げループを担当します。
     - `saint_graph.py`: **Inner Loop**。`SaintGraph` クラスを含み、LLMとの対話履歴管理、ストリーミング応答の処理、ツール実行ループを担当します。
-    - `persona.py`: Mindからキャラクター設定を読み込むローダー。
-    - `tools.py`: LLMに提供するツール定義（`speak`, `change_emotion` 等）。
     - `config.py`: 環境変数や定数の管理。
-    - `mcp_client.py`: Body (MCP Server) と通信するためのクライアント。
+    - `mcp_client.py`: Body (MCP Server) と通信するためのクライアント。標準的な `list_tools`, `call_tool` インターフェースを提供します。
+    - `news_reader.py`: ニュース原稿を読み込み、配信用のチャンクに分割する機能。
 - **技術**: Google ADK, Gemini API (Gemini 2.0 Flash Lite), Python AsyncIO
 
 ### 2. Body (肉体)
@@ -63,7 +62,7 @@ graph TD
 - **役割**: キャラクターの性格、口調、行動指針の定義。
 - **主要ファイル**:
     - `{name}/persona.md`: キャラクターごとの定義ファイル（例：`ren/persona.md`）。プロンプトエンジニアリングにより、LLMの振る舞いを制御します。
-    - `src/saint_graph/persona.py` の `load_persona(name)` 関数により、指定されたキャラクター名のディレクトリから厳密に読み込まれます。
+    - `src/saint_graph/main.py` 内の `load_persona(name)` 関数により、指定されたキャラクター名のディレクトリから厳密に読み込まれます。
 
 ## Google Agent Development Kit (ADK) について
 
