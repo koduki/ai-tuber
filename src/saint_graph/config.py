@@ -5,10 +5,12 @@ import logging
 RUN_MODE = os.getenv("RUN_MODE", "cli")
 # MCP_URLS can be a comma-separated list
 if RUN_MODE == "cli":
-    _urls = os.getenv("MCP_URLS_CLI", "http://mcp-cli:8000/sse")
+    _url_str = os.getenv("MCP_URLS_CLI", "http://mcp-cli:8000/sse")
 else:
-    _urls = os.getenv("MCP_URLS_PROD", "")
-MCP_URLS = [url.strip() for url in _urls.split(",") if url.strip()]
+    _url_str = os.getenv("MCP_URLS_PROD", "")
+
+# カンマ区切りなどが残っていても、先頭の1つだけを採用する、または単純に文字列として扱う
+MCP_URL = _url_str.split(",")[0].strip()
 
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
 MODEL_NAME = "gemini-2.5-flash-lite" # リクエストされたliteモデルを使用

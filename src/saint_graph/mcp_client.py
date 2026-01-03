@@ -2,6 +2,8 @@ import asyncio
 import json
 import httpx
 import logging
+from .tools_mapper import convert_mcp_tool_to_genai
+from google.genai import types
 
 logger = logging.getLogger(__name__)
 
@@ -81,6 +83,13 @@ class MCPClient:
             logger.info(f"Discovered {len(self.tools)} tools.")
         else:
             logger.warning("No tools found.")
+
+    def get_google_genai_tools(self) -> list[types.Tool]:
+        """MCPのツール定義をGemini用の形式に変換して返す"""
+        if not self.tools:
+            return []
+        genai_funcs = [convert_mcp_tool_to_genai(t) for t in self.tools]
+        return [types.Tool(function_declarations=genai_funcs)]
 
     async def call_tool(self, name: str, arguments: dict):
         """Call a specific tool."""
