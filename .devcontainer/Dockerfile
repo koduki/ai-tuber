@@ -14,7 +14,12 @@ RUN mkdir -p -m 755 /etc/apt/keyrings \
     && apt-get install -y gh
 
 # Install Python dependencies for both services to allow development in one container
-RUN pip install google-genai httpx google-adk fastapi uvicorn sse-starlette
+COPY src/saint_graph/requirements.txt /tmp/sg-req.txt
+COPY src/body/cli/requirements.txt /tmp/body-req.txt
+COPY requirements-dev.txt /tmp/dev-req.txt
+RUN pip install -r /tmp/sg-req.txt && \
+    pip install -r /tmp/body-req.txt && \
+    pip install -r /tmp/dev-req.txt
 
 # Set the default shell to bash rather than sh
 ENV SHELL /bin/bash

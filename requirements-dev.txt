@@ -1,0 +1,6 @@
+pytest
+pytest-asyncio
+pytest-mock
+respx
+httpx
+pytest-docker

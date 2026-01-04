@@ -1,12 +1,10 @@
 FROM python:3.11-slim
 
-WORKDIR /app
+WORKDIR /workspaces/ai-tuber
 
 # Install dependencies
-# google-genai: Gemini API
-# httpx: Async HTTP client
-# google-adk: Agent Development Kit
-RUN pip install google-genai httpx google-adk
+COPY src/saint_graph/requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy source code (optional, since we mount volumes in dev)
 # COPY . .

@@ -1,32 +1,9 @@
 services:
-  # --- Saint Graph (Spirit/Logic) ---
-  # This service is configured for use as a devcontainer.
-  saint-graph:
-    # The build context is the repository root, using the devcontainer Dockerfile.
+  # --- Body (MCP Server) ---
+  mcp-cli:
     build:
       context: .
-      dockerfile: .devcontainer/Dockerfile
-    environment:
-      - RUN_MODE=cli # Set for development
-      - MCP_URL=http://mcp-cli:8000/sse
-      - GOOGLE_API_KEY=${GOOGLE_API_KEY}
-      # PYTHONPATH is set for the devcontainer environment.
-      - PYTHONPATH=/workspaces/ai-tuber/src
-    depends_on:
-      - mcp-cli
-    volumes:
-      - ./data/news:/app/data/news
-      # Mount the entire repository for development inside the container.
-      # This single mount is sufficient for devcontainer purposes.
-      - .:/workspaces/ai-tuber:cached
-      # Mount Docker socket for docker-out-of-docker pattern
-      - /var/run/docker.sock:/var/run/docker.sock
-    # Keep the container running for the devcontainer.
-    command: sleep infinity
-
-  # --- Dev Body (CLI) ---
-  mcp-cli:
-    build: ./src/body/cli
+      dockerfile: src/body/cli/Dockerfile
     ports:
       - "8000:8000"
     stdin_open: true
@@ -34,4 +11,29 @@ services:
     environment:
       - PORT=8000
     volumes:
-      - ./src/body/cli:/app
+      - .:/workspaces/ai-tuber
+    working_dir: /workspaces/ai-tuber/src/body/cli
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 5s
+      timeout: 2s
+      retries: 5
+
+  # --- Saint Graph (Spirit/Logic) ---
+  saint-graph:
+    build:
+      context: .
+      dockerfile: src/saint_graph/Dockerfile
+    environment:
+      - RUN_MODE=cli
+      - MCP_URL=http://mcp-cli:8000/sse
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY}
+      - PYTHONPATH=/workspaces/ai-tuber
+    depends_on:
+      mcp-cli:
+        condition: service_healthy
+    volumes:
+      - .:/workspaces/ai-tuber
+      - ./data/news:/workspaces/ai-tuber/data/news
+    working_dir: /workspaces/ai-tuber
+    command: python -m src.saint_graph.main

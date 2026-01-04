@@ -11,9 +11,9 @@ from .config import logger, MODEL_NAME, HISTORY_LIMIT
 from .mcp_client import MCPClient
 
 class SaintGraph:
-    def __init__(self, mcp_client: MCPClient, system_instruction: str, tools: List[types.Tool]):
+    def __init__(self, mcp_client: MCPClient, system_instruction: str, tools: List[types.Tool], model: Optional[Gemini] = None):
         self.client = mcp_client
-        self.model = Gemini(model=MODEL_NAME)
+        self.model = model or Gemini(model=MODEL_NAME)
         self.chat_history: List[types.Content] = []
 
         # テンプレートリクエストを作成

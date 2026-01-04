@@ -10,8 +10,27 @@ from sse_starlette.sse import EventSourceResponse
 
 app = FastAPI()
 
-# --- Input Handling ---
-input_queue = Queue()
+# --- I/O Abstraction ---
+class IOAdapter:
+    def __init__(self):
+        self._input_queue = Queue()
+
+    def write_output(self, text: str):
+        print(text)
+
+    def add_input(self, text: str):
+        self._input_queue.put(text)
+
+    def get_inputs(self) -> List[str]:
+        inputs = []
+        while not self._input_queue.empty():
+            try:
+                inputs.append(self._input_queue.get_nowait())
+            except Empty:
+                break
+        return inputs
+
+io_adapter = IOAdapter()
 
 def stdin_reader():
     """Reads lines from stdin and puts them in a queue."""
@@ -20,7 +39,7 @@ def stdin_reader():
         try:
             line = sys.stdin.readline()
             if line:
-                input_queue.put(line.strip())
+                io_adapter.add_input(line.strip())
         except Exception as e:
             sys.stderr.write(f"Error reading stdin: {e}\n")
             break
@@ -33,31 +52,25 @@ threading.Thread(target=stdin_reader, daemon=True).start()
 async def speak(text: str, style: Optional[str] = None):
     """Speak the given text with an optional style."""
     style_str = f" ({style})" if style else ""
-    print(f"\n[AI{style_str}]: {text}")
+    io_adapter.write_output(f"\n[AI{style_str}]: {text}")
     return "Speaking completed"
 
 async def change_emotion(emotion: str):
     """Change the visual emotion."""
-    print(f"\n[Expression]: {emotion}")
+    io_adapter.write_output(f"\n[Expression]: {emotion}")
     return "Emotion changed"
 
 async def switch_scene(scene: str):
     """Switch the OBS scene."""
-    print(f"\n[Scene]: {scene}")
+    io_adapter.write_output(f"\n[Scene]: {scene}")
     return "Scene switched"
 
 async def get_comments():
-    """Get comments from the queue (stdin)."""
-    comments = []
-    while not input_queue.empty():
-        try:
-            comments.append(input_queue.get_nowait())
-        except Empty:
-            break
-    
-    if not comments:
+    """Get comments from the adapter."""
+    inputs = io_adapter.get_inputs()
+    if not inputs:
         return "No new comments."
-    return "\n".join(comments)
+    return "\n".join(inputs)
 
 # 修正箇所: 未定義の show_headline, show_image を削除しました
 TOOLS = {
@@ -111,6 +124,10 @@ TOOL_DEFINITIONS = [
         }
     }
 ]
+
+@app.get("/health")
+async def health():
+    return {"status": "ok"}
 
 # --- MCP Protocol Endpoints ---
 
