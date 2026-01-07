@@ -83,23 +83,37 @@ class SaintGraph:
         accum_text = ""
         printed_len = 0
         final_content = None
+        chunk_count = 0
 
-        async for chunk in self.model.generate_content_async(req, stream=True):
-            if getattr(chunk, "content", None) and getattr(chunk.content, "parts", None):
-                for p in chunk.content.parts:
-                    accum_parts.append(p)
-                    if getattr(p, "text", None):
-                        accum_text += p.text
+        try:
+            logger.info("Starting LLM generation...")
+            async for chunk in self.model.generate_content_async(req, stream=True):
+                chunk_count += 1
+                logger.info(f"Received chunk {chunk_count}: {type(chunk)}")
+                logger.info(f"error_code: {getattr(chunk, 'error_code', 'N/A')}, error_message: {getattr(chunk, 'error_message', 'N/A')}")
+                logger.info(f"finish_reason: {getattr(chunk, 'finish_reason', 'N/A')}")
+                logger.info(f"Chunk content: {getattr(chunk, 'content', 'NO CONTENT ATTR')}")
+                
+                if getattr(chunk, "content", None) and getattr(chunk.content, "parts", None):
+                    for p in chunk.content.parts:
+                        accum_parts.append(p)
+                        if getattr(p, "text", None):
+                            accum_text += p.text
 
-            # ログ出力 (増分のみ)
-            if len(accum_text) > printed_len:
-                logger.info(f"Gemini: {accum_text[printed_len:]}")
-                printed_len = len(accum_text)
+                # ログ出力 (増分のみ)
+                if len(accum_text) > printed_len:
+                    logger.info(f"Gemini: {accum_text[printed_len:]}")
+                    printed_len = len(accum_text)
 
-            # ストリーム完了判定
-            if not getattr(chunk, "partial", False):
-                final_content = types.Content(role="assistant", parts=accum_parts)
-                break
+                # ストリーム完了判定
+                if not getattr(chunk, "partial", False):
+                    final_content = types.Content(role="assistant", parts=accum_parts)
+                    break
+            
+            logger.info(f"Stream ended. Total chunks: {chunk_count}, accum_parts: {len(accum_parts)}")
+        except Exception as e:
+            logger.error(f"Error during LLM generation: {e}", exc_info=True)
+            return None
 
         return final_content
 

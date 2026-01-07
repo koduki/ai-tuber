@@ -10,9 +10,8 @@ services:
     tty: true
     environment:
       - PORT=8000
-    volumes:
-      - .:/workspaces/ai-tuber
-    working_dir: /workspaces/ai-tuber/src/body/cli
+    # volumes:
+    #   - ./src/body/cli:/app
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 5s
@@ -28,12 +27,11 @@ services:
       - RUN_MODE=cli
       - MCP_URL=http://mcp-cli:8000/sse
       - GOOGLE_API_KEY=${GOOGLE_API_KEY}
-      - PYTHONPATH=/workspaces/ai-tuber
+      - PYTHONPATH=/app
     depends_on:
       mcp-cli:
         condition: service_healthy
     volumes:
-      - .:/workspaces/ai-tuber
-      - ./data/news:/workspaces/ai-tuber/data/news
-    working_dir: /workspaces/ai-tuber
+      - .:/app
+      - ./data/news:/app/data/news
     command: python -m src.saint_graph.main
