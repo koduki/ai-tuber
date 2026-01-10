@@ -9,12 +9,14 @@ from google.adk.models.llm_request import LlmRequest
 
 from .config import logger, MODEL_NAME, HISTORY_LIMIT
 from .mcp_client import MCPClient
+from .providers import get_provider_config
 
 class SaintGraph:
     def __init__(self, mcp_client: MCPClient, system_instruction: str, tools: List[types.Tool], model: Optional[Gemini] = None):
         self.client = mcp_client
         self.model = model or Gemini(model=MODEL_NAME)
         self.chat_history: List[types.Content] = []
+        self.config = get_provider_config(MODEL_NAME)
 
         # テンプレートリクエストを作成
         self.base_request = LlmRequest(
@@ -29,10 +31,26 @@ class SaintGraph:
         logger.info(f"SaintGraph initialized with model {MODEL_NAME}")
 
     def add_history(self, content: types.Content):
-        """チャット履歴に追加し、制限を超えたら古いものを削除します。"""
-        self.chat_history.append(content)
+        """
+        チャット履歴に追加します。
+        Gemini APIの制約に対応するため、連続する同じロールのメッセージはマージします。
+        """
+        if not content.parts:
+            return
+
+        if self.chat_history and self.chat_history[-1].role == content.role:
+            logger.debug(f"Merging consecutive {content.role} turns.")
+            # 既存のターンのpartsに新しいpartsを追加
+            self.chat_history[-1].parts.extend(content.parts)
+        else:
+            self.chat_history.append(content)
+
+        # 履歴制限を超えたら古いものを削除
         if len(self.chat_history) > HISTORY_LIMIT:
             self.chat_history = self.chat_history[-HISTORY_LIMIT:]
+            # 履歴の開始がモデルの途中から始まらないように調整
+            while self.chat_history and self.chat_history[0].role == self.config.ai_role:
+                self.chat_history.pop(0)
 
     async def process_turn(self, user_input: str):
         """
@@ -42,7 +60,7 @@ class SaintGraph:
         logger.info(f"Turn started. Input: {user_input[:30]}...")
 
         # ユーザー入力を履歴に追加
-        self.add_history(types.Content(role="user", parts=[types.Part(text=user_input)]))
+        self.add_history(types.Content(role=self.config.user_role, parts=[types.Part(text=user_input)]))
 
         # ベースリクエストをコピーして現在の履歴をセット
         llm_request = copy.deepcopy(self.base_request)
@@ -50,14 +68,16 @@ class SaintGraph:
 
         # Inner Loop (モデルとの往復)
         while True:
-            # 内部ループのたびにリクエストをコピー (更新された履歴を反映するため)
-            req = copy.deepcopy(llm_request)
+            # 現在の履歴でリクエストを作成
+            self.base_request.contents = self.chat_history
 
             # ストリーミング受信と蓄積
-            final_content = await self._generate_and_accumulate(req)
+            final_content = await self._generate_and_accumulate(self.base_request)
 
-            if final_content is None or not getattr(final_content, "parts", None):
-                logger.warning("Empty or missing final response from model; aborting this Inner Loop.")
+            if final_content is None or not final_content.parts:
+                # 何も生成されなかった場合は、空のテキストを入れてターンの整合性を保つ
+                if self.chat_history[-1].role != self.config.ai_role:
+                    self.add_history(types.Content(role=self.config.ai_role, parts=[types.Part(text=" ")]))
                 break
 
             # SaintGraphの応答を履歴に追加
@@ -72,10 +92,7 @@ class SaintGraph:
             tool_results = await self._execute_tools(fcs)
 
             # ツール結果を履歴に追加して次のループへ
-            self.add_history(types.Content(role="user", parts=tool_results))
-
-            # リクエストのコンテンツを更新
-            llm_request.contents = self.chat_history
+            self.add_history(types.Content(role=self.config.user_role, parts=tool_results))
 
     async def _generate_and_accumulate(self, req: LlmRequest) -> Optional[types.Content]:
         """モデルからストリーミング生成を行い、結果を蓄積して返します。"""
@@ -96,7 +113,9 @@ class SaintGraph:
                 if getattr(chunk, "content", None) and getattr(chunk.content, "parts", None):
                     for p in chunk.content.parts:
                         accum_parts.append(p)
-                        if getattr(p, "text", None):
+                        if p.function_call:
+                            logger.info(f"Received FunctionCall: {p.function_call.name}")
+                        if p.text:
                             accum_text += p.text
 
                 # ログ出力 (増分のみ)
@@ -106,7 +125,7 @@ class SaintGraph:
 
                 # ストリーム完了判定
                 if not getattr(chunk, "partial", False):
-                    final_content = types.Content(role="assistant", parts=accum_parts)
+                    final_content = types.Content(role=self.config.ai_role, parts=accum_parts)
                     break
         except Exception as e:
             logger.error(f"Error during LLM generation: {e}", exc_info=True)
