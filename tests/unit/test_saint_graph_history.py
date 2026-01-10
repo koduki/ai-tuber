@@ -1,8 +1,14 @@
 import pytest
 from unittest.mock import MagicMock
 from google.genai import types
-from src.saint_graph.saint_graph import SaintGraph
-from src.saint_graph.config import AI_ROLE, USER_ROLE
+from saint_graph.saint_graph import SaintGraph
+from saint_graph.config import MODEL_NAME
+from saint_graph.providers import get_provider_config
+
+# Helper to get roles consistent with the model
+provider_config = get_provider_config(MODEL_NAME)
+AI_ROLE = provider_config.ai_role
+USER_ROLE = provider_config.user_role
 
 @pytest.fixture
 def mock_mcp():
@@ -66,18 +72,21 @@ def test_add_history_ignores_empty_parts(saint_graph):
 
 def test_history_limit_removes_old_messages(saint_graph):
     # 履歴制限を一時的に小さく設定
-    from src.saint_graph import saint_graph as sg_module
-    original_limit = sg_module.HISTORY_LIMIT
-    sg_module.HISTORY_LIMIT = 2
+    from saint_graph import config as sg_config
+    original_limit = sg_config.HISTORY_LIMIT
+    sg_config.HISTORY_LIMIT = 2
     
     try:
         saint_graph.add_history(types.Content(role=USER_ROLE, parts=[types.Part(text="1")]))
         saint_graph.add_history(types.Content(role=AI_ROLE, parts=[types.Part(text="2")]))
         saint_graph.add_history(types.Content(role=USER_ROLE, parts=[types.Part(text="3")]))
+        saint_graph.add_history(types.Content(role=AI_ROLE, parts=[types.Part(text="4")]))
         
-        # 制限を越えたので、最古の "1" が消えて "2" と "3" が残るはず
+        # 1. [U1, A2, U3, A4] (Length 4)
+        # 2. Limit 2 -> [U3, A4]
+        # 3. Starts with User -> OK
         assert len(saint_graph.chat_history) == 2
-        assert saint_graph.chat_history[0].parts[0].text == "2"
-        assert saint_graph.chat_history[1].parts[0].text == "3"
+        assert saint_graph.chat_history[0].parts[0].text == "3"
+        assert saint_graph.chat_history[1].parts[0].text == "4"
     finally:
-        sg_module.HISTORY_LIMIT = original_limit
+        sg_config.HISTORY_LIMIT = original_limit

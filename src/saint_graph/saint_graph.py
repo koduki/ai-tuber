@@ -7,7 +7,8 @@ from google.genai import types
 from google.adk.models import Gemini
 from google.adk.models.llm_request import LlmRequest
 
-from .config import logger, MODEL_NAME, HISTORY_LIMIT
+from . import config as cfg
+from .config import logger, MODEL_NAME
 from .mcp_client import MCPClient
 from .providers import get_provider_config
 
@@ -46,8 +47,8 @@ class SaintGraph:
             self.chat_history.append(content)
 
         # 履歴制限を超えたら古いものを削除
-        if len(self.chat_history) > HISTORY_LIMIT:
-            self.chat_history = self.chat_history[-HISTORY_LIMIT:]
+        if len(self.chat_history) > cfg.HISTORY_LIMIT:
+            self.chat_history = self.chat_history[-cfg.HISTORY_LIMIT:]
             # 履歴の開始がモデルの途中から始まらないように調整
             while self.chat_history and self.chat_history[0].role == self.config.ai_role:
                 self.chat_history.pop(0)
