@@ -40,7 +40,10 @@ SaintGraphは、AI Tuberの「脳」となる中核モジュールです。
 ### 2. Mind (`src/mind/`)
 キャラクターの人格定義。
 *   ファイルベース (`persona.md`) で管理。
-*   `load_persona(name)` により動的に読み込み、LLMの `SystemInstruction` として注入される。
+*   `load_persona(name)` により動的に読み込まれ、`src/saint_graph/core_instructions.md`（共通ルール）と結合して、LLMの `SystemInstruction` として注入される。
+*   **Structure:**
+    *   `core_instructions.md`: 技術的制約、ツール使用ルール、感情パラメータ定義（Emotional Parameters）。
+    *   `persona.md`: キャラクター固有のアイデンティティ（Core Identity）、口調、Few-Shot。
 
 ### 3. Application Flow (`main.py`)
 1.  **Initialize:** MCP Server (Body) へ接続。

@@ -43,7 +43,7 @@ threading.Thread(target=stdin_reader, daemon=True).start()
 
 # --- Tool Implementations ---
 
-async def speak(text: str, style: Optional[str] = None):
+async def speak(text: str, style: Optional[str] = None, **kwargs):
     """Speak the given text with an optional style."""
     style_str = f" ({style})" if style else ""
     io_adapter.write_output(f"\n[AI{style_str}]: {text}")
