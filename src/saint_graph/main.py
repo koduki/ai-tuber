@@ -62,10 +62,6 @@ async def main():
                 logger.info("Comments received.")
                 # ユーザーの発言として処理
                 await saint_graph.process_turn(comments)
-            
-            else:
-                # コメントがない場合は待機 (将来的にここで独り言のロジックを入れることも可能)
-                pass
 
             # 定期ポーリングの間隔
             await asyncio.sleep(POLL_INTERVAL)

@@ -1,8 +1,11 @@
 {
 	"name": "AI Tuber Dev Container",
-	"dockerComposeFile": "../docker-compose.yml",
-	"service": "saint-graph",
-	"workspaceFolder": "/workspaces/ai-tuber",
+	"dockerComposeFile": [
+		"../docker-compose.yml",
+		"../docker-compose.devcontainer.yml"
+	],
+	"service": "dev",
+	"workspaceFolder": "/app",
 	"customizations": {
 		"vscode": {
 			"extensions": [
@@ -14,16 +17,16 @@
 			"settings": {
 				"python.defaultInterpreterPath": "/usr/local/bin/python",
 				"python.analysis.extraPaths": [
-					"/workspaces/ai-tuber/src"
+					"/app/src"
 				]
 			}
 		}
 	},
 	"containerEnv": {
-		"DOCKER_API_VERSION": "1.43"
+		"DOCKER_API_VERSION": "1.45"
 	},
 	"features": {
 		"ghcr.io/devcontainers/features/docker-outside-of-docker:1": {}
 	},
-	"postCreateCommand": "git config --global --add safe.directory /workspaces/ai-tuber && echo 'DevContainer Ready!'"
+	"postCreateCommand": "git config --global --add safe.directory /app && echo 'DevContainer Ready!'"
 }

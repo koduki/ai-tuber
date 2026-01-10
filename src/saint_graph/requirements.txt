@@ -1,0 +1,3 @@
+google-genai
+httpx
+google-adk
