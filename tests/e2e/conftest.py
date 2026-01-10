@@ -20,6 +20,12 @@ def docker_ip():
     デブコンテナ内からホスト側のIPを解決するためのフィクスチャ。
     """
     import socket
+    import os
+    
+    # GitHub Actions (CI) 環境では localhost (127.0.0.1) を使用
+    if os.getenv("GITHUB_ACTIONS") == "true":
+        return "127.0.0.1"
+
     try:
         # host.docker.internalが使える場合はそれを優先
         return socket.gethostbyname("host.docker.internal")

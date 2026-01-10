@@ -3,13 +3,13 @@
 ## 概要
 
 本プロジェクトは、Google Agent Development Kit (ADK) と Model Context Protocol (MCP) を活用した、モジュール構成のAI Tuberシステムです。
-「思考（Saint Graph）」、「身体（Body）」、「記憶・人格（Mind）」を明確に分離することで、拡張性と保守性を高めています。
+「Saint Graph (魂)」、「Mind (精神)」、「Body (肉体)」を明確に分離することで、拡張性と保守性を高めています。
 
 ## アーキテクチャ図
 
 ```mermaid
 graph TD
-  subgraph Mind ["Mind (人格・記憶)"]
+  subgraph Mind ["Mind (精神)"]
     Persona["src/mind/{name}/persona.md"]
   end
 
@@ -21,7 +21,7 @@ graph TD
     Client["mcp_client.py"]
   end
 
-  subgraph Body ["Body (肉体・入出力)"]
+  subgraph Body ["Body (肉体)"]
     Server["MCP Server"]
     CLI["CLI / CLI View"]
     Obs["OBS (Future)"]
@@ -43,12 +43,11 @@ graph TD
 - **パス**: `src/saint_graph/`
 - **役割**: 思考、意思決定、行動の選択。
 - **構成**:
-    - `main.py`: **Outer Loop**。システム全体のライフサイクル管理、Bodyへの接続、ニュース読み上げループを担当します。
+    - `main.py`: **Outer Loop**。システム全体のライフサイクル管理、Bodyへの接続、コメント監視ループ（Chat Loop）を担当します。
     - `saint_graph.py`: **Inner Loop**。`SaintGraph` クラスを含み、LLMとの対話履歴管理、ストリーミング応答の処理、ツール実行ループを担当します。
     - `config.py`: 環境変数や定数の管理。
     - `mcp_client.py`: Body (MCP Server) と通信するためのクライアント。標準的な `list_tools`, `call_tool` インターフェースを提供します。
-    - `news_reader.py`: ニュース原稿を読み込み、配信用のチャンクに分割する機能。
-- **技術**: Google ADK, Gemini API (Gemini 2.0 Flash Lite), Python AsyncIO
+- **技術**: Google ADK, Gemini API (Gemini 2.5 Flash Lite), Python AsyncIO
 
 ### 2. Body (肉体)
 - **パス**: `src/body/`
@@ -57,9 +56,9 @@ graph TD
 - **主要ファイル**:
     - `cli/main.py`: CLI版のBody実装。標準入力からのコメント受け取りや、標準出力への発話ログ表示を行います。
 
-### 3. Mind (人格)
+### 3. Mind (精神)
 - **パス**: `src/mind/`
-- **役割**: キャラクターの性格、口調、行動指針の定義。
+- **役割**: キャラクター性（人格・口調・行動指針など）の定義。
 - **主要ファイル**:
     - `{name}/persona.md`: キャラクターごとの定義ファイル（例：`ren/persona.md`）。プロンプトエンジニアリングにより、LLMの振る舞いを制御します。
     - `src/saint_graph/main.py` 内の `load_persona(name)` 関数により、指定されたキャラクター名のディレクトリから厳密に読み込まれます。
@@ -98,7 +97,7 @@ Google ADK は、生成AIエージェントを構築するためのフレーム�
 
 ## 技術スタック
 
-- **LLM**: Gemini 2.0 Flash Lite
+- **LLM**: Gemini 2.5 Flash Lite
 - **Agent Framework**: Google Agent Development Kit (ADK)
 - **Protocol**: Model Context Protocol (MCP) - コンポーネント間の疎結合な通信を実現
 - **Language**: Python 3.11
@@ -179,13 +178,19 @@ async def handle_messages(request: Request):
 
 `src/saint_graph/` 配下の実装に基づく解析です。特に `main.py` の「Outer Loop」と `saint_graph.py` の「Inner Loop」の役割分担、および Gemini のストリーミング処理について詳述します。
 
-### Outer Loop (ライフサイクル管理)
+### キーコンセプト
+
+*   **単一接続**: Saint Graph は単一の MCP エンドポイント (`MCP_URL` で定義) に接続します。
+*   **標準化インターフェース**: `MCPClient` は、将来の移行を容易にするため、公式 Python SDK の `ClientSession` インターフェース (`list_tools`, `call_tool`) に合わせて設計されています。
+*   **冪等性と信頼性**: ストリーミングレスポンスによる重複アクションの防止など、本番環境での信頼性を考慮した実装が含まれています。
+
+### Outer Loop (ライフサイクル管理 & コメント監視)
 - **ファイル**: `src/saint_graph/main.py`
-- **役割**: プロセス全体の監督。
+- **役割**: プロセス全体の監督と、外部世界（ユーザーコメント）の監視。
 - **振る舞い**:
   - `MCPClient` の接続確立と維持。
   - `SaintGraph` インスタンス（脳）の初期化。
-  - 定期的な観測（`get_comments`）の実行と、自発的な発話（ソリロキュー）のトリガー管理。
+  - **コメントポーリング**: 定期的（`POLL_INTERVAL`）に `get_comments` ツールを実行し、新しいコメントがあれば `SaintGraph` に渡して反応を開始させます。
   - ネットワークエラー等の例外を捕捉し、システムが停止しないようにリトライ制御を行います。
 
 ### Inner Loop (思考→行動ループ)
@@ -193,7 +198,7 @@ async def handle_messages(request: Request):
 - **役割**: 1回の対話ターンを完結させるための自律的な思考サイクル。
 - **振る舞い**:
   - `process_turn(user_input)` が呼び出されると、ユーザー入力を履歴に追加し、Gemini へのリクエストを開始します。
-  - このループは `while True:` で構成されており、Gemini が「ツール呼び出し（Function Calling）」を返し続ける限り、ループを継続します。
+  - このループは `while True:` で構成されており、Gemini が「ツール呼び出し（Function Calling）」を返し続ける限り、ループを継続します（例: 表情を変える -> 喋る -> 待機）。
   - Gemini が発話（通常のテキスト応答）を返した場合、あるいはツール呼び出しがない場合にループを終了します。
 
 ### チャンクストリーミング (Chunk Streaming) の詳細
