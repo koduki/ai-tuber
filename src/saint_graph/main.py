@@ -10,17 +10,33 @@ from .saint_graph import SaintGraph
 
 def load_persona(name: str = "ren") -> str:
     """
-    指定されたキャラクター名のpersona.mdファイルを読み込んでシステム指示として返します。
+    指定されたキャラクター名のpersona.mdファイルを読み込み、共通のcore_instructions.mdと結合してシステム指示として返します。
     """
     base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__))) # src/
+    
+    # Core Instructions
+    core_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "core_instructions.md")
+
+    # Persona
     persona_path = os.path.join(base_dir, "mind", name, "persona.md")
     persona_path = os.path.normpath(persona_path)
 
     try:
+        combined_instruction = ""
+        # Load Core
+        if os.path.exists(core_path):
+            with open(core_path, "r", encoding="utf-8") as f:
+                combined_instruction += f.read() + "\n\n"
+        else:
+             logger.warning(f"Core instructions not found at {core_path}")
+
+        # Load Persona
         with open(persona_path, "r", encoding="utf-8") as f:
-            system_instruction = f.read()
+            persona_content = f.read()
             logger.info(f"Loaded persona from {persona_path}")
-            return system_instruction
+            combined_instruction += persona_content
+            
+            return combined_instruction
     except FileNotFoundError:
         logger.error(f"Persona file not found at {persona_path}")
         return "You are a helpful AI Tuber."

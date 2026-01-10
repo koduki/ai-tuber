@@ -1,6 +1,7 @@
 import pytest
 from fastapi.testclient import TestClient
-from body.cli.main import app, io_adapter
+from body.cli.main import app
+from body.cli.tools import io_adapter
 from unittest.mock import patch
 
 @pytest.fixture
