@@ -1,0 +1,21 @@
+{
+  "date": "2023-10-27",
+  "segments": [
+    {
+      "category": "weather",
+      "content": "今日の東京の天気は晴れ、最高気温は25度です。"
+    },
+    {
+      "category": "market",
+      "content": "SP500は4100ポイント、日経平均は31000円、ドル円は150円、ビットコインは35000ドルです。"
+    },
+    {
+      "category": "politics_economics",
+      "content": "政府は新しい経済対策を発表しました。"
+    },
+    {
+      "category": "it",
+      "content": "新しいAIモデルが発表され、注目を集めています。"
+    }
+  ]
+}

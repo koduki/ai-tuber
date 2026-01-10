@@ -4,9 +4,10 @@ import os
 
 # モジュールのインポート
 # 修正: news_reader は不要なので削除
-from .config import logger, MCP_URL, POLL_INTERVAL
+from .config import logger, MCP_URL, POLL_INTERVAL, NEWS_DIR
 from .mcp_client import MCPClient
 from .saint_graph import SaintGraph
+from .news_manager import NewsManager
 
 def load_persona(name: str = "ren") -> str:
     """
@@ -66,7 +67,15 @@ async def main():
     # 4. Saint Graph の初期化
     saint_graph = SaintGraph(mcp_client=client, system_instruction=system_instruction, tools=tool_definitions)
 
-    # 5. メインループ (Chat Loop)
+    # 5. ニュースマネージャーの初期化
+    news_path = os.path.join(NEWS_DIR, "news.json")
+    news_manager = NewsManager(filepath=news_path)
+    if news_manager.has_next():
+        logger.info(f"Loaded news from {news_path}. {len(news_manager.segments)} segments available.")
+    else:
+        logger.info("No news found or news file is empty.")
+
+    # 6. メインループ (Chat Loop)
     logger.info("Entering Chat Loop. Waiting for comments...")
 
     while True:
@@ -78,6 +87,25 @@ async def main():
                 logger.info("Comments received.")
                 # ユーザーの発言として処理
                 await saint_graph.process_turn(comments)
+
+            # 2. ニュース読み上げ (コメントがない場合)
+            elif news_manager.has_next():
+                segment = news_manager.get_next_segment()
+                if segment:
+                    logger.info(f"Reading news segment: {segment.get('category')}")
+
+                    # ディレクターからの指示としてプロンプトを構築
+                    director_prompt = (
+                        f"[Director] Next news topic: {segment.get('category')}.\n"
+                        f"Content: {segment.get('content')}\n"
+                        "Read this in character, adding your own perspective."
+                    )
+
+                    # SaintGraphで処理 (ユーザー発言として扱うが、内容はディレクターの指示)
+                    await saint_graph.process_turn(director_prompt)
+
+                    # 読み上げ完了としてマーク
+                    news_manager.mark_completed()
 
             # 定期ポーリングの間隔
             await asyncio.sleep(POLL_INTERVAL)

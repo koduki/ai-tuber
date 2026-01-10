@@ -17,7 +17,7 @@ MODEL_NAME = os.getenv("MODEL_NAME", "gemini-2.5-flash-lite")
 POLL_INTERVAL = 0.5
 SOLILOQUY_INTERVAL = 30.0 # 30秒間の沈黙でランダムな発話
 HISTORY_LIMIT = 20
-NEWS_DIR = os.getenv("NEWS_DIR", "/app/data/news")
+NEWS_DIR = os.getenv("NEWS_DIR", "/app/data")
 
 # ログ設定
 logging.basicConfig(level=logging.INFO)
