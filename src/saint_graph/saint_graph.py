@@ -83,16 +83,15 @@ class SaintGraph:
         accum_text = ""
         printed_len = 0
         final_content = None
-        chunk_count = 0
 
         try:
-            logger.info("Starting LLM generation...")
             async for chunk in self.model.generate_content_async(req, stream=True):
-                chunk_count += 1
-                logger.info(f"Received chunk {chunk_count}: {type(chunk)}")
-                logger.info(f"error_code: {getattr(chunk, 'error_code', 'N/A')}, error_message: {getattr(chunk, 'error_message', 'N/A')}")
-                logger.info(f"finish_reason: {getattr(chunk, 'finish_reason', 'N/A')}")
-                logger.info(f"Chunk content: {getattr(chunk, 'content', 'NO CONTENT ATTR')}")
+                # エラーチェック
+                error_code = getattr(chunk, 'error_code', None)
+                if error_code:
+                    error_msg = getattr(chunk, 'error_message', 'Unknown error')
+                    logger.error(f"LLM Error: {error_code} - {error_msg}")
+                    return None
                 
                 if getattr(chunk, "content", None) and getattr(chunk.content, "parts", None):
                     for p in chunk.content.parts:
@@ -109,8 +108,6 @@ class SaintGraph:
                 if not getattr(chunk, "partial", False):
                     final_content = types.Content(role="assistant", parts=accum_parts)
                     break
-            
-            logger.info(f"Stream ended. Total chunks: {chunk_count}, accum_parts: {len(accum_parts)}")
         except Exception as e:
             logger.error(f"Error during LLM generation: {e}", exc_info=True)
             return None

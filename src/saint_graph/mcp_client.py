@@ -125,7 +125,9 @@ class MCPClient:
         指定されたツールを実行します。
         公式SDKの session.call_tool(name, arguments) とインターフェースを合わせます。
         """
-        logger.info(f"Calling tool: {name} with {arguments}")
+        # get_comments はポーリングなのでログを抑制
+        if name != "get_comments":
+            logger.info(f"Calling tool: {name} with {arguments}")
         res = await self._send_rpc("tools/call", {
             "name": name,
             "arguments": arguments
