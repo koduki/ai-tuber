@@ -39,12 +39,12 @@ SaintGraphの対話エンジンは、接続先のMCPサーバーが以下のツ�
     }
     ```
 
-#### 3. `get_comments` (Observation)
+#### 3. `sys_get_comments` (Observation / System Internal)
 直近のユーザーコメントやイベントを取得するポーリング用ツール。
-*   **Description:** Retrieve user comments.
+*   **Description:** Retrieve user comments. INTERNAL USE ONLY.
 *   **Input Schema:** `{}` (Empty Object)
 *   **Output:** `string` (改行区切りのコメントリスト。新規コメントがない場合は "No new comments.")
-*   **Usage:** Chat Loop (`main.py`) により定期的に呼び出される。これだけはLLMが自発的に呼ぶのではなく、システムが観測のために使用する。
+*   **Usage:** Chat Loop (`main.py`) により定期的に呼び出される。**LLMが自発的に呼ぶことは禁止されています（システム内部用）。**
 
 #### 4. `get_weather` (Observation / 外部API)
 指定された場所の天気情報を取得する。オープンな天気予報API（Open-Meteo）を消費します。

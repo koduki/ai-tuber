@@ -21,12 +21,13 @@ Google ADK を用いた対話制御のメインクラス。
     3.  **Runner:** `InMemoryRunner` を初期化し、セッション状態を管理します。
 
 *   **Logic: Turn Processing (`process_turn`)**
-    *   `runner.run_debug(user_input, ...)` を呼び出します。
+    *   `runner.run_debug(..., verbose=False)` を呼び出します（ログ抑制のため verbose=False）。
     *   ADKの内部ループにより、以下の処理が自動化されます。
         *   ユーザー入力の履歴への追加。
         *   LLMへのリクエスト生成。
         *   ツール実行要求（function_call）のパースと実行。
         *   ツール実行結果のモデルへのフィードバックと再生成。
+        *   **Important:** 情報検索系ツール（Observation）の結果を受け取った後、LLMは必ず `speak` ツールを使用して回答を行うよう、システム指示（`core_instructions.md`）で厳格に制御されます。
         *   履歴の正規化（Role順序の維持、メッセージのマージ等）。
 
 *   **Logic: Direct Tool Call (`call_tool`)**
@@ -42,7 +43,7 @@ Google ADK を用いた対話制御のメインクラス。
 ### 3. Application Flow (`main.py`)
 1.  **Initialize:** `SaintGraph` インスタンスの作成。複数のMCPサーバへの接続が開始されます。
 2.  **Poll Loop:**
-    *   `call_tool("get_comments", ...)` を定期的なインターバル（`config.POLL_INTERVAL`、デフォルト1.0秒）で呼び出し。
+    *   `call_tool("sys_get_comments", ...)` を定期的なインターバル（`config.POLL_INTERVAL`、デフォルト1.0秒）で呼び出し。
     *   新規コメントを検知した場合、`SaintGraph.process_turn` を起動して対話を開始。
 
 ## Technical Stack
