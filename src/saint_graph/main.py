@@ -4,8 +4,7 @@ import os
 
 # モジュールのインポート
 # 修正: news_reader は不要なので削除
-from .config import logger, MCP_URL, POLL_INTERVAL
-from .mcp_client import MCPClient
+from .config import logger, MCP_URLS, POLL_INTERVAL
 from .saint_graph import SaintGraph
 
 def load_persona(name: str = "ren") -> str:
@@ -28,7 +27,7 @@ def load_persona(name: str = "ren") -> str:
             with open(core_path, "r", encoding="utf-8") as f:
                 combined_instruction += f.read() + "\n\n"
         else:
-             logger.warning(f"Core instructions not found at {core_path}")
+            logger.warning(f"Core instructions not found at {core_path}")
 
         # Load Persona
         with open(persona_path, "r", encoding="utf-8") as f:
@@ -47,32 +46,20 @@ def load_persona(name: str = "ren") -> str:
 async def main():
     logger.info("Starting Saint Graph in Chat Mode...")
 
-    # 1. Body (MCP) への接続
-    await asyncio.sleep(2) # 接続待機
-    client = MCPClient(base_url=MCP_URL)
-    try:
-        await client.connect()
-    except Exception as e:
-        logger.error(f"Failed to connect to MCP Body at {MCP_URL}: {e}")
-        return
-
-    # 2. Mind (Persona) の初期化
+    # 1. Mind (Persona) の初期化
     system_instruction = load_persona(name="ren")
 
-    # 3. ツールの定義 (動的取得)
-    tool_definitions = client.get_google_genai_tools()
-    logger.info(f"Loaded {len(tool_definitions[0].function_declarations) if tool_definitions else 0} tools from MCP.")
+    # 2. Saint Graph (ADK) の初期化
+    # McpToolset の初期化と接続管理は SaintGraph クラス内で行われます
+    saint_graph = SaintGraph(mcp_urls=MCP_URLS, system_instruction=system_instruction)
 
-    # 4. Saint Graph の初期化
-    saint_graph = SaintGraph(mcp_client=client, system_instruction=system_instruction, tools=tool_definitions)
-
-    # 5. メインループ (Chat Loop)
+    # 3. メインループ (Chat Loop)
     logger.info("Entering Chat Loop. Waiting for comments...")
 
     while True:
         try:
             # 1. コメント確認
-            comments = await client.call_tool("get_comments", {})
+            comments = await saint_graph.call_tool("sys_get_comments", {})
             
             if comments and comments != "No new comments.":
                 logger.info("Comments received.")
@@ -85,6 +72,15 @@ async def main():
         except Exception as e:
             logger.error(f"Error in Chat Loop: {e}", exc_info=True)
             await asyncio.sleep(5) # エラー時は少し長く待機
+        except BaseException as e:
+            logger.critical(f"Critical Error in Chat Loop: {e}", exc_info=True)
+            raise
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    import traceback
+    try:
+        asyncio.run(main())
+    except Exception:
+        traceback.print_exc()
+        sys.stderr.flush()
+        sys.stdout.flush()

@@ -1,9 +1,8 @@
 # AI Tuber System Architecture
 
 ## 概要
-本プロジェクトは、Google GenAI SDK (旧ADK) と Model Context Protocol (MCP) を活用した、モジュール構成のAI Tuberシステムです。
+本プロジェクトは、Google ADK (Agent Development Kit) と Model Context Protocol (MCP) を活用した、モジュール構成のAI Tuberシステムです。
 「Saint Graph (魂)」、「Mind (精神)」、「Body (肉体)」を明確に分離することで、拡張性と保守性を高めています。
-詳細な仕様は `docs/specs/` 配下のドキュメントを参照してください。
 
 ## System Map
 
@@ -14,23 +13,22 @@ graph TD
   end
 
   subgraph SaintGraph ["Saint Graph (魂)"]
-    Gemini["Gemini Model"]
-    Logic["main.py (Outer Loop)"]
-    Soul["saint_graph.py (Inner Loop)"]
-    Client["mcp_client.py"]
+    Agent["ADK Agent"]
+    Runner["InMemoryRunner"]
+    Toolset["McpToolset"]
   end
 
   subgraph Body ["Body (肉体)"]
-    Server["MCP Server"]
-    CLI["CLI / View"]
+    ServerCLI["MCP Server (CLI/Base)"]
+    ServerWeather["MCP Server (Weather)"]
   end
 
-  Persona --> Logic
-  Logic --> Soul
-  Soul --> Client
-  Client -- "MCP (JSON-RPC)" --> Server
-  Server --> CLI
-  CLI -- "User Input" --> Server
+  Persona -- "Instruction" --> Agent
+  Agent -- "Handled by" --> Runner
+  Agent -- "Tools" --> Toolset
+  Toolset -- "MCP (SSE)" --> ServerCLI
+  Toolset -- "MCP (SSE)" --> ServerWeather
+  ServerCLI -- "User Input" --> Runner
 ```
 
 ## Module Reference
@@ -39,29 +37,30 @@ graph TD
 
 ### 1. Saint Graph (Brain/Soul)
 *   **Role:** 対話制御、意思決定、コンテキスト管理
+*   **Tech:** Google ADK (`Agent`, `Runner`)
 *   **Spec:** [docs/specs/saint-graph.md](./specs/saint-graph.md)
 *   **Code:** `src/saint_graph/`
 
 ### 2. Body (Interaction Layer)
-*   **Role:** 外部入出力（コメント取得、発話、表情制御）
+*   **Role:** 外部入出力（コメント取得、発話、表情制御、天気取得等）
 *   **Interface Spec:** [docs/specs/api-design.md](./specs/api-design.md) (MCP Tools Definition)
-*   **Implementation:** `src/body/` (Currently generic CLI implementation)
-*   **Tech:** MCP Server (FastAPI + SSE)
+*   **Implementation:** `src/body/`
+*   **Tech:** MCP Server (FastMCP / SSE)
 
 ### 3. Mind (Personality)
 *   **Role:** キャラクター人格の定義
 *   **Definition:** `src/mind/{character_name}/persona.md`
-*   **Note:** `SaintGraph` 起動時にSystem Instructionとして読み込まれます。
+*   **Note:** ADK Agent の System Instruction として注入されます。
 
 ### 4. Communication Channel
+*   **Role:** MCP サーバーとの通信管理
 *   **Spec:** [docs/specs/mcp-client.md](./specs/mcp-client.md)
-*   **Protocol:** HTTP + SSE (Server-Sent Events) for MCP
+*   **Tech:** Google ADK `McpToolset` (HTTP + SSE)
 
 ## Directory Structure Strategy
 
 ```text
 .
-├── agent.md             # Project Constitution & Rules
 ├── docs/
 │   ├── ARCHITECTURE.md  # This Map
 │   └── specs/           # Detailed Specifications (Source of Truth for implementation)

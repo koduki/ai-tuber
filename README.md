@@ -26,7 +26,8 @@ export GOOGLE_API_KEY="your_api_key_here"
 
 **DevContainer の構成:**
 - 専用の `dev` サービスが開発環境として起動します
-- `mcp-cli` サービスは自動的にバックグラウンドで起動します
+- `body-cli` サービスは自動的にバックグラウンドで起動します
+- `body-weather` サービスは自動的にバックグラウンドで起動します
 - `saint-graph` は手動で起動してテストできます
 
 **Saint Graph を手動で実行する方法:**
@@ -44,7 +45,7 @@ docker compose up --build
 CLIからの入力は以下のようにコンテナにattachして実行
 
 ```bash
-vscode ➜ /app $ docker attach app-mcp-cli-1
+vscode ➜ /app $ docker attach app-body-cli-1
 こんにちは
 [Expression]: happy
 [AI (happy)]: こんにちはなのじゃ！

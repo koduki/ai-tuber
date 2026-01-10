@@ -1,6 +1,6 @@
 services:
-  # --- Body (MCP Server) ---
-  mcp-cli:
+  # --- Body CLI (MCP Server) ---
+  body-cli:
     build:
       context: .
       dockerfile: src/body/cli/Dockerfile
@@ -10,10 +10,8 @@ services:
     tty: true
     environment:
       - PORT=8000
-    # volumes:
-    #   - ./src/body/cli:/app
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      test: [ "CMD", "curl", "-f", "http://localhost:8000/health" ]
       interval: 5s
       timeout: 2s
       retries: 5
@@ -25,12 +23,31 @@ services:
       dockerfile: src/saint_graph/Dockerfile
     environment:
       - RUN_MODE=cli
-      - MCP_URL=http://mcp-cli:8000/sse
+      - MCP_URL=http://body-cli:8000/sse
+      - WEATHER_MCP_URL=http://body-weather:8001/sse
       - GOOGLE_API_KEY=${GOOGLE_API_KEY}
       - PYTHONPATH=/app
+      - NO_PROXY=body-cli,body-weather,localhost,127.0.0.1
     depends_on:
-      mcp-cli:
+      body-cli:
+        condition: service_healthy
+      body-weather:
         condition: service_healthy
     volumes:
       - ./data/news:/app/data/news
     command: python -m src.saint_graph.main
+
+  # --- Body Weather (MCP Server) ---
+  body-weather:
+    build:
+      context: .
+      dockerfile: src/body/weather/Dockerfile
+    ports:
+      - "8001:8001"
+    environment:
+      - PORT=8001
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:8001/health" ]
+      interval: 5s
+      timeout: 2s
+      retries: 5

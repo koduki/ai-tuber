@@ -12,7 +12,7 @@ import os
 async def test_mcp_body_status(docker_ip, docker_services):
     """docker-composeで起動したMCP Bodyサーバーが正常に動作しているか確認。"""
     # docker_services.wait_until_responsive は同期Callableを期待する
-    port = docker_services.port_for("mcp-cli", 8000)
+    port = docker_services.port_for("body-cli", 8000)
     url = f"http://{docker_ip}:{port}/health"
     print(f"\nDEBUG: Checking MCP Body health at {url}")
     
@@ -41,7 +41,7 @@ async def test_comment_cycle_e2e(docker_ip, docker_services):
     """
     外部からコメントが届き、ツールを介して取得できる一連の流れをテスト。
     """
-    port = docker_services.port_for("mcp-cli", 8000)
+    port = docker_services.port_for("body-cli", 8000)
     base_url = f"http://{docker_ip}:{port}"
 
     # 1. ツールリストを取得して、get_commentsが存在するか確認
@@ -54,7 +54,7 @@ async def test_comment_cycle_e2e(docker_ip, docker_services):
 
     async with httpx.AsyncClient() as client:
         # 初回のリクエストは自動待機後のため通るはず
-        resp = await client.post(f"{base_url}/messages", json=rpc_list_payload)
+        resp = await client.post(f"{base_url}/messages?session_id=test", json=rpc_list_payload)
         assert resp.status_code == 200
         data = resp.json()
         tools = [t["name"] for t in data["result"]["tools"]]
@@ -72,6 +72,6 @@ async def test_comment_cycle_e2e(docker_ip, docker_services):
     }
 
     async with httpx.AsyncClient() as client:
-        resp = await client.post(f"{base_url}/messages", json=rpc_call_payload)
+        resp = await client.post(f"{base_url}/messages?session_id=test", json=rpc_call_payload)
         assert resp.status_code == 200
         assert "No new comments." in resp.text

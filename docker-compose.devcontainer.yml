@@ -8,7 +8,7 @@ services:
       - .:/app
     # VS Code サーバーが起動するまで待機
     command: sleep infinity
-    # mcp-cli は profiles: manual で手動起動のため、depends_on は設定しない
+    # body-cli は profiles: manual で手動起動のため、depends_on は設定しない
     environment:
       - GOOGLE_API_KEY=${GOOGLE_API_KEY}
       - PYTHONPATH=/app
@@ -21,10 +21,18 @@ services:
     volumes:
       - .:/app
 
-  mcp-cli:
+  body-cli:
     # 開発中は明示的に起動する必要がある
     profiles:
       - manual
     # 開発中はローカルのソースコードをマウントして変更を即座に反映させる
     volumes:
       - ./src/body/cli:/app
+
+  body-weather:
+    # 開発中は明示的に起動する必要がある
+    profiles:
+      - manual
+    # 開発中はローカルのソースコードをマウントして変更を即座に反映させる
+    volumes:
+      - ./src/body/weather:/app

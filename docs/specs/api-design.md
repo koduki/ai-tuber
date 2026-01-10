@@ -3,7 +3,8 @@
 SaintGraphはサーバーとしてAPIを公開するのではなく、以下の外部APIを消費するクライアントとして動作します。
 
 ## MCP Server Interface (Body)
-URL: `http://localhost:3000/sse` (Default, Configurable via `MCP_URL`)
+URL (Primary): `http://body-cli:8000/sse` (Configurable via `MCP_URL`)
+URL (Weather): `http://body-weather:8001/sse` (Configurable via `WEATHER_MCP_URL`)
 
 ### Required Tools Specification
 SaintGraphの対話エンジンは、接続先のMCPサーバーが以下のツールセットを提供していることを前提に動作します。
@@ -38,40 +39,45 @@ SaintGraphの対話エンジンは、接続先のMCPサーバーが以下のツ�
     }
     ```
 
-#### 3. `get_comments` (Observation)
+#### 3. `sys_get_comments` (Observation / System Internal)
 直近のユーザーコメントやイベントを取得するポーリング用ツール。
-*   **Description:** Retrieve user comments.
+*   **Description:** Retrieve user comments. INTERNAL USE ONLY.
 *   **Input Schema:** `{}` (Empty Object)
 *   **Output:** `string` (改行区切りのコメントリスト。新規コメントがない場合は "No new comments.")
-*   **Usage:** Chat Loop (`main.py`) により定期的に呼び出される。これだけはLLMが自発的に呼ぶのではなく、システムが観測のために使用する。
+*   **Usage:** Chat Loop (`main.py`) により定期的に呼び出される。**LLMが自発的に呼ぶことは禁止されています（システム内部用）。**
 
-#### 4. `get_weather` (Observation)
-指定された場所の天気情報を取得する。
+#### 4. `get_weather` (Observation / 外部API)
+指定された場所の天気情報を取得する。オープンな天気予報API（Open-Meteo）を消費します。
 *   **Description:** Retrieve weather information for a specified location and date.
 *   **Input Schema:**
     ```json
     {
       "type": "object",
       "properties": {
-        "location": { "type": "string", "description": "都市名や地域名（例: Tokyo, New York）" },
+        "location": { "type": "string", "description": "都市名や地域名（例: Tokyo, Fukuoka）" },
         "date": { "type": "string", "description": "日付（YYYY-MM-DD）または相対日時（today, tomorrow）。省略時は現在・直近の天気。" }
       },
       "required": ["location"]
     }
     ```
+*   **Note:** このツールは専用の `body-weather` マイクロサービスで提供されます。
 
 
 ## Constraints
-*   **Polling Interval:** `POLL_INTERVAL` (Default: 5s)
+*   **Polling Interval:** `POLL_INTERVAL` (Default: 1.0s)
 *   **Timeouts:**
     *   Connect: 30s
     *   Tool Execution: 30s
 
 ## Implementation Strategy
 
-### Module Separation
-サーバ層（Protocol Handling）とビジネスロジック層（Tool Implementation）を明確に分離します。
+### Recommended Structure (Microservices)
+各コンポーネントは、サーバ層（FastAPI/SSE）とビジネスロジック層（Tools/Logic）を分離した構成をとります。サーバ層はFastMCPを使って実装します。
 
-### Recommended Structure (Body/CLI)
-*   `src/body/cli/main.py`: **MCP Server Layer**. FastAPIアプリ定義、SSEエンドポイント、JSON-RPCルーティングのみを記述。
-*   `src/body/cli/tools.py`: **Logic Layer**. 実際のツール関数（`speak`, `get_comments`等）と入出力アダプタを実装。純粋なPython関数として定義し、FastAPIへの依存を持たないようにする。
+#### 1. Body/CLI (`src/body/cli/`)
+*   `main.py`: **MCP Server Layer**. FastAPIアプリ定義、SSEエンドポイント、JSON-RPCルーティング。アバター発話制御を担当。
+*   `tools.py`: **Logic Layer**. 実際のツール関数（`speak`, `get_comments`等）と入出力アダプタ（標準入力経由のコメント取得）を実装。
+
+#### 2. Body/Weather (`src/body/weather/`)
+*   `main.py`: **MCP Server Layer**. 天気予報ツールの公開用SSEエンドポイント。
+*   `tools.py`: **Logic Layer**. Open-Meteo APIを使用したジオコーディングおよび天気取得ロジック。
