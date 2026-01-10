@@ -38,21 +38,7 @@ SaintGraphの対話エンジンは、接続先のMCPサーバーが以下のツ�
     }
     ```
 
-#### 3. `switch_scene` (Action)
-配信画面のシーン（背景やレイアウト）を切り替える。
-*   **Description:** Switch the displayed scene.
-*   **Input Schema:**
-    ```json
-    {
-      "type": "object",
-      "properties": {
-        "scene": { "type": "string", "description": "シーン名（例: talk, game, standby）" }
-      },
-      "required": ["scene"]
-    }
-    ```
-
-#### 4. `get_comments` (Observation)
+#### 3. `get_comments` (Observation)
 直近のユーザーコメントやイベントを取得するポーリング用ツール。
 *   **Description:** Retrieve user comments.
 *   **Input Schema:** `{}` (Empty Object)
@@ -65,3 +51,12 @@ SaintGraphの対話エンジンは、接続先のMCPサーバーが以下のツ�
 *   **Timeouts:**
     *   Connect: 30s
     *   Tool Execution: 30s
+
+## Implementation Strategy
+
+### Module Separation
+サーバ層（Protocol Handling）とビジネスロジック層（Tool Implementation）を明確に分離します。
+
+### Recommended Structure (Body/CLI)
+*   `src/body/cli/main.py`: **MCP Server Layer**. FastAPIアプリ定義、SSEエンドポイント、JSON-RPCルーティングのみを記述。
+*   `src/body/cli/tools.py`: **Logic Layer**. 実際のツール関数（`speak`, `get_comments`等）と入出力アダプタを実装。純粋なPython関数として定義し、FastAPIへの依存を持たないようにする。
