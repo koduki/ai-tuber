@@ -3,7 +3,7 @@ from fastapi import FastAPI, Request
 from sse_starlette.sse import EventSourceResponse
 
 # Import separated business logic layer
-from .tools import speak, change_emotion, get_comments
+from .tools import speak, change_emotion, get_comments, get_weather
 
 app = FastAPI()
 
@@ -12,6 +12,7 @@ TOOLS = {
     "speak": speak,
     "change_emotion": change_emotion,
     "get_comments": get_comments,
+    "get_weather": get_weather,
 }
 
 TOOL_DEFINITIONS = [
@@ -44,6 +45,18 @@ TOOL_DEFINITIONS = [
         "inputSchema": {
             "type": "object",
             "properties": {},
+        }
+    },
+    {
+        "name": "get_weather",
+        "description": "Retrieve weather information for a specified location and date.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "location": {"type": "string", "description": "都市名や地域名（例: Tokyo, New York）"},
+                "date": {"type": "string", "description": "日付（YYYY-MM-DD）または相対日時（today, tomorrow）。省略時は現在・直近の天気。"}
+            },
+            "required": ["location"]
         }
     }
 ]
