@@ -43,7 +43,7 @@ async def test_process_turn_calls_runner(mock_adk):
         "Hello",
         user_id="yt_user",
         session_id="yt_session",
-        verbose=True
+        verbose=False
     )
 
 @pytest.mark.asyncio

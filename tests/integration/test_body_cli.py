@@ -8,7 +8,7 @@ async def test_tools_list():
     tools = await mcp.list_tools()
     tool_names = [t.name for t in tools]
     assert "speak" in tool_names
-    assert "get_comments" in tool_names
+    assert "sys_get_comments" in tool_names
     assert "change_emotion" in tool_names
 
 @pytest.mark.asyncio
@@ -27,11 +27,11 @@ async def test_call_speak_tool():
 async def test_call_get_comments_tool():
     io_adapter.add_input("Test comment 1")
     
-    result = await mcp.call_tool("get_comments", {})
+    result = await mcp.call_tool("sys_get_comments", {})
     assert "Test comment 1" in str(result)
     
     # Second call should be empty
-    result2 = await mcp.call_tool("get_comments", {})
+    result2 = await mcp.call_tool("sys_get_comments", {})
     assert "No new comments." in str(result2)
 
 @pytest.mark.asyncio
