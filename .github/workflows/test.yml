@@ -1,34 +1,30 @@
-name: AI Tuber CI
+name: CI
 
 on:
   push:
-    branches: [ main ]
   pull_request:
-    branches: [ main ]
 
 jobs:
   test:
     runs-on: ubuntu-latest
+    env:
+      GOOGLE_API_KEY: "dummy_key_for_ci"
 
     steps:
     - uses: actions/checkout@v4
 
-    - name: Set up Python
+    - name: Set up Python 3.11
       uses: actions/setup-python@v5
       with:
-        python-version: '3.11'
-        cache: 'pip'
+        python-version: "3.11"
 
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
+        pip install -r requirements-dev.txt
         pip install -r src/saint_graph/requirements.txt
         pip install -r src/body/cli/requirements.txt
-        pip install -r requirements-dev.txt
 
-    - name: Run tests
+    - name: Run Tests
       run: |
-        export PYTHONPATH=$PYTHONPATH:$(pwd)/src
-        pytest
-      env:
-        GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+        pytest -v

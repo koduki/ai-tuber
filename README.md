@@ -41,17 +41,54 @@ export GOOGLE_API_KEY="your_api_key_here"
 
 **Saint Graph を手動で実行する方法:**
 ```bash
-# DevContainer 内で実行
-python -m src.saint_graph.main
+# DevContainer 内で実行 (/app/src を PYTHONPATH に通した状態で実行)
+PYTHONPATH=src python -m saint_graph.main
 ```
 
 手動でコンテナを起動する場合:
 
 ```bash
-docker-compose up --build
+docker compose up --build
 ```
 
-### キーコンセプト
+## テスト
+
+このプロジェクトでは、品質を担保するために複数のレイヤーでテストを実装しています。
+
+### テストの種類
+
+1.  **ユニットテスト (`tests/unit`)**:
+    *   `SaintGraph` の履歴管理や重複実行の防止ロジックの検証。
+    *   `MCPClient` のプロトコル解析の検証。
+    *   Gemini API とのやり取りにおけるエラーハンドリング。
+2.  **インテグレーションテスト (`tests/integration`)**:
+    *   MCP Body (FastAPI サーバー) のエンドポイントやプロトコル準拠の検証。
+3.  **E2E (End-to-End) テスト (`tests/e2e`)**:
+    *   `pytest-docker` を使用し、実際に Docker コンテナを起動・終了させて、システム全体の疎通とライフサイクルを検証。
+
+### テストの実行方法
+
+全てのテストを一括で実行するには、プロジェクトのルートディレクトリで以下のコマンドを実行します：
+
+```bash
+pytest
+```
+
+特定のレイヤーのテストのみを実行する場合：
+
+```bash
+# ユニットテストのみ
+pytest tests/unit/ -v
+
+# インテグレーションテストのみ
+pytest tests/integration/ -v
+
+# E2Eテストのみ (コンテナのビルドと起動が自動で行われます)
+pytest tests/e2e/ -v -s
+```
+
+## キーコンセプト
 
 *   **単一接続**: Saint Graph は単一の MCP エンドポイント (`MCP_URL` で定義) に接続します。
 *   **標準化インターフェース**: `MCPClient` は、将来の移行を容易にするため、公式 Python SDK の `ClientSession` インターフェース (`list_tools`, `call_tool`) に合わせて設計されています。
+*   **冪等性と信頼性**: ストリーミングレスポンスによる重複アクションの防止など、本番環境での信頼性を考慮した実装が含まれています。
