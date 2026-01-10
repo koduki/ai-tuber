@@ -96,7 +96,6 @@ class SaintGraph:
 
     async def _generate_and_accumulate(self, req: LlmRequest) -> Optional[types.Content]:
         """モデルからストリーミング生成を行い、結果を蓄積して返します。"""
-        accum_parts = []
         accum_text = ""
         printed_len = 0
         final_content = None
@@ -110,11 +109,9 @@ class SaintGraph:
                     logger.error(f"LLM Error: {error_code} - {error_msg}")
                     return None
                 
+                # テキストの蓄積とログ出力のみ（インクリメンタル表示用）
                 if getattr(chunk, "content", None) and getattr(chunk.content, "parts", None):
                     for p in chunk.content.parts:
-                        accum_parts.append(p)
-                        if p.function_call:
-                            logger.info(f"Received FunctionCall: {p.function_call.name}")
                         if p.text:
                             accum_text += p.text
 
@@ -123,9 +120,16 @@ class SaintGraph:
                     logger.info(f"Gemini: {accum_text[printed_len:]}")
                     printed_len = len(accum_text)
 
-                # ストリーム完了判定
+                # ストリーム完了判定 - 最終チャンクのみ使用
                 if not getattr(chunk, "partial", False):
-                    final_content = types.Content(role=self.config.ai_role, parts=accum_parts)
+                    if getattr(chunk, "content", None):
+                        # 最終チャンクの parts のみを使用（重複を避ける）
+                        final_content = chunk.content
+                        # Function calls をログ出力
+                        if getattr(chunk.content, "parts", None):
+                            for p in chunk.content.parts:
+                                if p.function_call:
+                                    logger.info(f"Received FunctionCall: {p.function_call.name}")
                     break
         except Exception as e:
             logger.error(f"Error during LLM generation: {e}", exc_info=True)

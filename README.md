@@ -34,7 +34,18 @@ export GOOGLE_API_KEY="your_api_key_here"
 
 このプロジェクトには `devcontainer` 設定が含まれています。VS Code でフォルダを開き、「コンテナーで再度開く」を選択してください。
 
-手動で実行する場合:
+**DevContainer の構成:**
+- 専用の `dev` サービスが開発環境として起動します
+- `mcp-cli` サービスは自動的にバックグラウンドで起動します
+- `saint-graph` は手動で起動してテストできます
+
+**Saint Graph を手動で実行する方法:**
+```bash
+# DevContainer 内で実行
+python -m src.saint_graph.main
+```
+
+手動でコンテナを起動する場合:
 
 ```bash
 docker-compose up --build

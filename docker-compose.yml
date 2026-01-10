@@ -32,6 +32,5 @@ services:
       mcp-cli:
         condition: service_healthy
     volumes:
-      - .:/app
       - ./data/news:/app/data/news
     command: python -m src.saint_graph.main
