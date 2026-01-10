@@ -64,7 +64,7 @@ SaintGraphの対話エンジンは、接続先のMCPサーバーが以下のツ�
 
 
 ## Constraints
-*   **Polling Interval:** `POLL_INTERVAL` (Default: 5s)
+*   **Polling Interval:** `POLL_INTERVAL` (Default: 1.0s)
 *   **Timeouts:**
     *   Connect: 30s
     *   Tool Execution: 30s

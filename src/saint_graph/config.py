@@ -17,7 +17,7 @@ GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
 MODEL_NAME = os.getenv("MODEL_NAME", "gemini-2.5-flash-lite")
 
 # 定数
-POLL_INTERVAL = 0.5
+POLL_INTERVAL = 1.0
 SOLILOQUY_INTERVAL = 30.0 # 30秒間の沈黙でランダムな発話
 HISTORY_LIMIT = 20
 NEWS_DIR = os.getenv("NEWS_DIR", "/app/data/news")

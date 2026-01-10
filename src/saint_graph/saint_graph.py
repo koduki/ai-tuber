@@ -68,6 +68,33 @@ class SaintGraph:
                     # In ADK, run_async usually expects a ToolContext.
                     # For direct polling calls where context is not needed, we pass None.
                     res = await tool.run_async(args=arguments, tool_context=None)
+                    
+                    extracted_text = None
+
+                    # Helper to get content from object or dict
+                    content = getattr(res, 'content', None)
+                    if content is None and isinstance(res, dict):
+                        content = res.get('content')
+                    
+                    if content:
+                        # Case 1: content is a list (Standard MCP)
+                        if isinstance(content, list):
+                            texts = []
+                            for block in content:
+                                if hasattr(block, 'text'):
+                                    texts.append(block.text)
+                                elif isinstance(block, dict) and 'text' in block:
+                                    texts.append(block['text'])
+                            if texts:
+                                extracted_text = "\n".join(texts)
+
+                        # Case 2: content is a dict with 'result' (Observed in logs)
+                        elif isinstance(content, dict) and 'result' in content:
+                            extracted_text = content['result']
+                    
+                    if extracted_text is not None:
+                        return extracted_text
+                        
                     return str(res)
         raise Exception(f"Tool {name} not found in any toolset.")
 

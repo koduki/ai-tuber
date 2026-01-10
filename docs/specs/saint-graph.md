@@ -32,6 +32,7 @@ Google ADK を用いた対話制御のメインクラス。
 *   **Logic: Direct Tool Call (`call_tool`)**
     *   ポーリング（コメント取得など）のために、LLMの推論を介さずツールを直接実行するユーティリティ。
     *   接続されているすべての `McpToolset` から指定された名前のツールを検索し、実行します。
+    *   **Result Handling:** MCPツールの実行結果（`CallToolResult`オブジェクトまたは辞書）から、テキストコンテンツ（`content.text` または `content['result']`）を堅牢に抽出して文字列として返します。
 
 ### 2. Mind (`src/mind/`)
 キャラクターの人格定義。
@@ -41,7 +42,7 @@ Google ADK を用いた対話制御のメインクラス。
 ### 3. Application Flow (`main.py`)
 1.  **Initialize:** `SaintGraph` インスタンスの作成。複数のMCPサーバへの接続が開始されます。
 2.  **Poll Loop:**
-    *   `call_tool("get_comments", ...)` を定期的に呼び出し。
+    *   `call_tool("get_comments", ...)` を定期的なインターバル（`config.POLL_INTERVAL`、デフォルト1.0秒）で呼び出し。
     *   新規コメントを検知した場合、`SaintGraph.process_turn` を起動して対話を開始。
 
 ## Technical Stack
