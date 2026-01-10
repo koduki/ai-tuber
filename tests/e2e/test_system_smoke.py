@@ -54,7 +54,7 @@ async def test_comment_cycle_e2e(docker_ip, docker_services):
 
     async with httpx.AsyncClient() as client:
         # 初回のリクエストは自動待機後のため通るはず
-        resp = await client.post(f"{base_url}/messages", json=rpc_list_payload)
+        resp = await client.post(f"{base_url}/messages?session_id=test", json=rpc_list_payload)
         assert resp.status_code == 200
         data = resp.json()
         tools = [t["name"] for t in data["result"]["tools"]]
@@ -72,6 +72,6 @@ async def test_comment_cycle_e2e(docker_ip, docker_services):
     }
 
     async with httpx.AsyncClient() as client:
-        resp = await client.post(f"{base_url}/messages", json=rpc_call_payload)
+        resp = await client.post(f"{base_url}/messages?session_id=test", json=rpc_call_payload)
         assert resp.status_code == 200
         assert "No new comments." in resp.text

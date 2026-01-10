@@ -72,7 +72,7 @@ SaintGraphの対話エンジンは、接続先のMCPサーバーが以下のツ�
 ## Implementation Strategy
 
 ### Recommended Structure (Microservices)
-各コンポーネントは、サーバ層（FastAPI/SSE）とビジネスロジック層（Tools/Logic）を分離した構成をとります。
+各コンポーネントは、サーバ層（FastAPI/SSE）とビジネスロジック層（Tools/Logic）を分離した構成をとります。サーバ層はFastMCPを使って実装します。
 
 #### 1. Body/CLI (`src/body/cli/`)
 *   `main.py`: **MCP Server Layer**. FastAPIアプリ定義、SSEエンドポイント、JSON-RPCルーティング。アバター発話制御を担当。

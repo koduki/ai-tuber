@@ -14,4 +14,4 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY src/body/weather /app/src/body/weather
 
 # Run the application
-CMD ["python", "-m", "src.body.weather.server"]
+CMD ["python", "-m", "src.body.weather.main"]

@@ -1,126 +1,80 @@
 import pytest
-from unittest.mock import AsyncMock, MagicMock
-from google.genai import types
+from unittest.mock import AsyncMock, MagicMock, patch
 from saint_graph.saint_graph import SaintGraph
-from saint_graph import config as cfg
+
+@pytest.fixture
+def mock_adk():
+    with patch("saint_graph.saint_graph.Agent") as mock_agent, \
+         patch("saint_graph.saint_graph.InMemoryRunner") as mock_runner, \
+         patch("saint_graph.saint_graph.McpToolset") as mock_toolset:
+        yield {
+            "Agent": mock_agent,
+            "InMemoryRunner": mock_runner,
+            "McpToolset": mock_toolset
+        }
 
 @pytest.mark.asyncio
-async def test_history_limit(sample_system_instruction, sample_tools):
+async def test_saint_graph_initialization(mock_adk):
     # Setup
-    mcp_client = MagicMock()
-    model = MagicMock()
-    sg = SaintGraph(mcp_client, sample_system_instruction, sample_tools, model=model)
-    
-    # Execute: Add more than limit
-    # We alternate roles because consecutive messages of the same role are merged.
-    for i in range(cfg.HISTORY_LIMIT + 5):
-        role = "user" if i % 2 == 0 else "model"
-        sg.add_history(types.Content(role=role, parts=[types.Part(text=f"msg {i}")]))
-        
-    # Verify
-    # The history limit is 20. When we add 25 messages alternating roles:
-    # 0:U, 1:M, 2:U, 3:M, ..., 19:M, 20:U, 21:M, 22:U, 23:M, 24:U
-    # When HISTORY_LIMIT is 20, it keeps [5, 6, ..., 24] (length 20).
-    # However, SaintGraph ensures history doesn't start with a 'model' role (if config.ai_role is model).
-    # Since 5 is 'model' (5%2 == 1), it might pop it.
-    
-    assert len(sg.chat_history) <= cfg.HISTORY_LIMIT
-    assert sg.chat_history[-1].parts[0].text == f"msg {cfg.HISTORY_LIMIT + 5 - 1}"
-
-@pytest.mark.asyncio
-async def test_process_turn_flow(mock_gemini, sample_system_instruction, sample_tools):
-    # Setup Mock Responses
-    # 1st response: call tool
-    resp1 = types.Content(
-        role="assistant",
-        parts=[
-            types.Part(
-                function_call=types.FunctionCall(
-                    name="speak",
-                    args={"text": "Hello world"}
-                )
-            )
-        ]
-    )
-    # 2nd response: final talk
-    resp2 = types.Content(
-        role="assistant",
-        parts=[types.Part(text="I spoke hello.")]
-    )
-    mock_gemini.responses = [resp1, resp2]
-    
-    mcp_client = AsyncMock()
-    mcp_client.call_tool.return_value = "Success"
-    
-    sg = SaintGraph(mcp_client, sample_system_instruction, sample_tools, model=mock_gemini)
+    mcp_urls = ["http://localhost:8000"]
+    system_instruction = "Test instruction"
     
     # Execute
-    await sg.process_turn("Say hello")
+    sg = SaintGraph(mcp_urls, system_instruction)
     
     # Verify
-    assert mock_gemini.call_count == 2
-    mcp_client.call_tool.assert_called_once_with("speak", {"text": "Hello world"})
-    
-    # History check: User input -> AI Tool Call -> Tool Result -> AI Final Response
-    assert len(sg.chat_history) == 4
-    assert sg.chat_history[0].role == "user"
-    assert sg.chat_history[1].role == "assistant"
-    assert sg.chat_history[2].role == "user" # Tool result is added as user role by SaintGraph
-    assert sg.chat_history[3].role == "assistant"
+    assert sg.mcp_urls == mcp_urls
+    assert sg.system_instruction == system_instruction
+    mock_adk["McpToolset"].assert_called_once()
+    mock_adk["Agent"].assert_called_once()
+    mock_adk["InMemoryRunner"].assert_called_once_with(agent=sg.agent)
 
 @pytest.mark.asyncio
-async def test_tool_error_handling(mock_gemini, sample_system_instruction, sample_tools):
+async def test_process_turn_calls_runner(mock_adk):
     # Setup
-    resp1 = types.Content(
-        role="assistant",
-        parts=[
-            types.Part(
-                function_call=types.FunctionCall(
-                    name="speak",
-                    args={"text": "Fail me"}
-                )
-            )
-        ]
+    sg = SaintGraph(["http://localhost:8000"], "Instruction")
+    sg.runner.run_debug = AsyncMock()
+    
+    # Execute
+    await sg.process_turn("Hello")
+    
+    # Verify
+    sg.runner.run_debug.assert_called_once_with(
+        "Hello",
+        user_id="yt_user",
+        session_id="yt_session",
+        verbose=True
     )
-    mock_gemini.responses = [resp1, types.Content(role="assistant", parts=[types.Part(text="Oops")])]
-    
-    mcp_client = AsyncMock()
-    mcp_client.call_tool.side_effect = Exception("Tool exploded")
-    
-    sg = SaintGraph(mcp_client, sample_system_instruction, sample_tools, model=mock_gemini)
-    
-    # Execute
-    await sg.process_turn("Try to fail")
-    
-    # Verify
-    # The turn should complete even if tool fails
-    assert len(sg.chat_history) == 4
-    assert "error" in sg.chat_history[2].parts[0].function_response.response
-    assert "Tool exploded" in sg.chat_history[2].parts[0].function_response.response["error"]
 
 @pytest.mark.asyncio
-async def test_tool_argument_normalization(mock_gemini, sample_system_instruction, sample_tools):
+async def test_call_tool_traverses_toolsets(mock_adk):
     # Setup
-    # Simulating a case where function_call has args as a string
-    fc = MagicMock()
-    fc.name = "speak"
-    fc.args = '{"text": "normalized"}'
-    fc.id = "test-id"
+    sg = SaintGraph(["http://localhost:8000"], "Instruction")
     
-    # Use model_construct to bypass Pydantic validation
-    part = types.Part.model_construct(function_call=fc)
-    resp1 = types.Content.model_construct(role="assistant", parts=[part])
+    mock_tool = AsyncMock()
+    mock_tool.name = "get_comments"
+    mock_tool.run_async.return_value = "Result"
     
-    mock_gemini.responses = [
-        resp1, 
-        types.Content.model_construct(role="assistant", parts=[types.Part.model_construct(text="Done")])
-    ]
-    
-    mcp_client = AsyncMock()
-    sg = SaintGraph(mcp_client, sample_system_instruction, sample_tools, model=mock_gemini)
+    mock_toolset = mock_adk["McpToolset"].return_value
+    mock_toolset.get_tools = AsyncMock(return_value=[mock_tool])
     
     # Execute
-    await sg.process_turn("Normalize me")
+    res = await sg.call_tool("get_comments", {"arg": 1})
     
-    # Verify: call_tool should receive a dict, not a string
-    mcp_client.call_tool.assert_called_once_with("speak", {"text": "normalized"})
+    # Verify
+    assert res == "Result"
+    # Note: we use tool_context=None in our simplified call_tool
+    mock_tool.run_async.assert_called_once()
+    args, kwargs = mock_tool.run_async.call_args
+    assert kwargs["args"] == {"arg": 1}
+
+@pytest.mark.asyncio
+async def test_call_tool_not_found(mock_adk):
+    # Setup
+    sg = SaintGraph(["http://localhost:8000"], "Instruction")
+    mock_toolset = mock_adk["McpToolset"].return_value
+    mock_toolset.get_tools = AsyncMock(return_value=[])
+    
+    # Execute & Verify
+    with pytest.raises(Exception, match="Tool unknown not found"):
+        await sg.call_tool("unknown", {})

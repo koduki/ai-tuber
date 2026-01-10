@@ -2,54 +2,34 @@
 
 ## 概要
 SaintGraphが外部環境（Body）と通信するためのクライアントモジュール。
-Model Context Protocol (MCP) 仕様に基づき、ツールの動的発見と実行を行います。
-`src/saint_graph/mcp_client.py` に実装されています。
+Google ADK の `McpToolset` を使用し、Model Context Protocol (MCP) 仕様に基づいたツールの動的発見と実行を行います。
 
-## Protocol & State Management
+## Protocol & Connection Management
 
 ### URL Convention
 *   **Base URL List (SSE):** `config.MCP_URLS` (List of strings)
     *   Default Primary: `http://body-cli:8000/sse`
     *   Default Weather: `http://body-weather:8001/sse`
-*   **Post URL (RPC):** 各 Base URL の `/sse` を `/messages` に置換して生成します。
 
-### Connection Flow (`connect()`)
-1.  **Iterative Connection:**
-    *   `config.MCP_URLS` に含まれるすべてのURLに対して、並列（`asyncio.gather`）で接続を試みます。
-2.  **Internal Client Setup (`SingleMCPClient`):**
-    *   各URLに対して個別のセッション管理を行います。
-    *   **SSE Handshake:** `httpx.AsyncClient` で Base URL にGETリクエストを送信。
-    *   **Initialize Handshake:** RPC `initialize` メソッドを送信。
-3.  **Tool Discovery & Aggregation:**
-    *   初期化直後に `tools/list` を呼び出し、各サーバが提供するツールを `tool_map` に登録します（Tool Name -> Server Client）。
+### Connection Strategy (`McpToolset`)
+*   **Initialization:** 各 Base URL に対して `SseConnectionParams(url=url)` を作成し、それを用いて `McpToolset` を初期化します。
+*   **Transport:** ADK 内部で SSE (Server-Sent Events) を用いた接続と、JSON-RPC メッセージの送受信が管理されます。
+*   **Discovery:** Toolset の初期化時、または `get_tools()` 呼び出し時に、サーバーの提供するツールが自動的にリストアップされます。
 
 ## Data Conversion Logic
+ADK の `McpToolset` は、以下の変換を内部的に行います。
 
-### Schema Mapping (JSON Schema -> Gemini Schema)
-MCPのJSON SchemaをGoogle GenAI SDKの `types.Schema` に変換します。
-以下の要素を再帰的にサポートします：
-
-*   **Types:** `OBJECT`, `ARRAY`, `STRING`, `INTEGER`, etc.
-*   **Properties:** Nested objects via `properties`.
-*   **Arrays:** Item types via `items`.
-*   **Enums:** `enum` list validation.
-*   **Required:** `required` field mapping.
-
-### Tool Conversion (`get_google_genai_tools`)
-*   MCPの `tools/list` レスポンスを `types.FunctionDeclaration` のリストに変換します。
-*   最終的に `types.Tool` オブジェクトとしてラップして返します。
+*   **Schema Conversion:** MCP の JSON Schema 形式から Google Gemini 互換のスキーマ形式への変換。
+*   **Tool Wrapping:** 各 MCP ツールを ADK の `Tool` オブジェクトとしてラップ。
 
 ## Core Methods Specification
 
-### `call_tool(name: str, arguments: dict)`
-*   **Input:** ツール名と辞書形式の引数。
-*   **Behavior:**
-    *   `tool_map` から対象のツールを提供しているサーバ・クライアントを特定します。
-    *   特定されたサーバに対して JSON-RPC `tools/call` を発行します。
-    *   **Logging:** `get_comments` ツールの場合のみ、ポーリングによるログ汚染を防ぐためINFOログ出力を抑制します。
-*   **Output:**
-    *   成功時: `result.content[0].text` を文字列として返す。
-    *   失敗時 (`error` フィールド存在時): `Exception` を送出する。
+### `get_tools()` (ADK internal)
+*   サーバーからツールの一覧を取得し、モデル（Gemini）が理解できる形式で返します。
 
-### `list_tools()`
-*   RPC `tools/list` を発行し、結果を `self.tools` にキャッシュして返します。
+### `run_async(args, tool_context)` (ADK internal)
+*   モデルからの `function_call` に基づき、対象の MCP サーバに対して `tools/call` RPC を発行します。
+*   実行結果を文字列（またはオブジェクト）としてモデルに返します。
+
+### Direct Usage in SaintGraph
+SaintGraph クラスでは、これらを `google.adk.Agent` に渡すことで統合します。また、`call_tool` メソッドにより特定のツールを手動で呼び出すことが可能です。

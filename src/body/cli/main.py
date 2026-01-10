@@ -1,134 +1,37 @@
-import asyncio
-from fastapi import FastAPI, Request
-from sse_starlette.sse import EventSourceResponse
-
-app = FastAPI()
-
-# Import separated business logic layer
+import os
+import uvicorn
+from mcp.server.fastmcp import FastMCP
+from starlette.responses import JSONResponse
+from starlette.routing import Route
 from .tools import speak, change_emotion, get_comments
 
-# --- Tool Registry ---
-TOOLS = {
-    "speak": speak,
-    "change_emotion": change_emotion,
-    "get_comments": get_comments,
-}
+mcp = FastMCP("body-cli")
 
-TOOL_DEFINITIONS = [
-    {
-        "name": "speak",
-        "description": "Speak text to the audience.",
-        "inputSchema": {
-            "type": "object",
-            "properties": {
-                "text": {"type": "string"},
-                "style": {"type": "string"}
-            },
-            "required": ["text"]
-        }
-    },
-    {
-        "name": "change_emotion",
-        "description": "Change the avatar's facial expression.",
-        "inputSchema": {
-            "type": "object",
-            "properties": {
-                "emotion": {"type": "string"}
-            },
-            "required": ["emotion"]
-        }
-    },
-    {
-        "name": "get_comments",
-        "description": "Retrieve user comments.",
-        "inputSchema": {
-            "type": "object",
-            "properties": {},
-        }
-    },
-]
+@mcp.tool(name="speak")
+async def speak_tool(text: str, style: str = None) -> str:
+    """Speak text to the audience."""
+    return await speak(text, style)
 
-@app.get("/health")
-async def health():
-    return {"status": "ok"}
+@mcp.tool(name="change_emotion")
+async def change_emotion_tool(emotion: str) -> str:
+    """Change the avatar's facial expression."""
+    return await change_emotion(emotion)
 
-# --- MCP Protocol Endpoints ---
+@mcp.tool(name="get_comments")
+async def get_comments_tool() -> str:
+    """Retrieve user comments."""
+    return await get_comments()
 
-@app.get("/sse")
-async def handle_sse(request: Request):
-    """Handle SSE connections (MCP initialization)."""
-    async def event_generator():
-        yield {
-            "event": "endpoint",
-            "data": "/messages"
-        }
-        while True:
-            await asyncio.sleep(1)
-            
-    return EventSourceResponse(event_generator())
+# Disable DNS rebinding protection for Docker networking
+mcp.settings.transport_security.enable_dns_rebinding_protection = False
 
-@app.post("/messages")
-async def handle_messages(request: Request):
-    """Handle JSON-RPC messages (e.g. Call Tool)."""
-    try:
-        data = await request.json()
-    except:
-        return {"jsonrpc": "2.0", "error": {"code": -32700, "message": "Parse error"}, "id": None}
-        
-    method = data.get("method")
-    msg_id = data.get("id")
-    params = data.get("params", {})
+@mcp.custom_route("/health", methods=["GET"])
+async def health_check(request):
+    return JSONResponse({"status": "ok"})
 
-    if method == "tools/list":
-        return {
-            "jsonrpc": "2.0",
-            "result": {
-                "tools": TOOL_DEFINITIONS
-            },
-            "id": msg_id
-        }
-    
-    if method == "tools/call":
-        tool_name = params.get("name")
-        args = params.get("arguments", {})
-        
-        if tool_name in TOOLS:
-            try:
-                result = await TOOLS[tool_name](**args)
-                return {
-                    "jsonrpc": "2.0",
-                    "result": {
-                        "content": [{"type": "text", "text": str(result)}]
-                    },
-                    "id": msg_id
-                }
-            except Exception as e:
-                return {
-                    "jsonrpc": "2.0",
-                    "error": {"code": -32000, "message": str(e)},
-                    "id": msg_id
-                }
-        else:
-             return {
-                "jsonrpc": "2.0",
-                "error": {"code": -32601, "message": "Method not found"},
-                "id": msg_id
-            }
+# Get the Starlette app from FastMCP
+app = mcp.sse_app()
 
-    if method == "initialize":
-         return {
-            "jsonrpc": "2.0",
-            "result": {
-                "protocolVersion": "2024-11-05",
-                "capabilities": {
-                    "tools": {}
-                },
-                "serverInfo": {
-                    "name": "cli-body",
-                    "version": "0.1.0"
-                }
-            },
-            "id": msg_id
-        }
-
-    return {"jsonrpc": "2.0", "error": {"code": -32601, "message": "Method not found"}, "id": msg_id}
+if __name__ == "__main__":
+    port = int(os.getenv("PORT", "8000"))
+    uvicorn.run(app, host="0.0.0.0", port=port, access_log=False)
