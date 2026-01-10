@@ -45,6 +45,21 @@ SaintGraphの対話エンジンは、接続先のMCPサーバーが以下のツ�
 *   **Output:** `string` (改行区切りのコメントリスト。新規コメントがない場合は "No new comments.")
 *   **Usage:** Chat Loop (`main.py`) により定期的に呼び出される。これだけはLLMが自発的に呼ぶのではなく、システムが観測のために使用する。
 
+#### 4. `get_weather` (Observation)
+指定された場所の天気情報を取得する。
+*   **Description:** Retrieve weather information for a specified location and date.
+*   **Input Schema:**
+    ```json
+    {
+      "type": "object",
+      "properties": {
+        "location": { "type": "string", "description": "都市名や地域名（例: Tokyo, New York）" },
+        "date": { "type": "string", "description": "日付（YYYY-MM-DD）または相対日時（today, tomorrow）。省略時は現在・直近の天気。" }
+      },
+      "required": ["location"]
+    }
+    ```
+
 
 ## Constraints
 *   **Polling Interval:** `POLL_INTERVAL` (Default: 5s)
