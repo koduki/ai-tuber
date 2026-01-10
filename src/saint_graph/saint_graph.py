@@ -12,6 +12,7 @@ from .config import logger, MODEL_NAME
 from .mcp_client import MCPClient
 from .providers import get_provider_config
 
+
 class SaintGraph:
     def __init__(self, mcp_client: MCPClient, system_instruction: str, tools: List[types.Tool], model: Optional[Gemini] = None):
         self.client = mcp_client
@@ -99,7 +100,15 @@ class SaintGraph:
         """モデルからストリーミング生成を行い、結果を蓄積して返します。"""
         accum_text = ""
         printed_len = 0
-        final_content = None
+        
+        # Accumulate all parts from the stream manually to ensure safety
+        accumulated_parts: List[types.Part] = []
+        final_role = self.config.ai_role
+        
+        # Behavior Fix: Stuttering/Looping prevention.
+        # Enforce exactly one call per tool name per turn.
+        # This prevents sequences like [Emotion, Speak, Weather, Emotion, Speak, Weather]
+        seen_tool_names = set()
 
         try:
             async for chunk in self.model.generate_content_async(req, stream=True):
@@ -110,33 +119,62 @@ class SaintGraph:
                     logger.error(f"LLM Error: {error_code} - {error_msg}")
                     return None
                 
-                # テキストの蓄積とログ出力のみ（インクリメンタル表示用）
-                if getattr(chunk, "content", None) and getattr(chunk.content, "parts", None):
-                    for p in chunk.content.parts:
-                        if p.text:
-                            accum_text += p.text
+                # コンテンツの結合 (Accumulate parts)
+                if getattr(chunk, "content", None):
+                    final_role = chunk.content.role or final_role
+                    if getattr(chunk.content, "parts", None):
+                        for p in chunk.content.parts:
+                            logger.debug(f"Raw Part: {p}")
+                            # ログ出力用テキスト収集 (for streaming logs)
+                            if p.text:
+                                accum_text += p.text
+                            
+                            # Flatten/Deduplicate Logic
+                            if p.text:
+                                # If last part is text, merge it to keep history clean
+                                if accumulated_parts and accumulated_parts[-1].text:
+                                    accumulated_parts[-1].text += p.text
+                                else:
+                                    accumulated_parts.append(types.Part(text=p.text))
+                            
+                            elif p.function_call:
+                                try:
+                                    name_str = p.function_call.name.strip()
+                                    
+                                    # STRICT DEDUPLICATION: One call per tool type
+                                    if name_str not in seen_tool_names:
+                                        seen_tool_names.add(name_str)
+                                        logger.info(f"Received FunctionCall: {name_str}")
+                                        accumulated_parts.append(p)
+                                    else:
+                                        # Skipping silently to reduce noise, or debug
+                                        # logger.debug(f"Skipping repeated tool {name_str} to prevent looping.")
+                                        pass
+
+                                except Exception as e:
+                                    logger.warning(f"Error processing function call: {e}")
+                                    accumulated_parts.append(p)
+
+                            else:
+                                # Other parts (unlikely but safe to keep)
+                                accumulated_parts.append(p)
 
                 # ログ出力 (増分のみ)
                 if len(accum_text) > printed_len:
                     logger.info(f"Gemini: {accum_text[printed_len:]}")
                     printed_len = len(accum_text)
 
-                # ストリーム完了判定 - 最終チャンクのみ使用
-                if not getattr(chunk, "partial", False):
-                    if getattr(chunk, "content", None):
-                        # 最終チャンクの parts のみを使用（重複を避ける）
-                        final_content = chunk.content
-                        # Function calls をログ出力
-                        if getattr(chunk.content, "parts", None):
-                            for p in chunk.content.parts:
-                                if p.function_call:
-                                    logger.info(f"Received FunctionCall: {p.function_call.name}")
-                    break
+            # End of stream
+            if not accumulated_parts:
+                return None
+            
+            # Construct final content
+            final_content = types.Content(role=final_role, parts=accumulated_parts)
+            return final_content
+
         except Exception as e:
             logger.error(f"Error during LLM generation: {e}", exc_info=True)
             return None
-
-        return final_content
 
     async def _execute_tools(self, fcs: List[types.FunctionCall]) -> List[types.Part]:
         """関数呼び出しを実行し、結果をPartのリストとして返します。"""
@@ -150,26 +188,48 @@ class SaintGraph:
                     args = json.loads(args)
                 except Exception:
                     pass # JSONでなければそのまま
+            
+            # Ensure args is dict
+            if hasattr(args, 'items'):
+                 args = dict(args.items())
+            elif not isinstance(args, dict):
+                 args = {}
 
-            # Use standardized call_tool method
+            # Execute Tool
             try:
-                res = await self.client.call_tool(fc.name, args or {})
+                # Deduplication logic (handled in generation) check not needed here if reliable
+                # But we might want to trim name just in case
+                tool_name = fc.name.strip()
+
+                res = await self.client.call_tool(tool_name, args)
+                
+                # Construct Response arguments
+                fr_args = {
+                    "name": fc.name, # Keep original name for response matching? Or tool_name?
+                    "response": {"result": str(res)}
+                }
+                # Check for ID and propagate if present
+                if hasattr(fc, 'id') and fc.id:
+                    fr_args['id'] = fc.id
+                
                 tool_results.append(
                     types.Part(
-                        function_response=types.FunctionResponse(
-                            name=fc.name,
-                            response={"result": str(res)}
-                        )
+                        function_response=types.FunctionResponse(**fr_args)
                     )
                 )
             except Exception as e:
                 logger.error(f"Tool execution failed: {e}")
+                
+                err_args = {
+                    "name": fc.name,
+                    "response": {"error": str(e)}
+                }
+                if hasattr(fc, 'id') and fc.id:
+                    err_args['id'] = fc.id
+                
                 tool_results.append(
                     types.Part(
-                        function_response=types.FunctionResponse(
-                            name=fc.name,
-                            response={"error": str(e)}
-                        )
+                        function_response=types.FunctionResponse(**err_args)
                     )
                 )
         return tool_results

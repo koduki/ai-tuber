@@ -2,7 +2,7 @@ import asyncio
 import json
 import httpx
 import logging
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Union
 from google.genai import types
 
 logger = logging.getLogger(__name__)
@@ -54,19 +54,19 @@ def convert_mcp_tool_to_genai(mcp_tool: Dict[str, Any]) -> types.FunctionDeclara
         parameters=convert_schema(mcp_tool.get("inputSchema", {}))
     )
 
-class MCPClient:
-    def __init__(self, base_url: str):
+class SingleMCPClient:
+    """Internal client for a single MCP server."""
+    def __init__(self, base_url: str, http_client: httpx.AsyncClient):
         self.base_url = base_url
         self.post_url = None
         self.tools = []
         self.session_id = 0
-        # 修正: クライアントセッションを保持
-        self.http_client = httpx.AsyncClient(timeout=30.0)
+        self.http_client = http_client
 
     async def connect(self):
         logger.info(f"Connecting to MCP at {self.base_url}...")
         try:
-            # SSEハンドシェイク (簡易版)
+            # SSE Handshake (Simplified)
             async with self.http_client.stream("GET", self.base_url) as response:
                  async for line in response.aiter_lines():
                     if line.startswith("data:"):
@@ -78,7 +78,6 @@ class MCPClient:
         await self.initialize()
 
     async def _send_rpc(self, method: str, params: dict = None):
-        """Send a JSON-RPC 2.0 request using the persistent client."""
         self.session_id += 1
         payload = {
             "jsonrpc": "2.0",
@@ -86,66 +85,86 @@ class MCPClient:
             "params": params or {},
             "id": self.session_id
         }
-        
-        # 修正: self.http_client を使用
         resp = await self.http_client.post(self.post_url, json=payload)
         resp.raise_for_status()
         return resp.json()
 
     async def initialize(self):
-        """Perform MCP Handshake."""
-        logger.info("Initializing MCP...")
         res = await self._send_rpc("initialize", {
             "protocolVersion": "2024-11-05",
             "capabilities": {},
             "clientInfo": {"name": "saint-graph", "version": "0.1.0"}
         })
-        logger.info(f"Initialized: {res}")
-        
-        # Pre-fetch tools during initialization for backward compatibility/convenience
         await self.list_tools()
 
     async def list_tools(self) -> List[Dict[str, Any]]:
-        """
-        MCPサーバーからツール一覧を取得します。
-        公式SDKの session.list_tools() と役割を合わせます。
-        """
         res = await self._send_rpc("tools/list")
         if "result" in res and "tools" in res["result"]:
             self.tools = res["result"]["tools"]
-            logger.info(f"Discovered {len(self.tools)} tools.")
+            logger.info(f"Discovered {len(self.tools)} tools on {self.base_url}")
             return self.tools
-        else:
-            logger.warning("No tools found.")
-            self.tools = []
-            return []
+        self.tools = []
+        return []
 
     async def call_tool(self, name: str, arguments: dict):
-        """
-        指定されたツールを実行します。
-        公式SDKの session.call_tool(name, arguments) とインターフェースを合わせます。
-        """
-        # get_comments はポーリングなのでログを抑制
         if name != "get_comments":
-            logger.info(f"Calling tool: {name} with {arguments}")
+            logger.info(f"Calling tool: {name} on {self.base_url} with {arguments}")
         res = await self._send_rpc("tools/call", {
             "name": name,
             "arguments": arguments
         })
-        
         if "error" in res:
-            raise Exception(f"Tool Error: {res['error']}")
-            
-        # Extract content
-        # Result -> content -> list of items
-        # We usually return just the text for the LLM
+            raise Exception(f"Tool Error from {self.base_url}: {res['error']}")
+        
         if "result" in res and "content" in res["result"] and len(res["result"]["content"]) > 0:
             return res["result"]["content"][0]["text"]
         return ""
 
+class MCPClient:
+    """Aggregates multiple MCP servers."""
+    def __init__(self, base_urls: Union[str, List[str]]):
+        if isinstance(base_urls, str):
+            self.urls = [base_urls] if base_urls else []
+        else:
+            self.urls = base_urls
+        
+        self.http_client = httpx.AsyncClient(timeout=30.0)
+        self.clients: List[SingleMCPClient] = []
+        self.tool_map: Dict[str, SingleMCPClient] = {} # Tool Name -> Client
+
+    async def connect(self):
+        self.clients = [SingleMCPClient(url, self.http_client) for url in self.urls]
+        await asyncio.gather(*[c.connect() for c in self.clients])
+        
+        # Build Tool Map
+        self.tool_map = {}
+        for c in self.clients:
+            for t in c.tools:
+                self.tool_map[t['name']] = c
+        logger.info(f"Connected to {len(self.clients)} MCP servers. Tools map: {list(self.tool_map.keys())}")
+
+    async def initialize(self):
+        # Already handled in connect
+        pass
+
+    async def list_tools(self) -> List[Dict[str, Any]]:
+        all_tools = []
+        for c in self.clients:
+            all_tools.extend(c.tools)
+        return all_tools
+
+    async def call_tool(self, name: str, arguments: dict):
+        client = self.tool_map.get(name)
+        if not client:
+            raise Exception(f"Tool {name} not found in any MCP server.")
+        return await client.call_tool(name, arguments)
+
     def get_google_genai_tools(self) -> list[types.Tool]:
-        """MCPのツール定義をGemini用の形式に変換して返す"""
-        if not self.tools:
+        tools = []
+        for c in self.clients:
+             tools.extend(c.tools)
+        if not tools:
             return []
-        genai_funcs = [convert_mcp_tool_to_genai(t) for t in self.tools]
+        
+        genai_funcs = [convert_mcp_tool_to_genai(t) for t in tools]
         return [types.Tool(function_declarations=genai_funcs)]

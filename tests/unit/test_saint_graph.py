@@ -105,6 +105,7 @@ async def test_tool_argument_normalization(mock_gemini, sample_system_instructio
     fc = MagicMock()
     fc.name = "speak"
     fc.args = '{"text": "normalized"}'
+    fc.id = "test-id"
     
     # Use model_construct to bypass Pydantic validation
     part = types.Part.model_construct(function_call=fc)

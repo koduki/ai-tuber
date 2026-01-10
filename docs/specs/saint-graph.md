@@ -23,7 +23,9 @@ SaintGraphは、AI Tuberの「脳」となる中核モジュールです。
         *   **Empty Check:** 応答が空の場合、履歴整合性を保つため空文字を追加してループ終了。
         *   **Function Call Check:** 生成結果に `function_call` が含まれるか確認。
         *   **Tool Execution:**
-            *   Yes: `_execute_tools` でツールを実行 -> 結果をHistoryに追加 -> **Loop継続** (Re-generate)。
+            *   Yes: `_execute_tools` でツールを実行。
+            *   **ID Propagation:** ツール実行結果のレスポンスには、LLMが生成した `FunctionCall` の `id` を必ず含めます（`400 INVALID_ARGUMENT` エラーの防止）。
+            *   結果をHistoryに追加 -> **Loop継続** (Re-generate)。
             *   No: 通常のテキスト応答とみなし、Loop終了。
 
 *   **Logic: History Management (`add_history`)**
@@ -33,8 +35,9 @@ SaintGraphは、AI Tuberの「脳」となる中核モジュールです。
 
 *   **Logic: Streaming Strategy (`_generate_and_accumulate`)**
     *   `model.generate_content_async(stream=True)` を使用。
-    *   **Logging:** `partial=True` チャンクはログ出力（インクリメンタル表示）のみに使用し、履歴には追加しません。
-    *   **Final Content:** `partial=False` の最終チャンクのみを正規の応答として採用し、重複実行（Function Callの二重発火など）を防止します。
+    *   **Parts Accumulation:** チャンクごとに取得される `parts` をすべて収集し、最終的な `Content` オブジェクトを構築します。
+    *   **Tool Deduplication:** 1回のターンで同じツールの呼び出しが重複しないよう、ツール名ベースで最初の呼び出しのみを有効化します。
+    *   **Final Content:** 全チャンクの読み込み完了後、蓄積された `parts` を履歴に追加します。
 
 
 ### 2. Mind (`src/mind/`)
@@ -46,9 +49,9 @@ SaintGraphは、AI Tuberの「脳」となる中核モジュールです。
     *   `persona.md`: キャラクター固有のアイデンティティ（Core Identity）、口調、Few-Shot。
 
 ### 3. Application Flow (`main.py`)
-1.  **Initialize:** MCP Server (Body) へ接続。
+1.  **Initialize:** MCP Server (Body) への接続。`MCP_URLS` リストを使い、複数のサーバ（CLI, Weather 等）に同時接続します。
 2.  **Load Mind:** 指定されたPersonaを読み込み。
-3.  **Discover Tools:** MCPからツール定義を取得し、Gemini Tool形式へ変換。
+3.  **Discover Tools:** 接続された**すべてのMCPサーバ**からツール定義を収集し、Gemini Tool形式へ変換。
 4.  **Chat Loop:**
     *   `get_comments` ツールをポーリング。
     *   新規コメントがあれば `SaintGraph.process_turn` を起動。

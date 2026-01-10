@@ -8,26 +8,20 @@ Model Context Protocol (MCP) 仕様に基づき、ツールの動的発見と実
 ## Protocol & State Management
 
 ### URL Convention
-*   **Base URL (SSE):** `config.MCP_URL` (Default: `http://localhost:3000/sse`)
-*   **Post URL (RPC):** Base URLの `/sse` を `/messages` に置換して生成します。
-    *   例: `http://localhost:3000/sse` -> `http://localhost:3000/messages`
+*   **Base URL List (SSE):** `config.MCP_URLS` (List of strings)
+    *   Default Primary: `http://body-cli:8000/sse`
+    *   Default Weather: `http://body-weather:8001/sse`
+*   **Post URL (RPC):** 各 Base URL の `/sse` を `/messages` に置換して生成します。
 
 ### Connection Flow (`connect()`)
-1.  **SSE Handshake:**
-    *   `httpx.AsyncClient` で Base URL にGETリクエストを送信。
-    *   最初の `data:` 行を受信した時点で接続確立とみなします（簡易実装）。
-2.  **Initialize Handshake:**
-    *   RPC `initialize` メソッドを送信。
-    *   Payload:
-        ```json
-        {
-          "protocolVersion": "2024-11-05",
-          "capabilities": {},
-          "clientInfo": { "name": "saint-graph", "version": "0.1.0" }
-        }
-        ```
-3.  **Tool Discovery:**
-    *   初期化直後に自動的に `tools/list` を呼び出し、内部キャッシュを更新します。
+1.  **Iterative Connection:**
+    *   `config.MCP_URLS` に含まれるすべてのURLに対して、並列（`asyncio.gather`）で接続を試みます。
+2.  **Internal Client Setup (`SingleMCPClient`):**
+    *   各URLに対して個別のセッション管理を行います。
+    *   **SSE Handshake:** `httpx.AsyncClient` で Base URL にGETリクエストを送信。
+    *   **Initialize Handshake:** RPC `initialize` メソッドを送信。
+3.  **Tool Discovery & Aggregation:**
+    *   初期化直後に `tools/list` を呼び出し、各サーバが提供するツールを `tool_map` に登録します（Tool Name -> Server Client）。
 
 ## Data Conversion Logic
 
@@ -50,7 +44,8 @@ MCPのJSON SchemaをGoogle GenAI SDKの `types.Schema` に変換します。
 ### `call_tool(name: str, arguments: dict)`
 *   **Input:** ツール名と辞書形式の引数。
 *   **Behavior:**
-    *   JSON-RPC `tools/call` を発行。
+    *   `tool_map` から対象のツールを提供しているサーバ・クライアントを特定します。
+    *   特定されたサーバに対して JSON-RPC `tools/call` を発行します。
     *   **Logging:** `get_comments` ツールの場合のみ、ポーリングによるログ汚染を防ぐためINFOログ出力を抑制します。
 *   **Output:**
     *   成功時: `result.content[0].text` を文字列として返す。

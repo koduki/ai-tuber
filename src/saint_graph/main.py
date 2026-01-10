@@ -4,7 +4,7 @@ import os
 
 # モジュールのインポート
 # 修正: news_reader は不要なので削除
-from .config import logger, MCP_URL, POLL_INTERVAL
+from .config import logger, MCP_URL, MCP_URLS, POLL_INTERVAL
 from .mcp_client import MCPClient
 from .saint_graph import SaintGraph
 
@@ -28,7 +28,7 @@ def load_persona(name: str = "ren") -> str:
             with open(core_path, "r", encoding="utf-8") as f:
                 combined_instruction += f.read() + "\n\n"
         else:
-             logger.warning(f"Core instructions not found at {core_path}")
+            logger.warning(f"Core instructions not found at {core_path}")
 
         # Load Persona
         with open(persona_path, "r", encoding="utf-8") as f:
@@ -49,11 +49,13 @@ async def main():
 
     # 1. Body (MCP) への接続
     await asyncio.sleep(2) # 接続待機
-    client = MCPClient(base_url=MCP_URL)
+    
+    # Support multiple MCP servers
+    client = MCPClient(base_urls=MCP_URLS)
     try:
         await client.connect()
     except Exception as e:
-        logger.error(f"Failed to connect to MCP Body at {MCP_URL}: {e}")
+        logger.error(f"Failed to connect to MCP Bodies at {MCP_URLS}: {e}")
         return
 
     # 2. Mind (Persona) の初期化

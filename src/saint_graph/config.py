@@ -6,9 +6,12 @@ RUN_MODE = os.getenv("RUN_MODE", "cli")
 
 # MCP connection URL (Single Connection)
 if RUN_MODE == "cli":
-    MCP_URL = os.getenv("MCP_URL", "http://mcp-cli:8000/sse")
+    MCP_URL = os.getenv("MCP_URL", "http://body-cli:8000/sse")
 else:
     MCP_URL = os.getenv("MCP_URL", "")
+
+WEATHER_MCP_URL = os.getenv("WEATHER_MCP_URL", "")
+MCP_URLS = [url for url in [MCP_URL, WEATHER_MCP_URL] if url]
 
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
 MODEL_NAME = os.getenv("MODEL_NAME", "gemini-2.5-flash-lite")
