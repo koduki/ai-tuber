@@ -52,7 +52,7 @@ class SaintGraph:
                 user_input, 
                 user_id="yt_user", 
                 session_id="yt_session", 
-                verbose=True
+                verbose=False
             )
         except Exception as e:
             logger.error(f"Error in ADK run: {e}", exc_info=True)
