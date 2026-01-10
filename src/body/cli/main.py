@@ -3,7 +3,7 @@ import uvicorn
 from mcp.server.fastmcp import FastMCP
 from starlette.responses import JSONResponse
 from starlette.routing import Route
-from .tools import speak, change_emotion, get_comments
+from .tools import speak, change_emotion, get_comments, start_input_reader_thread
 
 import logging
 
@@ -41,4 +41,5 @@ app = mcp.sse_app()
 
 if __name__ == "__main__":
     port = int(os.getenv("PORT", "8000"))
+    start_input_reader_thread()
     uvicorn.run(app, host="0.0.0.0", port=port, access_log=False)

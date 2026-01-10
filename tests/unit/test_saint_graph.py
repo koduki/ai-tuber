@@ -33,17 +33,16 @@ async def test_saint_graph_initialization(mock_adk):
 async def test_process_turn_calls_runner(mock_adk):
     # Setup
     sg = SaintGraph(["http://localhost:8000"], "Instruction")
-    sg.runner.run_debug = AsyncMock()
+    sg.runner.run = AsyncMock()
     
     # Execute
     await sg.process_turn("Hello")
     
     # Verify
-    sg.runner.run_debug.assert_called_once_with(
+    sg.runner.run.assert_called_once_with(
         "Hello",
         user_id="yt_user",
-        session_id="yt_session",
-        verbose=True
+        session_id="yt_session"
     )
 
 @pytest.mark.asyncio
@@ -52,14 +51,14 @@ async def test_call_tool_traverses_toolsets(mock_adk):
     sg = SaintGraph(["http://localhost:8000"], "Instruction")
     
     mock_tool = AsyncMock()
-    mock_tool.name = "get_comments"
+    mock_tool.name = "sys_get_comments"
     mock_tool.run_async.return_value = "Result"
     
     mock_toolset = mock_adk["McpToolset"].return_value
     mock_toolset.get_tools = AsyncMock(return_value=[mock_tool])
     
     # Execute
-    res = await sg.call_tool("get_comments", {"arg": 1})
+    res = await sg.call_tool("sys_get_comments", {"arg": 1})
     
     # Verify
     assert res == "Result"

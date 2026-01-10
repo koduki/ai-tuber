@@ -41,37 +41,30 @@ async def test_comment_cycle_e2e(docker_ip, docker_services):
     """
     外部からコメントが届き、ツールを介して取得できる一連の流れをテスト。
     """
+    from google.adk.tools import McpToolset
+    from google.adk.tools.mcp_tool.mcp_toolset import SseConnectionParams
+
     port = docker_services.port_for("body-cli", 8000)
-    base_url = f"http://{docker_ip}:{port}"
-
-    # 1. ツールリストを取得して、get_commentsが存在するか確認
-    rpc_list_payload = {
-        "jsonrpc": "2.0",
-        "method": "tools/list",
-        "params": {},
-        "id": 1
-    }
-
-    async with httpx.AsyncClient() as client:
-        # 初回のリクエストは自動待機後のため通るはず
-        resp = await client.post(f"{base_url}/messages?session_id=test", json=rpc_list_payload)
-        assert resp.status_code == 200
-        data = resp.json()
-        tools = [t["name"] for t in data["result"]["tools"]]
-        assert "get_comments" in tools
-
-    # 2. ツールを叩いて「現在のコメント」を確認
-    rpc_call_payload = {
-        "jsonrpc": "2.0",
-        "method": "tools/call",
-        "params": {
-            "name": "get_comments",
-            "arguments": {}
-        },
-        "id": 2
-    }
-
-    async with httpx.AsyncClient() as client:
-        resp = await client.post(f"{base_url}/messages?session_id=test", json=rpc_call_payload)
-        assert resp.status_code == 200
-        assert "No new comments." in resp.text
+    url = f"http://{docker_ip}:{port}/sse"
+    
+    # Use ADK's McpToolset to handle SSE/Session/JSON-RPC
+    connection_params = SseConnectionParams(url=url)
+    toolset = McpToolset(connection_params=connection_params)
+    
+    try:
+        # 1. ツールリストを取得して、sys_get_commentsが存在するか確認
+        tools = await toolset.get_tools()
+        tool_names = [t.name for t in tools]
+        assert "sys_get_comments" in tool_names
+        
+        # 2. ツールを叩いて「現在のコメント」を確認
+        # Find the tool
+        get_comments_tool = next(t for t in tools if t.name == "sys_get_comments")
+        
+        # Call it
+        res = await get_comments_tool.run_async(args={}, tool_context=None)
+        
+        # FastMCP returns content blocks
+        assert "No new comments." in str(res)
+    finally:
+        await toolset.close()
