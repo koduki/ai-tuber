@@ -9,6 +9,7 @@ async def get_weather(location: str, date: Optional[str] = None):
     """
     Get weather for the specified location and date using Open-Meteo API.
     """
+    print(f"DEBUG: get_weather called for location='{location}', date='{date}'")
     headers = {'User-Agent': 'SaintGraphWeather/1.0'}
     try:
         # 1. Geocoding

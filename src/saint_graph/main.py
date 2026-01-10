@@ -59,7 +59,7 @@ async def main():
     while True:
         try:
             # 1. コメント確認
-            comments = await saint_graph.call_tool("get_comments", {})
+            comments = await saint_graph.call_tool("sys_get_comments", {})
             
             if comments and comments != "No new comments.":
                 logger.info("Comments received.")
@@ -72,6 +72,15 @@ async def main():
         except Exception as e:
             logger.error(f"Error in Chat Loop: {e}", exc_info=True)
             await asyncio.sleep(5) # エラー時は少し長く待機
+        except BaseException as e:
+            logger.critical(f"Critical Error in Chat Loop: {e}", exc_info=True)
+            raise
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    import traceback
+    try:
+        asyncio.run(main())
+    except Exception:
+        traceback.print_exc()
+        sys.stderr.flush()
+        sys.stdout.flush()

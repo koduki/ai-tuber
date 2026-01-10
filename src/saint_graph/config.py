@@ -28,5 +28,5 @@ logger = logging.getLogger("saint-graph")
 
 # ノイズの多いライブラリを黙らせる
 logging.getLogger("httpx").setLevel(logging.WARNING)
-logging.getLogger("mcp").setLevel(logging.WARNING)
-logging.getLogger("google_adk").setLevel(logging.WARNING)
+logging.getLogger("mcp").setLevel(logging.INFO)
+logging.getLogger("google_adk").setLevel(logging.INFO)

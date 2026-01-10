@@ -5,6 +5,13 @@ from starlette.responses import JSONResponse
 from starlette.routing import Route
 from .tools import get_weather
 
+import logging
+
+# Configure logging to suppress noisy output
+logging.basicConfig(level=logging.WARNING)
+logging.getLogger("mcp").setLevel(logging.WARNING)
+logging.getLogger("uvicorn.access").setLevel(logging.WARNING)
+
 mcp = FastMCP("body-weather")
 
 @mcp.tool(name="get_weather")

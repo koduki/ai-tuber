@@ -11,7 +11,7 @@ services:
     environment:
       - PORT=8000
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      test: [ "CMD", "curl", "-f", "http://localhost:8000/health" ]
       interval: 5s
       timeout: 2s
       retries: 5
@@ -27,6 +27,7 @@ services:
       - WEATHER_MCP_URL=http://body-weather:8001/sse
       - GOOGLE_API_KEY=${GOOGLE_API_KEY}
       - PYTHONPATH=/app
+      - NO_PROXY=body-cli,body-weather,localhost,127.0.0.1
     depends_on:
       body-cli:
         condition: service_healthy
@@ -46,7 +47,7 @@ services:
     environment:
       - PORT=8001
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      test: [ "CMD", "curl", "-f", "http://localhost:8001/health" ]
       interval: 5s
       timeout: 2s
       retries: 5

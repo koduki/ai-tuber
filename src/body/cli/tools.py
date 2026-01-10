@@ -76,10 +76,14 @@ async def speak(text: str, style: Optional[str] = None, **kwargs):
     io_adapter.write_output(f"\n[AI{style_str}]: {text}")
     return "Speaking completed"
 
-async def change_emotion(emotion: str):
-    """Change the visual emotion."""
-    io_adapter.write_output(f"\n[Expression]: {emotion}")
-    return "Emotion changed"
+#@mcp.tool()
+async def change_emotion(emotion: str) -> str:
+    """
+    Change the character's emotion.
+    Valid emotions: "neutral", "happy", "angry", "sad", "relaxed"
+    """
+    # 実際にはLive2Dモデルの表情変更などを叩く想定
+    return f"Emotion changed to {emotion}"
 
 async def get_comments():
     """Get comments from the adapter."""

@@ -5,6 +5,13 @@ from starlette.responses import JSONResponse
 from starlette.routing import Route
 from .tools import speak, change_emotion, get_comments
 
+import logging
+
+# Configure logging to suppress noisy output
+logging.basicConfig(level=logging.WARNING)
+logging.getLogger("mcp").setLevel(logging.WARNING)
+logging.getLogger("uvicorn.access").setLevel(logging.WARNING)
+
 mcp = FastMCP("body-cli")
 
 @mcp.tool(name="speak")
@@ -17,9 +24,9 @@ async def change_emotion_tool(emotion: str) -> str:
     """Change the avatar's facial expression."""
     return await change_emotion(emotion)
 
-@mcp.tool(name="get_comments")
-async def get_comments_tool() -> str:
-    """Retrieve user comments."""
+@mcp.tool(name="sys_get_comments")
+async def sys_get_comments() -> str:
+    """Retrieve user comments. INTERNAL USE ONLY."""
     return await get_comments()
 
 # Disable DNS rebinding protection for Docker networking

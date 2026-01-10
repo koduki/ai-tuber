@@ -44,7 +44,7 @@ class SaintGraph:
         Processes a single turn of interaction using ADK's Runner.
         This handles the inner loop (multi-turn tool calls) automatically.
         """
-        logger.info(f"Turn started (ADK). Input: {user_input[:30]}...")
+        logger.info(f"Turn started (ADK). Input: {user_input}...")
         try:
             # run_debug is a high-level helper that manages the session and yields events.
             # verbose=True will print tool calls and responses to the console.
