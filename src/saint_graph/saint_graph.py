@@ -46,14 +46,19 @@ class SaintGraph:
         """
         logger.info(f"Turn started (ADK). Input: {user_input}...")
         try:
-            # run_debug is a high-level helper that manages the session and yields events.
-            # verbose=True will print tool calls and responses to the console.
-            await self.runner.run_debug(
+            turn = await self.runner.run(
                 user_input, 
                 user_id="yt_user", 
-                session_id="yt_session", 
-                verbose=False
+                session_id="yt_session"
             )
+            # Log the final response from the model
+            # Assuming turn.output.text or similar exists. Inspecting Turn object structure if needed.
+            # In ADK Python, turn.output is likely the model response object.
+            if hasattr(turn, 'output') and hasattr(turn.output, 'text'):
+                logger.info(f"Turn completed. Response: {turn.output.text}")
+            else:
+                logger.info(f"Turn completed. Result: {turn}")
+
         except Exception as e:
             logger.error(f"Error in ADK run: {e}", exc_info=True)
 
