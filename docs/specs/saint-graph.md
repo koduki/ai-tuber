@@ -26,13 +26,16 @@ Google ADK を用いた対話制御のメインクラス。
         *   **Retry Mechanism:** 最大3回まで、不足しているアクション（情報検索、発話など）を特定して再試行を促します。
         *   **Context Management:** 同一ターン内での履歴管理を行い、LLMが自身の過去の振る舞いを踏まえて修正できるように制御します。
     *   **Robust Event Detection:** 
-        *   `is_tool_call` ヘルパーにより、イベントオブジェクトの文字列表現からツール呼び出し（`speak`, `get_weather` 等）と通常のテキスト出力を正確に区別します。
+        *   **Primary Approach:** ADK `Event` モデルの属性（`event.content.parts[].function_call.name`）を直接チェックして、ツール呼び出し（`speak`, `get_weather` 等）を検出します。
+        *   **Fallback Mechanism:** ADK の内部構造が変更された場合に備え、イベントの文字列表現からツール名をパターンマッチングで検出するフォールバック機構を実装しています。
+        *   **Null Safety:** `event.content` や `event.content.parts` が `None` の場合を適切にハンドリングし、`TypeError` を回避します。
         *   予期せぬ生テキスト出力（Forbidden Raw Text）を検知し、ツール使用を強制します。
 
 *   **Logic: Direct Tool Call (`call_tool`)**
     *   ポーリング（コメント取得など）のために、LLMの推論を介さずツールを直接実行するユーティリティ。
     *   **Tool Discovery & Caching:** 接続されているすべてのツールをキャッシュし、2回目以降の検索を高速化します。
     *   **Connection Resilience:** SSE接続のウォームアップ時間を考慮し、ツールが見つからない場合に最大5回（5秒間）の再試行を行います。
+    *   **Error Handling:** ツール未発見エラーを複数のパターン（"Tool ... not found", "not found in any toolset"）で検出します。ただし、この文字列ベースの判定は脆弱であり、将来的にADKが特定の例外型を提供した場合は置き換えるべきです（コード内にTODOコメントあり）。
     *   **Result Handling:** MCPツールの実行結果（`CallToolResult`オブジェクトまたは辞書）から、テキストコンテンツを堅牢に抽出して文字列として返します。
 
 ### 2. Mind (`src/mind/`)
@@ -57,3 +60,8 @@ Google ADK を用いた対話制御のメインクラス。
 *   **Context Management:** `run_async` を複数回呼び出す場合、セッション状態を維持するために `user_id` と `session_id` を固定して使用します。
 *   **Telemetry:** `ADK_TELEMETRY=true` の場合、OpenTelemetry (`ConsoleSpanExporter`) により詳細な実行トレースがコンソールに出力されます。これには Nudge ロジックの発動状況なども含まれます。
 *   **Robustness:** ポーリング（`call_tool`）においては、接続確立までの遅延を許容するためのリトライ機構が必須です。
+
+## Robustness Considerations
+*   **Event Type Detection:** イベントオブジェクトからのツール呼び出し検出は、ADK `Event` モデルの公式属性を優先的に使用し、文字列パースはフォールバックとしてのみ使用します。これにより、ライブラリの将来的な変更に対する耐性が向上します。
+*   **Error Handling:** 例外メッセージの文字列マッチングは脆弱であるため、コード内に明示的なコメント（`NOTE:`, `TODO:`）を配置し、将来のメンテナンス性を確保しています。
+*   **Null Safety:** イベント処理において、`None` チェックを適切に実装することで、予期しない `NoneType` エラーを防止しています。
