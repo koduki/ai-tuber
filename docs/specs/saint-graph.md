@@ -21,19 +21,19 @@ Google ADK を用いた対話制御のメインクラス。
     3.  **Runner:** `InMemoryRunner` を初期化し、セッション状態を管理します。
 
 *   **Logic: Turn Processing (`process_turn`)**
-    *   `runner.run_debug(..., verbose=False)` を呼び出します（ログ抑制のため verbose=False）。
-    *   ADKの内部ループにより、以下の処理が自動化されます。
-        *   ユーザー入力の履歴への追加。
-        *   LLMへのリクエスト生成。
-        *   ツール実行要求（function_call）のパースと実行。
-        *   ツール実行結果のモデルへのフィードバックと再生成。
-        *   **Important:** 情報検索系ツール（Observation）の結果を受け取った後、LLMは必ず `speak` ツールを使用して回答を行うよう、システム指示（`core_instructions.md`）で厳格に制御されます。
-        *   履歴の正規化（Role順序の維持、メッセージのマージ等）。
+    *   `runner.run_async(...)` を呼び出して非同期にイベントを処理します。
+    *   **Logical Control (Nudge Logic):** LLMが自律的にツール（特に `speak`）を呼び出さない場合や、情報を検索せずに勝手に予想して回答しようとする場合に、システム側から自動的に「催促（Nudge）」メッセージを送信する制御ロジックを実装しています。
+        *   **Retry Mechanism:** 最大3回まで、不足しているアクション（情報検索、発話など）を特定して再試行を促します。
+        *   **Context Management:** 同一ターン内での履歴管理を行い、LLMが自身の過去の振る舞いを踏まえて修正できるように制御します。
+    *   **Robust Event Detection:** 
+        *   `is_tool_call` ヘルパーにより、イベントオブジェクトの文字列表現からツール呼び出し（`speak`, `get_weather` 等）と通常のテキスト出力を正確に区別します。
+        *   予期せぬ生テキスト出力（Forbidden Raw Text）を検知し、ツール使用を強制します。
 
 *   **Logic: Direct Tool Call (`call_tool`)**
     *   ポーリング（コメント取得など）のために、LLMの推論を介さずツールを直接実行するユーティリティ。
-    *   接続されているすべての `McpToolset` から指定された名前のツールを検索し、実行します。
-    *   **Result Handling:** MCPツールの実行結果（`CallToolResult`オブジェクトまたは辞書）から、テキストコンテンツ（`content.text` または `content['result']`）を堅牢に抽出して文字列として返します。
+    *   **Tool Discovery & Caching:** 接続されているすべてのツールをキャッシュし、2回目以降の検索を高速化します。
+    *   **Connection Resilience:** SSE接続のウォームアップ時間を考慮し、ツールが見つからない場合に最大5回（5秒間）の再試行を行います。
+    *   **Result Handling:** MCPツールの実行結果（`CallToolResult`オブジェクトまたは辞書）から、テキストコンテンツを堅牢に抽出して文字列として返します。
 
 ### 2. Mind (`src/mind/`)
 キャラクターの人格定義。
@@ -48,6 +48,12 @@ Google ADK を用いた対話制御のメインクラス。
 
 ## Technical Stack
 *   **Language:** Python 3.11+
-*   **Agent Framework:** Google ADK (Agent Development Kit)
+*   **Agent Framework:** Google ADK (Agent Development Kit) v1.22.0+
 *   **LLM:** Google Gemini
 *   **Concurrency:** `asyncio` base
+
+## Technical Implementation Notes
+*   **ADK Signature Requirement:** `Runner.run_async` は位置引数を1つ (`self`) のみ受け取り、その他 (`new_message`, `user_id`, `session_id`) は**すべてキーワード専用引数**として渡す必要があります。これを怠ると `TypeError` が発生します。
+*   **Context Management:** `run_async` を複数回呼び出す場合、セッション状態を維持するために `user_id` と `session_id` を固定して使用します。
+*   **Telemetry:** `ADK_TELEMETRY=true` の場合、OpenTelemetry (`ConsoleSpanExporter`) により詳細な実行トレースがコンソールに出力されます。これには Nudge ロジックの発動状況なども含まれます。
+*   **Robustness:** ポーリング（`call_tool`）においては、接続確立までの遅延を許容するためのリトライ機構が必須です。

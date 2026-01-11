@@ -126,42 +126,62 @@ class SaintGraph:
     async def call_tool(self, name: str, arguments: dict) -> str:
         """
         Utility to call an MCP tool directly (e.g., for polling comments).
+        Uses a cache to avoid repeated tool discovery.
         """
-        for toolset in self.toolsets:
-            tools = await toolset.get_tools()
-            for tool in tools:
-                if tool.name == name:
-                    # In ADK, run_async usually expects a ToolContext.
-                    # For direct polling calls where context is not needed, we pass None.
-                    res = await tool.run_async(args=arguments, tool_context=None)
-                    
-                    extracted_text = None
+        if not hasattr(self, "_tool_cache"):
+            self._tool_cache = {}
 
-                    # Helper to get content from object or dict
-                    content = getattr(res, 'content', None)
-                    if content is None and isinstance(res, dict):
-                        content = res.get('content')
-                    
-                    if content:
-                        # Case 1: content is a list (Standard MCP)
-                        if isinstance(content, list):
-                            texts = []
-                            for block in content:
-                                if hasattr(block, 'text'):
-                                    texts.append(block.text)
-                                elif isinstance(block, dict) and 'text' in block:
-                                    texts.append(block['text'])
-                            if texts:
-                                extracted_text = "\n".join(texts)
+        # 1. Check cache
+        if name in self._tool_cache:
+            try:
+                res = await self._tool_cache[name].run_async(args=arguments, tool_context=None)
+                return self._extract_text(res)
+            except Exception as e:
+                logger.warning(f"Cached tool {name} call failed, retrying discovery: {e}")
+                del self._tool_cache[name]
 
-                        # Case 2: content is a dict with 'result' (Observed in logs)
-                        elif isinstance(content, dict) and 'result' in content:
-                            extracted_text = content['result']
-                    
-                    if extracted_text is not None:
-                        return extracted_text
-                        
-                    return str(res)
-        raise Exception(f"Tool {name} not found in any toolset.")
+        # 2. Discover and call
+        # Retry discovery a few times if not found (SSE connection might be warming up)
+        for attempt in range(5):
+            for toolset in self.toolsets:
+                try:
+                    tools = await toolset.get_tools()
+                    for tool in tools:
+                        self._tool_cache[tool.name] = tool
+                        if tool.name == name:
+                            res = await tool.run_async(args=arguments, tool_context=None)
+                            return self._extract_text(res)
+                except Exception as e:
+                    logger.debug(f"Toolset get_tools failed on attempt {attempt}: {e}")
+            
+            if attempt < 4:
+                await asyncio.sleep(1) # Small wait before retry
+        
+        raise Exception(f"Tool {name} not found in any toolset after retries.")
+
+    def _extract_text(self, res: Any) -> str:
+        """Helper to extract text from tool result."""
+        extracted_text = None
+        # content attribute or dict key
+        content = getattr(res, 'content', None)
+        if content is None and isinstance(res, dict):
+            content = res.get('content')
+        
+        if content:
+            if isinstance(content, list):
+                texts = []
+                for block in content:
+                    if hasattr(block, 'text'):
+                        texts.append(block.text)
+                    elif isinstance(block, dict) and 'text' in block:
+                        texts.append(block['text'])
+                if texts:
+                    extracted_text = "\n".join(texts)
+            elif isinstance(content, dict) and 'result' in content:
+                extracted_text = content['result']
+        
+        if extracted_text is not None:
+            return extracted_text
+        return str(res)
 
 
