@@ -1,5 +1,6 @@
 import pytest
 import asyncio
+import os
 from typing import List, Optional
 from google.genai import types
 
@@ -52,3 +53,12 @@ def sample_tools():
             ]
         )
     ]
+
+# Docker fixtures for E2E tests
+@pytest.fixture(scope="session")
+def docker_compose_file(pytestconfig):
+    return os.path.join(str(pytestconfig.rootdir), "docker-compose.yml")
+
+@pytest.fixture(scope="session")
+def docker_compose_project_name():
+    return "ai-tuber-e2e"

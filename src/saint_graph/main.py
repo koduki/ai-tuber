@@ -70,10 +70,14 @@ async def main():
                     # ユーザーの発言として処理
                     await saint_graph.process_turn(comments)
             except Exception as e:
-                if "Tool sys_get_comments not found" in str(e):
+                # NOTE: Brittle error detection using string matching
+                # TODO: Catch specific exception types if ADK provides them (e.g., ToolNotFoundException)
+                # This string-based check may break if error messages change in future versions
+                if "Tool sys_get_comments not found" in str(e) or "not found in any toolset" in str(e):
                     logger.warning("Waiting for sys_get_comments tool to become available...")
                 else:
                     logger.error(f"Error in polling/turn: {e}")
+
 
             # 定期ポーリングの間隔
             await asyncio.sleep(POLL_INTERVAL)

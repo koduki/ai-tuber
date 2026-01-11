@@ -58,12 +58,31 @@ class SaintGraph:
             has_retrieved = False
             found_raw_text = False
             
-            def is_tool_call(event, tool_name):
+            def is_tool_call(event, tool_name: str) -> bool:
+                """Check if event represents a tool call.
+                
+                Uses ADK Event model attributes for robust detection.
+                Falls back to string matching only if attributes are unavailable.
+                """
+                # Try to use proper Event model attributes first
+                try:
+                    from google.adk.events.event import Event
+                    if isinstance(event, Event):
+                        # Check if event has function_calls in content
+                        if hasattr(event, 'content') and event.content is not None:
+                            parts = getattr(event.content, 'parts', None)
+                            if parts is not None:
+                                for part in parts:
+                                    if hasattr(part, 'function_call') and part.function_call:
+                                        if part.function_call.name == tool_name:
+                                            return True
+                except (ImportError, AttributeError):
+                    pass
+                
+                # Fallback: String-based heuristic (brittle, but works for now)
+                # TODO: Replace with proper ADK event type checking when stable API is available
                 ev_str = str(event)
-                # Heuristic: Check for tool markers in event string representation
-                # ADK events for tool calls typically contain name='tool_name'
                 if f"name='{tool_name}'" in ev_str or f'name="{tool_name}"' in ev_str:
-                    # Ensure it's not just a text description
                     if "TextPart" not in ev_str and "text=" not in ev_str:
                         return True
                 return False
@@ -86,7 +105,6 @@ class SaintGraph:
                     # Detect forbidden raw text output
                     ev_str = str(event)
                     if "TextPart" in ev_str and "text=" in ev_str:
-                        # Crude check for non-empty text that isn't just whitespace
                         if "text=' '" not in ev_str and 'text=""' not in ev_str:
                             found_raw_text = True
                 
