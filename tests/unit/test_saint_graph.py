@@ -35,7 +35,8 @@ async def test_process_turn_calls_runner(mock_adk):
     # Setup
     sg = SaintGraph(["http://localhost:8000"], "Instruction")
     async def mock_iter(*args, **kwargs):
-        yield "Event"
+        # Yield a string that looks like a speak tool call to satisfy is_tool_call(event, "speak")
+        yield "Event(name='speak')"
 
     sg.runner.run_async = MagicMock(side_effect=mock_iter)
     # Fix session service mocks for the new logic

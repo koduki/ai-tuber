@@ -6,6 +6,7 @@ from google.adk.tools.function_tool import FunctionTool
 from google.genai import types
 from src.saint_graph.saint_graph import SaintGraph
 from src.saint_graph.main import load_persona
+from src.saint_graph.telemetry import setup_telemetry
 
 # Skip tests in GitHub Actions environment
 @pytest.mark.skipif(os.getenv("GITHUB_ACTIONS") == "true", reason="Skipping integration test in GitHub Actions due to missing secrets")
@@ -17,8 +18,9 @@ async def test_weather_scenario():
     Uses mock tools but real LLM (Gemini).
 
     Execution:
-        GOOGLE_API_KEY=your_key pytest tests/integration_test.py
+        GOOGLE_API_KEY=your_key pytest tests/integration/test_agent_scenarios.py
     """
+    setup_telemetry()
     
     # 1. Setup Mock Tools
     speak_calls = []

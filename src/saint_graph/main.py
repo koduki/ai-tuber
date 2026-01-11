@@ -6,6 +6,7 @@ import os
 # 修正: news_reader は不要なので削除
 from .config import logger, MCP_URLS, POLL_INTERVAL
 from .saint_graph import SaintGraph
+from .telemetry import setup_telemetry
 
 def load_persona(name: str = "ren") -> str:
     """
@@ -44,6 +45,7 @@ def load_persona(name: str = "ren") -> str:
         return "You are a helpful AI Tuber."
 
 async def main():
+    setup_telemetry()
     logger.info("Starting Saint Graph in Chat Mode...")
 
     # 1. Mind (Persona) の初期化
