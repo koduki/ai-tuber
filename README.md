@@ -86,3 +86,13 @@ pytest tests/integration/ -v
 # E2Eテストのみ (コンテナのビルドと起動が自動で行われます)
 pytest tests/e2e/ -v -s
 ```
+
+## デバッグ (ADK Telemetry)
+
+エージェントの内部動作（思考、ツール呼び出し）を詳細に確認したい場合、ADK Telemetryを有効化できます。
+
+```bash
+ADK_TELEMETRY=true PYTHONPATH=src python -m saint_graph.main
+```
+
+詳細は [tests/README.md](tests/README.md) を参照してください。

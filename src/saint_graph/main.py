@@ -6,6 +6,7 @@ import os
 # 修正: news_reader は不要なので削除
 from .config import logger, MCP_URLS, POLL_INTERVAL
 from .saint_graph import SaintGraph
+from .telemetry import setup_telemetry
 
 def load_persona(name: str = "ren") -> str:
     """
@@ -44,6 +45,7 @@ def load_persona(name: str = "ren") -> str:
         return "You are a helpful AI Tuber."
 
 async def main():
+    setup_telemetry()
     logger.info("Starting Saint Graph in Chat Mode...")
 
     # 1. Mind (Persona) の初期化
@@ -59,21 +61,32 @@ async def main():
     while True:
         try:
             # 1. コメント確認
-            comments = await saint_graph.call_tool("sys_get_comments", {})
-            
-            if comments and comments != "No new comments.":
-                logger.info("Comments received.")
-                # ユーザーの発言として処理
-                await saint_graph.process_turn(comments)
+            # sys_get_comments は internal tool
+            try:
+                comments = await saint_graph.call_tool("sys_get_comments", {})
+                
+                if comments and comments != "No new comments.":
+                    logger.info(f"Comments received: {comments}")
+                    # ユーザーの発言として処理
+                    await saint_graph.process_turn(comments)
+            except Exception as e:
+                # NOTE: Brittle error detection using string matching
+                # TODO: Catch specific exception types if ADK provides them (e.g., ToolNotFoundException)
+                # This string-based check may break if error messages change in future versions
+                if "Tool sys_get_comments not found" in str(e) or "not found in any toolset" in str(e):
+                    logger.warning("Waiting for sys_get_comments tool to become available...")
+                else:
+                    logger.error(f"Error in polling/turn: {e}")
+
 
             # 定期ポーリングの間隔
             await asyncio.sleep(POLL_INTERVAL)
 
         except Exception as e:
-            logger.error(f"Error in Chat Loop: {e}", exc_info=True)
-            await asyncio.sleep(5) # エラー時は少し長く待機
+            logger.error(f"Unexpected error in Chat Loop: {e}", exc_info=True)
+            await asyncio.sleep(5)
         except BaseException as e:
-            logger.critical(f"Critical Error in Chat Loop: {e}", exc_info=True)
+            logger.critical(f"Critical System Error: {e}", exc_info=True)
             raise
 
 if __name__ == "__main__":

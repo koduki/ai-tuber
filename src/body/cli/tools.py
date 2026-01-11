@@ -66,7 +66,9 @@ if sys.stdin and hasattr(sys.stdin, 'reconfigure'):
     except Exception as e:
         sys.stderr.write(f"Warning: Could not reconfigure stdin encoding: {e}\n")
 
-threading.Thread(target=stdin_reader, daemon=True).start()
+def start_input_reader_thread():
+    """Starts the stdin reader thread."""
+    threading.Thread(target=stdin_reader, daemon=True).start()
 
 # --- Tool Implementations ---
 

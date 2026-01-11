@@ -15,6 +15,7 @@ MCP_URLS = [url for url in [MCP_URL, WEATHER_MCP_URL] if url]
 
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
 MODEL_NAME = os.getenv("MODEL_NAME", "gemini-2.5-flash-lite")
+ADK_TELEMETRY = os.getenv("ADK_TELEMETRY", "false").lower() == "true"
 
 # 定数
 POLL_INTERVAL = 1.0
