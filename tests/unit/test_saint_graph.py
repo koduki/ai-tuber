@@ -1,6 +1,7 @@
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 from saint_graph.saint_graph import SaintGraph
+from google.genai import types
 
 @pytest.fixture
 def mock_adk():
@@ -33,14 +34,19 @@ async def test_saint_graph_initialization(mock_adk):
 async def test_process_turn_calls_runner(mock_adk):
     # Setup
     sg = SaintGraph(["http://localhost:8000"], "Instruction")
-    sg.runner.run = AsyncMock()
+    async def mock_iter(*args, **kwargs):
+        yield "Event"
+
+    sg.runner.run_async = MagicMock(side_effect=mock_iter)
+    # Fix session service mocks for the new logic
+    sg.runner.session_service.get_session = AsyncMock(return_value="ExistingSession")
     
     # Execute
     await sg.process_turn("Hello")
     
     # Verify
-    sg.runner.run.assert_called_once_with(
-        "Hello",
+    sg.runner.run_async.assert_called_once_with(
+        new_message=types.Content(role="user", parts=[types.Part(text="Hello")]),
         user_id="yt_user",
         session_id="yt_session"
     )

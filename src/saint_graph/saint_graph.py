@@ -1,6 +1,6 @@
 import asyncio
 import logging
-from typing import List, Optional
+from typing import List, Optional, Any
 
 from google.adk import Agent
 from google.adk.runners import InMemoryRunner
@@ -8,18 +8,25 @@ from google.adk.models import Gemini
 from google.adk.tools import McpToolset
 from google.adk.tools.mcp_tool.mcp_toolset import SseConnectionParams
 
+from google.genai import types
 from .config import logger, MODEL_NAME
 
 class SaintGraph:
     """
     SaintGraph implementation using Google ADK native patterns.
     """
-    def __init__(self, mcp_urls: List[str], system_instruction: str):
+    async def close(self):
+        """Cleanup toolset connections."""
+        for ts in self.toolsets:
+            if hasattr(ts, 'close'):
+                await ts.close()
+
+    def __init__(self, mcp_urls: List[str], system_instruction: str, tools: List[Any] = None):
         self.mcp_urls = mcp_urls
         self.system_instruction = system_instruction
         
         # 1. MCP Toolsets initialization
-        self.toolsets = []
+        self.toolsets = tools if tools else []
         for url in mcp_urls:
             # We use SseConnectionParams for ADK's McpToolset
             connection_params = SseConnectionParams(url=url)
@@ -46,18 +53,29 @@ class SaintGraph:
         """
         logger.info(f"Turn started (ADK). Input: {user_input}...")
         try:
-            turn = await self.runner.run(
-                user_input, 
+            # Ensure session exists
+            session = await self.runner.session_service.get_session(
+                app_name=self.runner.app_name, 
                 user_id="yt_user", 
                 session_id="yt_session"
             )
-            # Log the final response from the model
-            # Assuming turn.output.text or similar exists. Inspecting Turn object structure if needed.
-            # In ADK Python, turn.output is likely the model response object.
-            if hasattr(turn, 'output') and hasattr(turn.output, 'text'):
-                logger.info(f"Turn completed. Response: {turn.output.text}")
-            else:
-                logger.info(f"Turn completed. Result: {turn}")
+            if not session:
+                await self.runner.session_service.create_session(
+                    app_name=self.runner.app_name, 
+                    user_id="yt_user", 
+                    session_id="yt_session"
+                )
+
+            # Iterate over events from run_async
+            async for event in self.runner.run_async(
+                new_message=types.Content(role="user", parts=[types.Part(text=user_input)]), 
+                user_id="yt_user", 
+                session_id="yt_session"
+            ):
+                # Log interesting events if needed
+                pass
+            
+            logger.info(f"Turn completed.")
 
         except Exception as e:
             logger.error(f"Error in ADK run: {e}", exc_info=True)
@@ -103,7 +121,4 @@ class SaintGraph:
                     return str(res)
         raise Exception(f"Tool {name} not found in any toolset.")
 
-    async def close(self):
-        """Cleanup toolset connections."""
-        for ts in self.toolsets:
-            await ts.close()
+
