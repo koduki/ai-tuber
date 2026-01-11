@@ -4,9 +4,9 @@ import pytest
 from unittest.mock import MagicMock, AsyncMock, patch
 from google.adk.tools.function_tool import FunctionTool
 from google.genai import types
-from src.saint_graph.saint_graph import SaintGraph
-from src.saint_graph.main import load_persona
-from src.saint_graph.telemetry import setup_telemetry
+from saint_graph.saint_graph import SaintGraph
+from saint_graph.main import load_persona
+from saint_graph.telemetry import setup_telemetry
 
 # Skip tests in GitHub Actions environment
 @pytest.mark.skipif(os.getenv("GITHUB_ACTIONS") == "true", reason="Skipping integration test in GitHub Actions due to missing secrets")

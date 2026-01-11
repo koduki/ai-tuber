@@ -36,10 +36,9 @@ async def test_process_turn_calls_runner(mock_adk):
     # Setup
     sg = SaintGraph(["http://localhost:8000"], "Instruction")
     
-    # Enable strict signature checking for run_async
-    # spec_set=True ensures it fails if positional/mismatched args are used
-    from unittest.mock import create_autospec
-    mock_run_async = create_autospec(InMemoryRunner.run_async, spec_set=True)
+    # Simple MagicMock for run_async
+    # autospec on unbound method causes trouble with 'self'
+    mock_run_async = MagicMock()
     
     async def mock_iter(*args, **kwargs):
         yield "Event(name='speak')"
@@ -53,11 +52,15 @@ async def test_process_turn_calls_runner(mock_adk):
     sg.runner.session_service.get_session = AsyncMock(return_value="ExistingSession")
     
     # Execute
-    # THIS SHOULD FAIL if we pass arguments positionally where keywords are required
     await sg.process_turn("Hello")
     
     # Verify
-    sg.runner.run_async.assert_called()
+    # ここでキーワード引数が使われていることを厳格にチェックする
+    sg.runner.run_async.assert_called_with(
+        new_message=types.Content(role="user", parts=[types.Part(text="Hello")]),
+        user_id="yt_user",
+        session_id="yt_session"
+    )
 
 @pytest.mark.asyncio
 async def test_call_tool_traverses_toolsets(mock_adk):
