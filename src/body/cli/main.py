@@ -2,7 +2,8 @@ import os
 import uvicorn
 from mcp.server.fastmcp import FastMCP
 from starlette.responses import JSONResponse
-from .tools import speak, change_emotion, get_comments, start_input_reader_thread
+from .tools import speak, change_emotion, get_comments
+from .io_adapter import start_input_reader_thread
 
 import logging
 

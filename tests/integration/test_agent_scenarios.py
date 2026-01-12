@@ -5,7 +5,7 @@ from unittest.mock import MagicMock, AsyncMock, patch
 from google.adk.tools.function_tool import FunctionTool
 from google.genai import types
 from saint_graph.saint_graph import SaintGraph
-from saint_graph.main import load_persona
+from saint_graph.prompt_loader import PromptLoader
 from saint_graph.telemetry import setup_telemetry
 
 # Skip tests in GitHub Actions environment
@@ -31,7 +31,6 @@ async def test_weather_scenario():
         """Retrieve weather information for a specified location and date."""
         print(f"\n[Mock Tool] get_weather called for {location}")
         weather_calls.append({"location": location, "date": date})
-        # Return dummy data (固定値でLLMの応答を安定化)
         return f"{location}の天気は晴れです。気温は20度です。"
 
     def speak(text: str, style: str = None) -> str:
@@ -52,8 +51,8 @@ async def test_weather_scenario():
     change_emotion_tool = FunctionTool(change_emotion)
     
     # 2. Initialize SaintGraph with local tools
-    # Use actual production persona (no test-specific modifications)
-    system_instruction = load_persona("ren")
+    loader = PromptLoader("ren")
+    system_instruction = loader.load_system_instruction()
     
     # Initialize SaintGraph with empty mcp_urls and custom tools
     sg = SaintGraph(

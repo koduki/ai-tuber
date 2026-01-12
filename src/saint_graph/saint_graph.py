@@ -11,15 +11,11 @@ from google.adk.tools.mcp_tool.mcp_toolset import SseConnectionParams
 from google.genai import types
 from .config import logger, MODEL_NAME
 
+
 class SaintGraph:
     """
     Google ADKを使用してエージェントの振る舞いを管理するコアクラス。
     """
-    async def close(self):
-        """ツールセットの接続を解除してクリーンアップします。"""
-        for ts in self.toolsets:
-            if hasattr(ts, 'close'):
-                await ts.close()
 
     def __init__(self, mcp_urls: List[str], system_instruction: str, retry_templates: dict = None, tools: List[Any] = None):
         """
@@ -29,14 +25,14 @@ class SaintGraph:
         self.system_instruction = system_instruction
         self.retry_templates = retry_templates or {}
         
-        # 1. MCP ツールセットの初期化
+        # MCP ツールセットの初期化
         self.toolsets = tools if tools else []
         for url in mcp_urls:
             connection_params = SseConnectionParams(url=url)
             toolset = McpToolset(connection_params=connection_params)
             self.toolsets.append(toolset)
         
-        # 2. エージェントの構成
+        # エージェントの構成
         self.agent = Agent(
             name="SaintV2",
             model=Gemini(model=MODEL_NAME),
@@ -44,9 +40,53 @@ class SaintGraph:
             tools=self.toolsets
         )
         
-        # 3. ランナーの初期化
+        # ランナーの初期化
         self.runner = InMemoryRunner(agent=self.agent)
         logger.info(f"SaintGraph (ADK Native) initialized with model {MODEL_NAME}")
+
+    async def close(self):
+        """ツールセットの接続を解除してクリーンアップします。"""
+        for ts in self.toolsets:
+            if hasattr(ts, 'close'):
+                await ts.close()
+
+    # --- イベント解析ヘルパー ---
+
+    def _is_tool_call(self, event, tool_name: str) -> bool:
+        """
+        イベントが特定のツール呼び出しを表しているか判定します。
+        """
+        try:
+            from google.adk.events.event import Event
+            if isinstance(event, Event):
+                if hasattr(event, 'content') and event.content is not None:
+                    parts = getattr(event.content, 'parts', None)
+                    if parts is not None:
+                        for part in parts:
+                            if hasattr(part, 'function_call') and part.function_call:
+                                if part.function_call.name == tool_name:
+                                    return True
+        except (ImportError, AttributeError):
+            pass
+        
+        # フォールバック：文字列ベースの判定
+        ev_str = str(event)
+        if f"name='{tool_name}'" in ev_str or f'name="{tool_name}"' in ev_str:
+            if "TextPart" not in ev_str and "text=" not in ev_str:
+                return True
+        return False
+
+    def _detect_raw_text(self, event) -> bool:
+        """
+        イベントがツールを経由しない生テキスト出力を含むかを判定します。
+        """
+        ev_str = str(event)
+        if "TextPart" in ev_str and "text=" in ev_str:
+            if "text=' '" not in ev_str and 'text=""' not in ev_str:
+                return True
+        return False
+
+    # --- メインターン処理 ---
 
     async def process_turn(self, user_input: str, context: Optional[str] = None):
         """
@@ -59,31 +99,6 @@ class SaintGraph:
             has_spoken = False
             has_retrieved = False
             found_raw_text = False
-            
-            def is_tool_call(event, tool_name: str) -> bool:
-                """
-                イベントが特定のツール呼び出しを表しているか判定します。
-                """
-                try:
-                    from google.adk.events.event import Event
-                    if isinstance(event, Event):
-                        if hasattr(event, 'content') and event.content is not None:
-                            parts = getattr(event.content, 'parts', None)
-                            if parts is not None:
-                                for part in parts:
-                                    if hasattr(part, 'function_call') and part.function_call:
-                                        if part.function_call.name == tool_name:
-                                            return True
-                except (ImportError, AttributeError):
-                    pass
-                
-                # フォールバック：文字列ベースの判定
-                # TODO: 安定したAPIが提供され次第、Event型の判定に完全移行
-                ev_str = str(event)
-                if f"name='{tool_name}'" in ev_str or f'name="{tool_name}"' in ev_str:
-                    if "TextPart" not in ev_str and "text=" not in ev_str:
-                        return True
-                return False
 
             max_attempts = 3
             current_user_message = user_input
@@ -98,27 +113,21 @@ class SaintGraph:
                     user_id="yt_user", 
                     session_id="yt_session"
                 ):
-                    if is_tool_call(event, "speak"):
+                    if self._is_tool_call(event, "speak"):
                         has_spoken = True
-                    if is_tool_call(event, "get_weather"):
+                    if self._is_tool_call(event, "get_weather"):
                         has_retrieved = True
-                    
-                    # ツールを通さない生テキストの出力を検出
-                    ev_str = str(event)
-                    if "TextPart" in ev_str and "text=" in ev_str:
-                        if "text=' '" not in ev_str and 'text=""' not in ev_str:
-                            found_raw_text = True
+                    if self._detect_raw_text(event):
+                        found_raw_text = True
                 
                 if has_spoken:
                     break
                 
                 # 再指示（Retry）ロジック：ツール使用状況に基づき誘導
                 if found_raw_text and not has_retrieved:
-                    # ツールを完全に無視してテキストを出力した場合（生テキスト出力の禁止を強調）
                     logger.warning(f"Attempt {attempt + 1}: Unstructured text output detected. Retrying...")
                     current_user_message = self.retry_templates.get("retry_no_tool", "テキストを直接返さず、必ず speak ツールを使って話してください。")
                 else:
-                    # 情報を取得しただけで終わった、あるいは何も返さなかった場合（speakでの締結を促す）
                     logger.warning(f"Attempt {attempt + 1}: turn incomplete (speak tool missing). Retrying...")
                     current_user_message = self.retry_templates.get("retry_final_response", "最後に speak ツールを使用してターンを完了させてください。")
 
@@ -126,6 +135,8 @@ class SaintGraph:
 
         except Exception as e:
             logger.error(f"Error in ADK run: {e}", exc_info=True)
+
+    # --- セッション管理 ---
 
     async def _ensure_session(self):
         """セッションが存在することを確認し、なければ作成します。"""
@@ -140,6 +151,8 @@ class SaintGraph:
                 user_id="yt_user", 
                 session_id="yt_session"
             )
+
+    # --- ツール呼び出しユーティリティ ---
 
     async def call_tool(self, name: str, arguments: dict) -> str:
         """
@@ -172,7 +185,7 @@ class SaintGraph:
                     logger.debug(f"Toolset get_tools failed on attempt {attempt}: {e}")
             
             if attempt < 4:
-                await asyncio.sleep(1) # 再試行前の待機
+                await asyncio.sleep(1)
         
         raise Exception(f"Tool {name} not found in any toolset after retries.")
 

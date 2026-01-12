@@ -46,9 +46,9 @@ async def test_get_weather_success():
         result = await get_weather("Tokyo")
         
         assert "Tokyo" in result
-        assert "Clear sky" in result
+        assert "晴天" in result  # 'Clear sky' in Japanese
         assert "15.0" in result
-        assert "Max 18.0" in result
+        assert "最高 18.0" in result  # 'Max' in Japanese
 
 @pytest.mark.asyncio
 async def test_get_weather_not_found():
@@ -62,7 +62,7 @@ async def test_get_weather_not_found():
         mock_urlopen.return_value = mock_res
 
         result = await get_weather("UnknownCity")
-        assert "not found" in result
+        assert "見つかりませんでした" in result  # 'not found' in Japanese
 
 @pytest.mark.asyncio
 async def test_get_weather_error():
@@ -70,5 +70,5 @@ async def test_get_weather_error():
         mock_urlopen.side_effect = Exception("Network Error")
 
         result = await get_weather("Tokyo")
-        assert "Failed to get weather" in result
+        assert "失敗" in result  # 'Failed' in Japanese
         assert "Network Error" in result

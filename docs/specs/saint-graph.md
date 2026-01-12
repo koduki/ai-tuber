@@ -1,87 +1,84 @@
 ---
-description: Application Implementation Specification for AI Newscaster
+description: AI Newscaster アプリケーション実装仕様書
 ---
 
-# Application Implementation Specification: Saint Graph AI Newscaster
+# アプリケーション実装仕様書: Saint Graph AI Newscaster
 
-## 1. Overview
-The **Saint Graph AI Newscaster** is an automated, character-driven broadcasting system powered by an LLM (Gemini). It reads news scripts from Markdown files, adds persona-based commentary, and interacts with viewers via CLI. The system is containerized using Docker and leverages the Google Agent Development Kit (ADK).
+## 1. 概要
+**Saint Graph AI Newscaster** は、LLM (Gemini) によって駆動される、キャラクター主導の自動配信システムです。Markdown ファイルからニュース原稿を読み込み、ペルソナに基づいた解説を加え、CLI を通じて視聴者と交流します。システムは Docker を使用してコンテナ化されており、Google Agent Development Kit (ADK) を活用しています。
 
-## 2. Architecture
-The system consists of three main Docker services:
-- **`saint-graph`**: The core logic service.
-  - Loads news from `data/news/news_script.md`.
-  - Manages the AI persona ("Ren Kouzuki") and dialogue flow.
-  - Connects to MCP servers (Weather, User Comments).
-- **`body-cli`**: A CLI-based interface for outputting AI speech and accepting user comments.
-- **`body-weather`**: A mock server providing weather data via MCP.
+## 2. アーキテクチャ
+システムは主に 3 つの Docker サービスで構成されています。
+- **`saint-graph`**: コアロジックサービス。
+  - `data/news/news_script.md` からニュースをロードします。
+  - AI ペルソナ（「紅月れん」）と対話フローを管理します。
+  - MCP サーバー（Weather, User Comments）に接続します。
+- **`body-cli`**: AI の発話を出力し、ユーザーコメントを受け付ける CLI ベースのインターフェース。
+- **`body-weather`**: MCP を通じて天気データを提供するモックサーバー。
 
-## 3. Core Components
+## 3. 主要コンポーネント
 
 ### 3.1 News Service (`src/saint_graph/news_service.py`)
-- **Functionality**: Parses `news_script.md` into `NewsItem` objects.
-- **Format**: Supports Markdown with `## Title` headers.
-- **Logic**:
-  - `load_news()`: Reads file, splits by `##`, extracts title and body.
-  - `get_next_item()`: Returns the next unread news item.
-  - `has_next()`: Checks if more items exist.
+- **機能**: `news_script.md` を解析して `NewsItem` オブジェクトに変換します。
+- **フォーマット**: `## Title` ヘッダーを持つ Markdown をサポート。
+- **ロジック**:
+  - `load_news()`: ファイルを読み込み、`##` で分割し、タイトルと本文を抽出します。
+  - `get_next_item()`: 次の未読ニュース項目を返します。
+  - `has_next()`: 未読の項目が存在するか確認します。
 
 ### 3.2 Main Application Loop (`src/saint_graph/main.py`)
-- **Initialization**:
-  - Loads persona (`src/mind/ren/persona.md`).
-  - Loads global instructions (`src/saint_graph/system_prompts/core_instructions.md`).
-  - Loads character-specific templates from `src/mind/ren/system_prompts/`.
-  - Initializes `SaintGraph` with MCP tools and Retry Instructions.
-  - Loads news via `NewsService`.
-- **System Prompts**:
-  - **Global (`src/saint_graph/system_prompts/`)**:
-    - `core_instructions.md`: Base system instructions and global rules.
-  - **Character-Specific (`src/mind/ren/system_prompts/`)**:
-    - `intro.md`: Initial greeting using Signature Greetings.
-    - `news_reading.md`: Instructions for reading news (full text + commentary).
-    - `news_finished.md`: Instructions for asking for feedback after news.
-    - `closing.md`: Instructions for the final sign-off.
-    - `retry_*.md`: Re-instructions for error handling (missing tool calls, etc.).
-- **Loop Logic**:
-  1.  **Poll for Comments**: Checks `body-cli` for user input (Priority 1).
-      - If found, interrupts news flow to respond (`context="User Interaction"`).
-      - Resets the "Silence Timeout" counter.
-  2.  **Read News**: If no comments, reads the next news item (Priority 2).
-      - **One-Shot Instruction**: Commands the AI to output Introduction + Body + Commentary in a single `speak` tool call.
-      - **Context**: `News Reading: {Title}`.
-  3.  **End Sequence**:
-      - After all news is read, enters a "Waiting for Final Comments" state.
-      - **Timeout**: If 20 seconds pass without interaction, initiates the Closing Sequence.
-      - **Closing**: AI says a final farewell, waits 3 seconds, and the process terminates.
+- **初期化**:
+  - `PromptLoader` を使用して、キャラクター固有のペルソナとテンプレートをロードします。
+  - グローバルな指示事項 (`src/saint_graph/system_prompts/core_instructions.md`) をロードします。
+  - MCP ツールと Retry Instructions を使用して `SaintGraph` を初期化します。
+  - `NewsService` 経由でニュースをロードします。
+- **プロンプト読み込み (`src/saint_graph/prompt_loader.py`)**:
+  - **`PromptLoader`**: システム指示と、キャラクターの `system_prompts` ディレクトリにある Markdown テンプレートの読み込みを一元管理します。
+- **システムプロンプト**:
+  - **グローバル (`src/saint_graph/system_prompts/`)**:
+    - `core_instructions.md`: 基本的なシステム指示とグローバルルール。
+  - **キャラクター固有 (`src/mind/ren/system_prompts/`)**:
+    - `intro.md`: Signature Greetings を使用した最初の挨拶。
+    - `news_reading.md`: ニュース読み上げの指示（全文 + 解説）。
+    - `news_finished.md`: ニュース終了後にフィードバックを求める指示。
+    - `closing.md`: 配信終了の挨拶の指示。
+    - `retry_*.md`: エラーハンドリング（ツール呼び出しの欠落など）のための再指示。
+- **ループロジック**:
+  1.  **コメントのポーリング**: `_check_comments()` 経由で `body-cli` からのユーザー入力を確認します。
+  2.  **ニュースの読み上げ**: コメントがない場合、`_run_newscaster_loop()` 経由で次のニュース項目を読み上げます。
+  3.  **終了シーケンス**: 沈黙タイムアウトの後、終了シーケンスを開始します。
 
 ### 3.3 Saint Graph Agent (`src/saint_graph/saint_graph.py`)
-- **ADK Integration**: Wraps `google.adk.Agent`.
-- **Turn Processing**: `process_turn(user_input, context)`
-  - Inject context into the prompt to guide AI behavior (e.g., "News Reading", "Closing").
-  - **Retry Instruction Logic**:
-    - Re-instructs the AI if it outputs raw text without using the `speak` tool, or if the turn terminates without a final response to the user. This ensures consistent tool usage regardless of the interaction mode.
+- **ADK 統合**: `google.adk.Agent` をラップ。
+- **ターン処理**: `process_turn(user_input, context)`
+  - プロンプトにコンテキストを注入し、AI の振る舞いをガイドします。
+  - **内部ヘルパー**:
+    - `_is_tool_call(event, tool_name)`: ADK イベントストリーム内の特定のツール呼び出しを識別します。
+    - `_detect_raw_text(event)`: エージェントがツール呼び出しの代わりに生テキストを出力したかどうかを検出します。
+  - **再指示 (Retry Instruction) ロジック**:
+    - `speak` ツールを使用せずに生テキストを出力した場合、またはユーザーへの最終回答なしにターンが終了した場合、AI に再指示を行います。
 
-### 3.4 Persona (`src/mind/ren/persona.md`)
-- **Character**: Ren Kouzuki (Warawa/Noja-loli archetype).
-- **Tone**: Consistent usage of "Warawa", "Noja", "Zoi".
-- **Instructions**:
-  - **News**: Read full content verbatim, then add personal opinion.
-  - **Interaction**: Respond to comments in character, prioritize viewer engagement.
+### 3.4 ペルソナ (`src/mind/ren/persona.md`)
+- **キャラクター**: 紅月れん（わらわ/のじゃロリ系）。
+- **口調**: 「わらわ」「のじゃ」「ぞい」の一貫した使用。
+- **指示事項**:
+  - **ニュース**: 本文をそのまま読み上げ、その後に個人的な意見を加える。
+  - **交流**: キャラクターを維持してコメントに反応し、視聴者とのエンゲージメントを優先する。
 
-## 4. Implementation Details
+## 4. 実装の詳細
 
-### Docker Configuration
-- **Build Context**: Copies full `/app` directory to ensure `data/news` is available.
-- **Volumes**: Volume mounting for `data` is currently **disabled** to prioritize build-time consistency.
-- **Environment**: `PYTHONPATH=/app`, `GOOGLE_API_KEY` (required).
+### Docker 構成
+- **ビルドコンテキスト**: `data/news` が利用可能であることを保証するため、`/app` ディレクトリ全体をコピーします。
+- **ボリューム**: ビルド時の整合性を優先するため、`data` のボリュームマウントは現在無効化されています。
+- **環境変数**: `PYTHONPATH=/app`, `GOOGLE_API_KEY` (必須)。
 
-### Key Features
-- **Robust News Reading**: Ensures full body text is spoken, not just titles.
-- **Dynamic Interaction**: Prioritizes user comments over prepared script.
-- **Smart Timeout**: Extends session duration dynamically if users interact during the closing phase.
-- **Character Consistency**: Enforced via system prompting and Retry Instruction logic.
+### 主な特徴
+- **堅牢なニュース読み上げ**: タイトルだけでなく、本文全文が読み上げられることを保証します。
+- **動的な交流**: 準備されたスクリプトよりもユーザーコメントを優先します。
+- **スマートタイムアウト**: 終了フェーズ中にユーザーが交流した場合、セッション時間を動的に延長します。
+- **キャラクターの一貫性**: システムプロンプトと Retry Instruction ロジックによって強制されます。
 
-## 5. Usage
-1.  **Start**: `docker compose up --build`
-2.  **Interact**: Use `docker attach app-body-cli-1` to see output and type comments.
-3.  **Modify News**: Edit `data/news/news_script.md` and rebuild/restart.
+## 5. 使い方
+1.  **起動**: `docker compose up --build`
+2.  **交流**: `docker attach app-body-cli-1` を使用して、出力の確認とコメントの入力を行います。
+3.  **ニュースの修正**: `data/news/news_script.md` を編集して、リビルド/再起動します。
