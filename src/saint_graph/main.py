@@ -51,17 +51,39 @@ async def main():
     # 1. Mind (Persona) の初期化
     system_instruction = load_persona(name="ren")
 
+    # 1.5 News Service の初期化
+    # Get the directory of main.py
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    # Go up 2 levels: src/saint_graph -> src -> /app
+    root_dir = os.path.abspath(os.path.join(current_dir, "..", ".."))
+    news_path = os.path.join(root_dir, "data", "news", "news_script.md")
+    
+    from .news_service import NewsService
+    news_service = NewsService(news_path)
+    try:
+        news_service.load_news()
+        if not news_service.items:
+            logger.warning(f"NewsService loaded 0 items from {news_path}. Check file format.")
+        else:
+            logger.info(f"Loaded {len(news_service.items)} news items from {news_path}.")
+    except Exception as e:
+        logger.error(f"Failed to load news: {e}")
+
     # 2. Saint Graph (ADK) の初期化
-    # McpToolset の初期化と接続管理は SaintGraph クラス内で行われます
     saint_graph = SaintGraph(mcp_urls=MCP_URLS, system_instruction=system_instruction)
 
     # 3. メインループ (Chat Loop)
-    logger.info("Entering Chat Loop. Waiting for comments...")
+    logger.info("Entering Newscaster Loop...")
+
+    # State for ending
+    finished_news = False
+    end_wait_counter = 0
+    MAX_WAIT_CYCLES = 20 # 20 seconds of silence from the last interaction
 
     while True:
         try:
             # 1. コメント確認
-            # sys_get_comments は internal tool
+            has_user_interaction = False
             try:
                 comments = await saint_graph.call_tool("sys_get_comments", {})
                 
@@ -69,14 +91,56 @@ async def main():
                     logger.info(f"Comments received: {comments}")
                     # ユーザーの発言として処理
                     await saint_graph.process_turn(comments)
+                    has_user_interaction = True
+                    # コメントがあれば待機時間をリセット
+                    end_wait_counter = 0
             except Exception as e:
-                # NOTE: Brittle error detection using string matching
-                # TODO: Catch specific exception types if ADK provides them (e.g., ToolNotFoundException)
-                # This string-based check may break if error messages change in future versions
                 if "Tool sys_get_comments not found" in str(e) or "not found in any toolset" in str(e):
                     logger.warning("Waiting for sys_get_comments tool to become available...")
                 else:
                     logger.error(f"Error in polling/turn: {e}")
+
+            # 2. ニュース読み上げ (ユーザー介入がない場合)
+            if not has_user_interaction:
+                if news_service.has_next():
+                    item = news_service.get_next_item()
+                    logger.info(f"Reading news item: {item.title}")
+                    
+                    # Construct instruction for the agent
+                    instruction = (
+                        f"【システム指示：ニュース読み上げ】\n"
+                        f"以下の「ニュース本文」を、一字一句省略せずに読み上げた上で、一連の発言として感想を述べてください。\n"
+                        f"導入、本文、感想を**すべて1回**の `speak` ツール呼び出しにまとめて出力してください。\n"
+                        f"\n"
+                        f"ニュースタイトル: {item.title}\n"
+                        f"ニュース本文:\n{item.content}\n"
+                    )
+                    
+                    await saint_graph.process_turn(instruction, context=f"News Reading: {item.title}")
+                    
+                elif not finished_news:
+                     # Just finished news items
+                     finished_news = True
+                     logger.info("All news items read. Waiting for final comments.")
+                     await saint_graph.process_turn(
+                         "【システム指示】\nすべてのニュースを読み終えました。「以上で本日のニュースを終わります」と伝えつつ、視聴者から最後に感想がないかあなたの口調（のじゃ/わらわ）で問いかけてください。",
+                         context="News Finished"
+                     )
+                
+                elif finished_news:
+                    # Closing sequence logic: Incremented when NO interaction and NO news
+                    end_wait_counter += 1
+                    if end_wait_counter > MAX_WAIT_CYCLES:
+                        logger.info(f"Silence timeout ({MAX_WAIT_CYCLES}s) reached. Finishing broadcast.")
+                        await saint_graph.process_turn(
+                            "【システム指示】\nしばらく待ちましたがコメントはありません。\n"
+                            "「それでは、本日の放送を終了します。ありがとうございました！」とあなたの口調（のじゃ/わらわ）で最後の方に心を込めて挨拶し、配信を終了してください。これが最後の発言です。",
+                             context="Closing"
+                        )
+                        # 送信完了を確実にするため少し待機
+                        await asyncio.sleep(3)
+                        await saint_graph.close()
+                        break
 
 
             # 定期ポーリングの間隔

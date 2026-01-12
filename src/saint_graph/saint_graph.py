@@ -46,11 +46,11 @@ class SaintGraph:
         self.runner = InMemoryRunner(agent=self.agent)
         logger.info(f"SaintGraph (ADK Native) initialized with model {MODEL_NAME}")
 
-    async def process_turn(self, user_input: str):
+    async def process_turn(self, user_input: str, context: Optional[str] = None):
         """
         Processes a single turn of interaction with logical control (nudge).
         """
-        logger.info(f"Turn started (ADK). Input: {user_input}...")
+        logger.info(f"Turn started (ADK). Input: {user_input[:50]}..., Context: {context}")
         try:
             await self._ensure_session()
             
@@ -89,6 +89,8 @@ class SaintGraph:
 
             max_attempts = 3
             current_user_message = user_input
+            if context:
+                current_user_message = f"[{context}]\n{user_input}"
             
             for attempt in range(max_attempts):
                 found_raw_text = False
@@ -112,10 +114,13 @@ class SaintGraph:
                     break
                 
                 # Nudge Logic: Targeted based on missing state
+                # Skip weather nudge if we are in news reading mode
+                is_news = context and "news" in context.lower()
+                
                 if found_raw_text and not (has_spoken or has_retrieved):
                     logger.warning(f"Attempt {attempt + 1}: Unstructured text output detected. Forcing tool usage.")
                     current_user_message = "テキストを直接返してはいけません。必ず speak ツールを使って話してください。情報が必要な場合はツールで検索してください。"
-                elif not has_retrieved and ("天気" in user_input or "weather" in user_input.lower()):
+                elif not is_news and not has_retrieved and ("天気" in user_input or "weather" in user_input.lower()):
                     logger.warning(f"Attempt {attempt + 1}: Retrieval skipped for weather request. Nudging...")
                     current_user_message = "天気を検索してください。勝手に予想せず、必ず get_weather ツールを使用してください。"
                 else:
