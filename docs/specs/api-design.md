@@ -82,4 +82,6 @@ SaintGraph の対話エンジンは、接続先の MCP サーバーが以下の�
 #### 2. Body/Weather (`src/body/weather/`)
 *   `main.py`: **MCP サーバー層**。天気予報ツールの公開用 SSE エンドポイント。
 *   `tools.py`: **ロジック層**。Open-Meteo API を使用したジオコーディングおよび天気取得ロジック。
-*   **ヘルパー関数**: ジオコーディング、天気取得、WMO コード変換を個別の関数に分離し、保守性を向上。
+*   **HTTP クライアント**: 非同期処理のため、`httpx.AsyncClient` を使用してブロッキングを回避。
+*   **ヘルパー関数**: ジオコーディング (`_geocode`)、天気取得 (`_fetch_weather`)、WMO コード変換 (`get_wmo_description`) を個別の関数に分離し、保守性を向上。
+*   **WMO コード**: 天気コード（0-95）を日本語の説明文字列にマッピングする定数 `WMO_CODE_MAP` を定義。

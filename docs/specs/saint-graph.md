@@ -25,15 +25,21 @@ description: AI Newscaster アプリケーション実装仕様書
   - `load_news()`: ファイルを読み込み、`##` で分割し、タイトルと本文を抽出します。
   - `get_next_item()`: 次の未読ニュース項目を返します。
   - `has_next()`: 未読の項目が存在するか確認します。
+- **ロギング**: 標準の `logging` モジュールを使用し、デバッグ情報とエラーを適切なログレベルで記録します。
 
 ### 3.2 Main Application Loop (`src/saint_graph/main.py`)
 - **初期化**:
   - `PromptLoader` を使用して、キャラクター固有のペルソナとテンプレートをロードします。
   - グローバルな指示事項 (`src/saint_graph/system_prompts/core_instructions.md`) をロードします。
   - MCP ツールと Retry Instructions を使用して `SaintGraph` を初期化します。
-  - `NewsService` 経由でニュースをロードします。
+  - `NewsService` 経由でニュースをロードします（パスは `NEWS_DIR` 環境変数で設定可能）。
 - **プロンプト読み込み (`src/saint_graph/prompt_loader.py`)**:
   - **`PromptLoader`**: システム指示と、キャラクターの `system_prompts` ディレクトリにある Markdown テンプレートの読み込みを一元管理します。
+  - **実装**: `pathlib.Path` を使用して動的にパスを解決し、環境に依存しない移植性の高い実装を実現しています。
+- **設定可能なパラメータ (`src/saint_graph/config.py`)**:
+  - `NEWS_DIR`: ニュース原稿ディレクトリ（デフォルト: `/app/data/news`）
+  - `MAX_WAIT_CYCLES`: 沈黙タイムアウト秒数（デフォルト: `20`）
+  - `MCP_URL`, `WEATHER_MCP_URL`: MCP サーバー接続先
 - **システムプロンプト**:
   - **グローバル (`src/saint_graph/system_prompts/`)**:
     - `core_instructions.md`: 基本的なシステム指示とグローバルルール。
@@ -46,7 +52,7 @@ description: AI Newscaster アプリケーション実装仕様書
 - **ループロジック**:
   1.  **コメントのポーリング**: `_check_comments()` 経由で `body-cli` からのユーザー入力を確認します。
   2.  **ニュースの読み上げ**: コメントがない場合、`_run_newscaster_loop()` 経由で次のニュース項目を読み上げます。
-  3.  **終了シーケンス**: 沈黙タイムアウトの後、終了シーケンスを開始します。
+  3.  **終了シーケンス**: 沈黙タイムアウト（`MAX_WAIT_CYCLES` で設定、デフォルト20秒）の後、終了シーケンスを開始します。
 
 ### 3.3 Saint Graph Agent (`src/saint_graph/saint_graph.py`)
 - **ADK 統合**: `google.adk.Agent` をラップ。
