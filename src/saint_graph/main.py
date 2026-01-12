@@ -14,8 +14,11 @@ def load_persona(name: str = "ren") -> str:
     """
     base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__))) # src/
     
+    
     # Core Instructions
-    core_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "core_instructions.md")
+    # core_instructions.md is now in system_prompts
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    core_path = os.path.join(current_dir, "system_prompts", "core_instructions.md")
 
     # Persona
     persona_path = os.path.join(base_dir, "mind", name, "persona.md")
@@ -72,6 +75,25 @@ async def main():
     # 2. Saint Graph (ADK) の初期化
     saint_graph = SaintGraph(mcp_urls=MCP_URLS, system_instruction=system_instruction)
 
+    # Load prompt templates from the Mind directory
+    # Prompts are now specific to the character ren
+    templates = {}
+    # current_dir is /app/src/saint_graph
+    # base_dir should be /app/src
+    base_dir = os.path.dirname(current_dir)
+    mind_dir = os.path.join(base_dir, "mind", "ren")
+    prompts_dir = os.path.join(mind_dir, "system_prompts")
+    
+    for name in ["intro", "news_reading", "news_finished", "closing"]:
+        path = os.path.join(prompts_dir, f"{name}.md")
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                templates[name] = f.read()
+        except Exception as e:
+            logger.error(f"Failed to load template {name} from {path}: {e}")
+            templates[name] = ""
+
+
     # 3. メインループ (Chat Loop)
     logger.info("Entering Newscaster Loop...")
 
@@ -79,6 +101,9 @@ async def main():
     finished_news = False
     end_wait_counter = 0
     MAX_WAIT_CYCLES = 20 # 20 seconds of silence from the last interaction
+
+    # 初回の挨拶
+    await saint_graph.process_turn(templates["intro"], context="Intro")
 
     while True:
         try:
@@ -106,15 +131,8 @@ async def main():
                     item = news_service.get_next_item()
                     logger.info(f"Reading news item: {item.title}")
                     
-                    # Construct instruction for the agent
-                    instruction = (
-                        f"【システム指示：ニュース読み上げ】\n"
-                        f"以下の「ニュース本文」を、一字一句省略せずに読み上げた上で、一連の発言として感想を述べてください。\n"
-                        f"導入、本文、感想を**すべて1回**の `speak` ツール呼び出しにまとめて出力してください。\n"
-                        f"\n"
-                        f"ニュースタイトル: {item.title}\n"
-                        f"ニュース本文:\n{item.content}\n"
-                    )
+                    # Use template
+                    instruction = templates["news_reading"].format(title=item.title, content=item.content)
                     
                     await saint_graph.process_turn(instruction, context=f"News Reading: {item.title}")
                     
@@ -123,7 +141,7 @@ async def main():
                      finished_news = True
                      logger.info("All news items read. Waiting for final comments.")
                      await saint_graph.process_turn(
-                         "【システム指示】\nすべてのニュースを読み終えました。「以上で本日のニュースを終わります」と伝えつつ、視聴者から最後に感想がないかあなたの口調（のじゃ/わらわ）で問いかけてください。",
+                         templates["news_finished"],
                          context="News Finished"
                      )
                 
@@ -133,8 +151,7 @@ async def main():
                     if end_wait_counter > MAX_WAIT_CYCLES:
                         logger.info(f"Silence timeout ({MAX_WAIT_CYCLES}s) reached. Finishing broadcast.")
                         await saint_graph.process_turn(
-                            "【システム指示】\nしばらく待ちましたがコメントはありません。\n"
-                            "「それでは、本日の放送を終了します。ありがとうございました！」とあなたの口調（のじゃ/わらわ）で最後の方に心を込めて挨拶し、配信を終了してください。これが最後の発言です。",
+                             templates["closing"],
                              context="Closing"
                         )
                         # 送信完了を確実にするため少し待機

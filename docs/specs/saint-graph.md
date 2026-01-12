@@ -29,8 +29,14 @@ The system consists of three main Docker services:
 ### 3.2 Main Application Loop (`src/saint_graph/main.py`)
 - **Initialization**:
   - Loads persona (`src/mind/ren/persona.md`).
+  - Loads system prompts from `src/saint_graph/system_prompts/`.
   - Initializes `SaintGraph` with MCP tools.
   - Loads news via `NewsService`.
+- **System Prompts (`src/saint_graph/system_prompts/`)**:
+  - `core_instructions.md`: Base system instructions and global rules (moved from root).
+  - `news_reading.md`: Instructions for reading news (full text + commentary).
+  - `news_finished.md`: Instructions for asking for feedback after news.
+  - `closing.md`: Instructions for the final sign-off.
 - **Loop Logic**:
   1.  **Poll for Comments**: Checks `body-cli` for user input (Priority 1).
       - If found, interrupts news flow to respond (`context="User Interaction"`).
