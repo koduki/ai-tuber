@@ -21,6 +21,7 @@ class NewsService:
     def load_news(self):
         """Markdownファイルからニュース項目をロードします。"""
         import re
+        from .config import logger
 
         self.items = []
         try:
@@ -47,12 +48,12 @@ class NewsService:
                          title=title,
                          content=body or "(本文なし)"
                      ))
-                     print(f"DEBUG: Loaded item '{title}' (Content length: {len(body)})")
+                     logger.debug(f"Loaded item '{title}' (Content length: {len(body)})")
             
-            print(f"DEBUG: NewsService loaded {len(self.items)} items from {self.data_path}")
+            logger.info(f"NewsService loaded {len(self.items)} items from {self.data_path}")
 
         except Exception as e:
-            print(f"Error parsing news markdown: {e}")
+            logger.error(f"Error parsing news markdown: {e}")
             self.items = []
         
         self.current_index = 0

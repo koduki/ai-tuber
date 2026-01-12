@@ -1,8 +1,8 @@
-import os
+from pathlib import Path
 from .config import logger
 
-# アプリケーションのルートパス
-APP_ROOT = "/app/src"
+# アプリケーションのルートパス (src directory)
+APP_ROOT = Path(__file__).resolve().parent.parent
 
 
 class PromptLoader:
@@ -18,15 +18,15 @@ class PromptLoader:
             character_name: 読み込むキャラクターの名前（Mindディレクトリ配下のフォルダ名）
         """
         self.character_name = character_name
-        self._saint_graph_prompts_dir = os.path.join(APP_ROOT, "saint_graph", "system_prompts")
-        self._mind_prompts_dir = os.path.join(APP_ROOT, "mind", character_name, "system_prompts")
-        self._persona_path = os.path.join(APP_ROOT, "mind", character_name, "persona.md")
+        self._saint_graph_prompts_dir = APP_ROOT / "saint_graph" / "system_prompts"
+        self._mind_prompts_dir = APP_ROOT / "mind" / character_name / "system_prompts"
+        self._persona_path = APP_ROOT / "mind" / character_name / "persona.md"
 
     def load_system_instruction(self) -> str:
         """
         core_instructions.md と persona.md を結合してシステム指示を返します。
         """
-        core_path = os.path.join(self._saint_graph_prompts_dir, "core_instructions.md")
+        core_path = self._saint_graph_prompts_dir / "core_instructions.md"
         
         with open(core_path, "r", encoding="utf-8") as f:
             combined = f.read() + "\n\n"
@@ -49,7 +49,7 @@ class PromptLoader:
         """
         templates = {}
         for name in names:
-            path = os.path.join(self._mind_prompts_dir, f"{name}.md")
+            path = self._mind_prompts_dir / f"{name}.md"
             with open(path, "r", encoding="utf-8") as f:
                 templates[name] = f.read()
         return templates

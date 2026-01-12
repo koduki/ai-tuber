@@ -47,9 +47,12 @@ async def test_mind_prompt_loading():
         assert "Reading template" in templates["news_reading"]
         
     # 4. Check actual persona.md for Signature Greetings
-    # We use the real project path here
-    persona_path = "/app/src/mind/ren/persona.md"
-    assert os.path.exists(persona_path)
+    # Determine project root dynamically
+    from pathlib import Path
+    project_root = Path(__file__).resolve().parent.parent.parent
+    persona_path = project_root / "src" / "mind" / "ren" / "persona.md"
+    
+    assert persona_path.exists(), f"Persona file not found at {persona_path}"
     with open(persona_path, "r", encoding="utf-8") as f:
         persona_content = f.read()
         assert "Signature Greetings" in persona_content

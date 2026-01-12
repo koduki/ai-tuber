@@ -8,25 +8,28 @@ from saint_graph.news_service import NewsService, NewsItem
 # main.py のロジックをシミュレーションするためのテスト
 # 実際の main.py は無限ループを含むため、ロジックを模倣してテストします。
 
+@pytest.fixture
+def news_file_path():
+    with tempfile.NamedTemporaryFile(mode='w+', delete=False, encoding='utf-8') as tmp:
+        # Markdown形式でニュースを作成
+        tmp.write("# News\n\n## Title1\nThis is the full body content.\nIt has multiple lines.\n\n## Title2\nSecond news body.")
+        tmp_path = tmp.name
+    
+    yield tmp_path
+    
+    if os.path.exists(tmp_path):
+        os.unlink(tmp_path)
+
 @pytest.mark.asyncio
-async def test_full_news_content_reading():
+async def test_full_news_content_reading(news_file_path):
     """
     検証項目:
     process_turn に渡される指示(instruction)に、ニュースの本文が
     「一字一句省略せずに」という指示と共に含まれているか。
     """
     # 1. Setup Mock NewsService
-    with tempfile.NamedTemporaryFile(mode='w+', delete=False, encoding='utf-8') as tmp:
-        # Markdown形式でニュースを作成
-        tmp.write("# News\n\n## Title1\nThis is the full body content.\nIt has multiple lines.\n\n## Title2\nSecond news body.")
-        tmp_path = tmp.name
-        
-    try:
-        news_service = NewsService(tmp_path)
-        news_service.load_news()
-    finally:
-        if os.path.exists(tmp_path):
-            os.unlink(tmp_path)
+    news_service = NewsService(news_file_path)
+    news_service.load_news()
 
     # 2. Setup Mock SaintGraph
     mock_saint = MagicMock()

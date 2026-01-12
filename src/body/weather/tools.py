@@ -3,6 +3,7 @@ import urllib.request
 import urllib.parse
 import json
 import traceback
+import httpx
 from datetime import datetime
 
 # --- WMOコード定数 ---
@@ -71,9 +72,9 @@ async def _geocode(location: str, headers: dict) -> tuple[Optional[float], Optio
     encoded_loc = urllib.parse.quote(location)
     geo_url = f"https://geocoding-api.open-meteo.com/v1/search?name={encoded_loc}&count=1&language=ja&format=json"
     
-    req = urllib.request.Request(geo_url, headers=headers)
-    with urllib.request.urlopen(req, timeout=10) as res:
-        geo_data = json.loads(res.read().decode())
+    async with httpx.AsyncClient() as client:
+        resp = await client.get(geo_url, headers=headers, timeout=10.0)
+        geo_data = resp.json()
     
     if not geo_data.get('results'):
         return None, None, None
@@ -89,9 +90,9 @@ async def _fetch_weather(lat: float, lon: float, headers: dict) -> dict:
                    f"daily=weathercode,temperature_2m_max,temperature_2m_min&"
                    f"timezone=auto")
     
-    req = urllib.request.Request(weather_url, headers=headers)
-    with urllib.request.urlopen(req, timeout=10) as res:
-        return json.loads(res.read().decode())
+    async with httpx.AsyncClient() as client:
+        resp = await client.get(weather_url, headers=headers, timeout=10.0)
+        return resp.json()
 
 
 def _format_weather_response(resolved_name: str, w_data: dict, date: Optional[str]) -> str:

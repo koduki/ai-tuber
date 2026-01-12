@@ -1,7 +1,8 @@
 import asyncio
 import sys
+import os
 
-from .config import logger, MCP_URLS, POLL_INTERVAL
+from .config import logger, MCP_URLS, POLL_INTERVAL, MAX_WAIT_CYCLES, NEWS_DIR
 from .saint_graph import SaintGraph
 from .telemetry import setup_telemetry
 from .prompt_loader import PromptLoader
@@ -25,7 +26,7 @@ async def main():
     retry_templates = loader.get_retry_templates(templates)
 
     # ニュースサービスの初期化
-    news_path = "/app/data/news/news_script.md"
+    news_path = os.path.join(NEWS_DIR, "news_script.md")
     news_service = NewsService(news_path)
     try:
         news_service.load_news()
@@ -53,7 +54,6 @@ async def _run_newscaster_loop(saint_graph: SaintGraph, news_service: NewsServic
 
     finished_news = False
     end_wait_counter = 0
-    MAX_WAIT_CYCLES = 20
 
     # 配信開始の挨拶
     await saint_graph.process_turn(templates["intro"], context="Intro")

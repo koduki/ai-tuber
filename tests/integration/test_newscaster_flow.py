@@ -4,23 +4,25 @@ from saint_graph.news_service import NewsService, NewsItem
 from saint_graph.saint_graph import SaintGraph
 import asyncio
 
-@pytest.mark.asyncio
-async def test_news_reading_flow():
-    # 1. Setup Mock NewsService
-    # 1. Setup Mock NewsService with Temp File
+@pytest.fixture
+def news_file_path():
     import tempfile
     import os
     
     with tempfile.NamedTemporaryFile(mode='w+', delete=False, encoding='utf-8') as tmp:
         tmp.write("# News\n\n## Weather\nSunny\n\n## Economy\nStocks Up")
         tmp_path = tmp.name
-        
-    try:
-        news_service = NewsService(tmp_path)
-        news_service.load_news()
-    except:
+    
+    yield tmp_path
+    
+    if os.path.exists(tmp_path):
         os.unlink(tmp_path)
-        raise
+
+@pytest.mark.asyncio
+async def test_news_reading_flow(news_file_path):
+    # 1. Setup Mock NewsService with Temp File
+    news_service = NewsService(news_file_path)
+    news_service.load_news()
 
     # 2. Setup Mock SaintGraph
     # We mock the ADK dependencies to focus on the flow control in main.py (simulated here)
@@ -59,7 +61,3 @@ async def test_news_reading_flow():
 
     assert item.title == "Economy"
     assert news_service.has_next() is False
-    
-    # Cleanup
-    if os.path.exists(tmp_path):
-        os.unlink(tmp_path)
