@@ -3,21 +3,23 @@ from queue import Queue, Empty
 import sys
 import asyncio
 import threading
-import urllib.parse
-import httpx
 
-# --- I/O Abstraction ---
+# --- 入出力アダプター ---
 class IOAdapter:
+    """標準入出力を管理し、スレッドセーフなキューでコメントを保持するクラス。"""
     def __init__(self):
         self._input_queue = Queue()
 
     def write_output(self, text: str):
+        """標準出力にテキストを書き込みます。"""
         print(text)
 
     def add_input(self, text: str):
+        """入力をキューに追加します。"""
         self._input_queue.put(text)
 
     def get_inputs(self) -> List[str]:
+        """キューに溜まっている全ての入力を取得します。"""
         inputs = []
         while not self._input_queue.empty():
             try:
@@ -29,18 +31,17 @@ class IOAdapter:
 io_adapter = IOAdapter()
 
 def stdin_reader():
-    """Reads lines from stdin and puts them in a queue."""
+    """標準入力から一行ずつ読み取り、キューに追加するスレッド用の関数。"""
     sys.stderr.write("DEBUG: Starting stdin_reader thread\n")
-    if not hasattr(sys.stdin, 'buffer'):
-         sys.stderr.write("DEBUG: sys.stdin.buffer not found, using sys.stdin\n")
          
     while True:
         try:
+            # バッファ経由で読み取ることでエンコーディングの問題を回避
             if hasattr(sys.stdin, 'buffer'):
                 line_bytes = sys.stdin.buffer.readline()
                 if not line_bytes:
                     break
-                # Valid utf-8 is expected, but 'replace' prevents crashing on partial/bad bytes
+                # 不正なバイトが含まれていてもreplaceで回避
                 line = line_bytes.decode('utf-8', errors='replace')
             else:
                 line = sys.stdin.readline()
@@ -51,15 +52,10 @@ def stdin_reader():
                 io_adapter.add_input(line.strip())
         except Exception as e:
             sys.stderr.write(f"Error reading stdin: {e}\n")
-            # Don't break on read errors, just log and continue if possible, 
-            # though usually an error here means the stream is broken.
-            # But let's try to be resilient.
-            # actually if readline fails repeatedly we should probably break or sleep to avoid busy loop
             import time
             time.sleep(0.1) 
 
-# Start stdin reader in background
-# We don't need to reconfigure encoding if we use buffer, but keeping it harmless.
+# 標準入力のエンコーディング設定
 if sys.stdin and hasattr(sys.stdin, 'reconfigure'):
     try:
         sys.stdin.reconfigure(encoding='utf-8')
@@ -67,31 +63,32 @@ if sys.stdin and hasattr(sys.stdin, 'reconfigure'):
         sys.stderr.write(f"Warning: Could not reconfigure stdin encoding: {e}\n")
 
 def start_input_reader_thread():
-    """Starts the stdin reader thread."""
+    """非同期に入力を待ち受けるためのスレッドを開始します。"""
     threading.Thread(target=stdin_reader, daemon=True).start()
 
-# --- Tool Implementations ---
+# --- ツール実装 ---
 
 async def speak(text: str, style: Optional[str] = None, **kwargs):
-    """Speak the given text with an optional style."""
+    """
+    指定されたテキストを標準出力に表示（発話）します。
+    """
     style_str = f" ({style})" if style else ""
+    # [AI (emotion)]: Text の形式で出力
     io_adapter.write_output(f"\n[AI{style_str}]: {text}")
     return "Speaking completed"
 
-#@mcp.tool()
 async def change_emotion(emotion: str) -> str:
     """
-    Change the character's emotion.
-    Valid emotions: "neutral", "happy", "angry", "sad", "relaxed"
+    アバターの感情を変更します。
+    （注：現在はログ出力のみですが、将来的にLive2D等の制御を想定しています）
     """
-    # 実際にはLive2Dモデルの表情変更などを叩く想定
     return f"Emotion changed to {emotion}"
 
 async def get_comments():
-    """Get comments from the adapter."""
+    """
+    キューに蓄積されたユーザーコメントを取得します。
+    """
     inputs = io_adapter.get_inputs()
     if not inputs:
         return "No new comments."
     return "\n".join(inputs)
-
-

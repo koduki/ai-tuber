@@ -3,16 +3,16 @@ import urllib.request
 import urllib.parse
 import json
 import traceback
-from datetime import datetime, timedelta
+from datetime import datetime
 
 async def get_weather(location: str, date: Optional[str] = None):
     """
-    Get weather for the specified location and date using Open-Meteo API.
+    Open-Meteo APIを使用して、指定された場所と日付の天気を取得します。
     """
     print(f"DEBUG: get_weather called for location='{location}', date='{date}'")
     headers = {'User-Agent': 'SaintGraphWeather/1.0'}
     try:
-        # 1. Geocoding
+        # 1. ジオコーディング（地名から緯度経度を取得）
         encoded_loc = urllib.parse.quote(location)
         geo_url = f"https://geocoding-api.open-meteo.com/v1/search?name={encoded_loc}&count=1&language=ja&format=json"
         
@@ -21,13 +21,13 @@ async def get_weather(location: str, date: Optional[str] = None):
             geo_data = json.loads(res.read().decode())
         
         if not geo_data.get('results'):
-            return f"Location '{location}' not found."
+            return f"'{location}' という場所は見つかりませんでした。"
             
         lat = geo_data['results'][0]['latitude']
         lon = geo_data['results'][0]['longitude']
         resolved_name = geo_data['results'][0]['name']
 
-        # 2. Weather Fetch
+        # 2. 天気データの取得
         weather_url = (f"https://api.open-meteo.com/v1/forecast?"
                        f"latitude={lat}&longitude={lon}&current_weather=true&"
                        f"daily=weathercode,temperature_2m_max,temperature_2m_min&"
@@ -37,26 +37,25 @@ async def get_weather(location: str, date: Optional[str] = None):
         with urllib.request.urlopen(req, timeout=10) as res:
             w_data = json.loads(res.read().decode())
 
-        # Helper: WMO Code to String
+        # WMO天気コードからテキスト説明への変換ヘルパー
         def get_wmo_desc(code):
             mapping = {
-                0: "Clear sky",
-                1: "Mainly clear", 2: "Partly cloudy", 3: "Overcast",
-                45: "Fog", 48: "Depositing rime fog",
-                51: "Drizzle: Light", 53: "Drizzle: Moderate", 55: "Drizzle: Dense intensity",
-                61: "Rain: Slight", 63: "Rain: Moderate", 65: "Rain: Heavy intensity",
-                71: "Snow fall: Slight", 73: "Snow fall: Moderate", 75: "Snow fall: Heavy intensity",
-                95: "Thunderstorm",
+                0: "晴天",
+                1: "快晴", 2: "晴れ", 3: "くもり",
+                45: "霧", 48: "霧（氷結性）",
+                51: "霧雨（弱）", 53: "霧雨（並）", 55: "霧雨（強）",
+                61: "雨（弱）", 63: "雨（並）", 65: "雨（強）",
+                71: "雪（弱）", 73: "雪（並）", 75: "雪（強）",
+                95: "雷雨",
             }
-            return mapping.get(code, f"Unknown code {code}")
+            return mapping.get(code, f"不明（コード:{code}）")
 
-        # 3. Parse Logic
+        # 3. 日付の解析とデータ抽出
         today_str = datetime.now().strftime('%Y-%m-%d')
         target_idx = -1 
         
         if not date or date.lower() == 'today':
             target_idx = 0
-            target_date_str = today_str
         elif date.lower() == 'tomorrow':
             target_idx = 1
         elif date.lower() in ['day after tomorrow', '2 days later']:
@@ -67,30 +66,32 @@ async def get_weather(location: str, date: Optional[str] = None):
                 target_idx = times.index(date)
             else:
                  available = times[:3]
-                 return f"Forecast for {date} not available. Available: {', '.join(available)}..."
+                 return f"{date} の予報は利用できません。取得可能な範囲: {', '.join(available)}..."
 
         res_strings = []
-        res_strings.append(f"Weather for {resolved_name} (Source: Open-Meteo):")
+        res_strings.append(f"{resolved_name} の天気（参照元: Open-Meteo）:")
 
+        # 現在の天気を追加（日付指定がない場合のみ）
         if not date:
             curr = w_data.get('current_weather', {})
             temp = curr.get('temperature')
             code = curr.get('weathercode')
             desc = get_wmo_desc(code)
-            res_strings.append(f"Current: {desc}, {temp}°C")
+            res_strings.append(f"現在: {desc}, 気温 {temp}°C")
 
+        # 予報データの抽出
         if target_idx != -1 and target_idx < len(w_data['daily']['time']):
             day_date = w_data['daily']['time'][target_idx]
             d_max = w_data['daily']['temperature_2m_max'][target_idx]
             d_min = w_data['daily']['temperature_2m_min'][target_idx]
             d_desc = get_wmo_desc(w_data['daily']['weathercode'][target_idx])
             
-            label = "Today's forecast" if target_idx == 0 else f"Forecast for {day_date}"
-            res_strings.append(f"{label}: {d_desc}, Max {d_max}°C, Min {d_min}°C")
+            label = "今日の予報" if target_idx == 0 else f"{day_date} の予報"
+            res_strings.append(f"{label}: {d_desc}, 最高 {d_max}°C, 最低 {d_min}°C")
         
         return "\n".join(res_strings)
 
     except Exception:
         t = traceback.format_exc()
         print(f"Weather Error: {t}")
-        return f"Failed to get weather for {location}. Error: {t.splitlines()[-1]}"
+        return f"{location} の天気取得に失敗しました。エラー: {t.splitlines()[-1]}"

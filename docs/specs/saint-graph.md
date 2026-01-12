@@ -29,14 +29,19 @@ The system consists of three main Docker services:
 ### 3.2 Main Application Loop (`src/saint_graph/main.py`)
 - **Initialization**:
   - Loads persona (`src/mind/ren/persona.md`).
-  - Loads system prompts from `src/saint_graph/system_prompts/`.
-  - Initializes `SaintGraph` with MCP tools.
+  - Loads global instructions (`src/saint_graph/system_prompts/core_instructions.md`).
+  - Loads character-specific templates from `src/mind/ren/system_prompts/`.
+  - Initializes `SaintGraph` with MCP tools and Retry Instructions.
   - Loads news via `NewsService`.
-- **System Prompts (`src/saint_graph/system_prompts/`)**:
-  - `core_instructions.md`: Base system instructions and global rules (moved from root).
-  - `news_reading.md`: Instructions for reading news (full text + commentary).
-  - `news_finished.md`: Instructions for asking for feedback after news.
-  - `closing.md`: Instructions for the final sign-off.
+- **System Prompts**:
+  - **Global (`src/saint_graph/system_prompts/`)**:
+    - `core_instructions.md`: Base system instructions and global rules.
+  - **Character-Specific (`src/mind/ren/system_prompts/`)**:
+    - `intro.md`: Initial greeting using Signature Greetings.
+    - `news_reading.md`: Instructions for reading news (full text + commentary).
+    - `news_finished.md`: Instructions for asking for feedback after news.
+    - `closing.md`: Instructions for the final sign-off.
+    - `retry_*.md`: Re-instructions for error handling (missing tool calls, etc.).
 - **Loop Logic**:
   1.  **Poll for Comments**: Checks `body-cli` for user input (Priority 1).
       - If found, interrupts news flow to respond (`context="User Interaction"`).
@@ -53,9 +58,8 @@ The system consists of three main Docker services:
 - **ADK Integration**: Wraps `google.adk.Agent`.
 - **Turn Processing**: `process_turn(user_input, context)`
   - Inject context into the prompt to guide AI behavior (e.g., "News Reading", "Closing").
-  - **Nudge Logic**:
-    - **News Mode**: Exempts news reading from aggressive tool-use nudges (e.g., skips "Force Weather Tool").
-    - **General**: Nudges AI if it outputs raw text without using the `speak` tool.
+  - **Retry Instruction Logic**:
+    - Re-instructs the AI if it outputs raw text without using the `speak` tool, or if the turn terminates without a final response to the user. This ensures consistent tool usage regardless of the interaction mode.
 
 ### 3.4 Persona (`src/mind/ren/persona.md`)
 - **Character**: Ren Kouzuki (Warawa/Noja-loli archetype).
@@ -75,7 +79,7 @@ The system consists of three main Docker services:
 - **Robust News Reading**: Ensures full body text is spoken, not just titles.
 - **Dynamic Interaction**: Prioritizes user comments over prepared script.
 - **Smart Timeout**: Extends session duration dynamically if users interact during the closing phase.
-- **Character Consistency**: Enforced via system prompting and Nudge logic.
+- **Character Consistency**: Enforced via system prompting and Retry Instruction logic.
 
 ## 5. Usage
 1.  **Start**: `docker compose up --build`
