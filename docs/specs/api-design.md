@@ -1,14 +1,14 @@
-# API Design (Consumed Interfaces)
+# API 設計（使用インターフェース）
 
-SaintGraphはサーバーとしてAPIを公開するのではなく、以下の外部APIを消費するクライアントとして動作します。
+SaintGraph はサーバーとして API を公開するのではなく、以下の外部 API を消費するクライアントとして動作します。
 
-## MCP Server Interface (Body)
-URL (Primary): `http://body-cli:8000/sse` (Configurable via `MCP_URL`)
-URL (Weather): `http://body-weather:8001/sse` (Configurable via `WEATHER_MCP_URL`)
+## MCP サーバーインターフェース (Body)
+URL (Primary): `http://body-cli:8000/sse` (`MCP_URL` で設定可能)
+URL (Weather): `http://body-weather:8001/sse` (`WEATHER_MCP_URL` で設定可能)
 
-### Required Tools Specification
-SaintGraphの対話エンジンは、接続先のMCPサーバーが以下のツールセットを提供していることを前提に動作します。
-これらのツール定義は、MCPプロトコルの `tools/list` を通じて動的に取得されますが、そのスキーマは以下のように期待されています。
+### 必須ツール仕様
+SaintGraph の対話エンジンは、接続先の MCP サーバーが以下のツールセットを提供していることを前提に動作します。
+これらのツール定義は、MCP プロトコルの `tools/list` を通じて動的に取得されますが、そのスキーマは以下のように期待されています。
 
 #### 1. `speak` (Action)
 アバターに発話させるための主要なアクション。
@@ -39,15 +39,15 @@ SaintGraphの対話エンジンは、接続先のMCPサーバーが以下のツ�
     }
     ```
 
-#### 3. `sys_get_comments` (Observation / System Internal)
+#### 3. `sys_get_comments` (Observation / システム内部用)
 直近のユーザーコメントやイベントを取得するポーリング用ツール。
 *   **Description:** Retrieve user comments. INTERNAL USE ONLY.
-*   **Input Schema:** `{}` (Empty Object)
+*   **Input Schema:** `{}` (空のオブジェクト)
 *   **Output:** `string` (改行区切りのコメントリスト。新規コメントがない場合は "No new comments.")
-*   **Usage:** Chat Loop (`main.py`) により定期的に呼び出される。**LLMが自発的に呼ぶことは禁止されています（システム内部用）。**
+*   **Usage:** Chat Loop (`main.py`) により定期的に呼び出される。**LLM が自発的に呼ぶことは禁止されています（システム内部用）。**
 
-#### 4. `get_weather` (Observation / 外部API)
-指定された場所の天気情報を取得する。オープンな天気予報API（Open-Meteo）を消費します。
+#### 4. `get_weather` (Observation / 外部 API)
+指定された場所の天気情報を取得する。オープンな天気予報 API（Open-Meteo）を使用します。
 *   **Description:** Retrieve weather information for a specified location and date.
 *   **Input Schema:**
     ```json
@@ -63,21 +63,25 @@ SaintGraphの対話エンジンは、接続先のMCPサーバーが以下のツ�
 *   **Note:** このツールは専用の `body-weather` マイクロサービスで提供されます。
 
 
-## Constraints
-*   **Polling Interval:** `POLL_INTERVAL` (Default: 1.0s)
+## 制約事項
+*   **Polling Interval:** `POLL_INTERVAL` (デフォルト: 1.0s)
 *   **Timeouts:**
     *   Connect: 30s
     *   Tool Execution: 30s
 
-## Implementation Strategy
+## 実装戦略
 
-### Recommended Structure (Microservices)
-各コンポーネントは、サーバ層（FastAPI/SSE）とビジネスロジック層（Tools/Logic）を分離した構成をとります。サーバ層はFastMCPを使って実装します。
+### 推奨構造（マイクロサービス）
+各コンポーネントは、サーバー層（FastAPI/SSE）とビジネスロジック層（Tools/Logic）を分離した構成をとります。サーバー層は FastMCP を使って実装します。
 
 #### 1. Body/CLI (`src/body/cli/`)
-*   `main.py`: **MCP Server Layer**. FastAPIアプリ定義、SSEエンドポイント、JSON-RPCルーティング。アバター発話制御を担当。
-*   `tools.py`: **Logic Layer**. 実際のツール関数（`speak`, `get_comments`等）と入出力アダプタ（標準入力経由のコメント取得）を実装。
+*   `main.py`: **MCP サーバー層**。FastAPI アプリ定義、SSE エンドポイント、JSON-RPC ルーティング。
+*   `io_adapter.py`: **入出力管理**。標準入力スレッドと入出力バッファを管理。
+*   `tools.py`: **ロジック層**。`speak`, `get_comments` 等のツール関数の実体。
 
 #### 2. Body/Weather (`src/body/weather/`)
-*   `main.py`: **MCP Server Layer**. 天気予報ツールの公開用SSEエンドポイント。
-*   `tools.py`: **Logic Layer**. Open-Meteo APIを使用したジオコーディングおよび天気取得ロジック。
+*   `main.py`: **MCP サーバー層**。天気予報ツールの公開用 SSE エンドポイント。
+*   `tools.py`: **ロジック層**。Open-Meteo API を使用したジオコーディングおよび天気取得ロジック。
+*   **HTTP クライアント**: 非同期処理のため、`httpx.AsyncClient` を使用してブロッキングを回避。
+*   **ヘルパー関数**: ジオコーディング (`_geocode`)、天気取得 (`_fetch_weather`)、WMO コード変換 (`get_wmo_description`) を個別の関数に分離し、保守性を向上。
+*   **WMO コード**: 天気コード（0-95）を日本語の説明文字列にマッピングする定数 `WMO_CODE_MAP` を定義。

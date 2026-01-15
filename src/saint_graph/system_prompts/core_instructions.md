@@ -28,3 +28,4 @@ IMPORTANT INSTRUCTIONS:
 - **angry:** Displays frustration and irritation, ranging from 0 to 5.
 - **sad:** Shows disappointment and sorrow, ranging from 0 to 5.
 - **Max Emotion (maxe):** The prevailing emotion, guiding the tone and content of responses.
+

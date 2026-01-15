@@ -27,14 +27,15 @@ services:
       - WEATHER_MCP_URL=http://body-weather:8001/sse
       - GOOGLE_API_KEY=${GOOGLE_API_KEY}
       - PYTHONPATH=/app
+      - ADK_TELEMETRY=false
       - NO_PROXY=body-cli,body-weather,localhost,127.0.0.1
     depends_on:
       body-cli:
         condition: service_healthy
       body-weather:
         condition: service_healthy
-    volumes:
-      - ./data/news:/app/data/news
+    # volumes:
+    #   - ./data/news:/app/data/news
     command: python -m src.saint_graph.main
 
   # --- Body Weather (MCP Server) ---

@@ -3,7 +3,9 @@ __pycache__
 *.pyc
 tests
 .env
-data
+# Allow data and its contents
+!data/
+!data/**
 node_modules
 .vscode
 .devcontainer

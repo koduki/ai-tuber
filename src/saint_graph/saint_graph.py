@@ -11,30 +11,28 @@ from google.adk.tools.mcp_tool.mcp_toolset import SseConnectionParams
 from google.genai import types
 from .config import logger, MODEL_NAME
 
+
 class SaintGraph:
     """
-    SaintGraph implementation using Google ADK native patterns.
+    Google ADKを使用してエージェントの振る舞いを管理するコアクラス。
     """
-    async def close(self):
-        """Cleanup toolset connections."""
-        for ts in self.toolsets:
-            if hasattr(ts, 'close'):
-                await ts.close()
 
-    def __init__(self, mcp_urls: List[str], system_instruction: str, tools: List[Any] = None):
+    def __init__(self, mcp_urls: List[str], system_instruction: str, retry_templates: dict = None, tools: List[Any] = None):
+        """
+        SaintGraphを初期化します。MCPツールセットとADKエージェントのセットアップを行います。
+        """
         self.mcp_urls = mcp_urls
         self.system_instruction = system_instruction
+        self.retry_templates = retry_templates or {}
         
-        # 1. MCP Toolsets initialization
+        # MCP ツールセットの初期化
         self.toolsets = tools if tools else []
         for url in mcp_urls:
-            # We use SseConnectionParams for ADK's McpToolset
             connection_params = SseConnectionParams(url=url)
             toolset = McpToolset(connection_params=connection_params)
             self.toolsets.append(toolset)
         
-        # 2. Agent configuration
-        # ADK's Agent handles tool conversion and model interaction
+        # エージェントの構成
         self.agent = Agent(
             name="SaintV2",
             model=Gemini(model=MODEL_NAME),
@@ -42,54 +40,72 @@ class SaintGraph:
             tools=self.toolsets
         )
         
-        # 3. Runner initialization
+        # ランナーの初期化
         self.runner = InMemoryRunner(agent=self.agent)
         logger.info(f"SaintGraph (ADK Native) initialized with model {MODEL_NAME}")
 
-    async def process_turn(self, user_input: str):
+    async def close(self):
+        """ツールセットの接続を解除してクリーンアップします。"""
+        for ts in self.toolsets:
+            if hasattr(ts, 'close'):
+                await ts.close()
+
+    # --- イベント解析ヘルパー ---
+
+    def _is_tool_call(self, event, tool_name: str) -> bool:
         """
-        Processes a single turn of interaction with logical control (nudge).
+        イベントが特定のツール呼び出しを表しているか判定します。
         """
-        logger.info(f"Turn started (ADK). Input: {user_input}...")
+        try:
+            from google.adk.events.event import Event
+            if isinstance(event, Event):
+                if hasattr(event, 'content') and event.content is not None:
+                    parts = getattr(event.content, 'parts', None)
+                    if parts is not None:
+                        for part in parts:
+                            if hasattr(part, 'function_call') and part.function_call:
+                                if part.function_call.name == tool_name:
+                                    return True
+        except (ImportError, AttributeError):
+            pass
+        
+        # フォールバック：文字列ベースの判定
+        ev_str = str(event)
+        if f"name='{tool_name}'" in ev_str or f'name="{tool_name}"' in ev_str:
+            if "TextPart" not in ev_str and "text=" not in ev_str:
+                return True
+        return False
+
+    def _detect_raw_text(self, event) -> bool:
+        """
+        イベントがツールを経由しない生テキスト出力を含むかを判定します。
+        """
+        ev_str = str(event)
+        if "TextPart" in ev_str and "text=" in ev_str:
+            if "text=' '" not in ev_str and 'text=""' not in ev_str:
+                return True
+        return False
+
+    # --- メインターン処理 ---
+
+    async def process_turn(self, user_input: str, context: Optional[str] = None):
+        """
+        単一のインタラクションターンを処理します。ツール使用の強制（再指示）ロジックを含みます。
+        """
+        logger.info(f"Turn started (ADK). Input: {user_input[:50]}..., Context: {context}")
         try:
             await self._ensure_session()
             
             has_spoken = False
             has_retrieved = False
             found_raw_text = False
-            
-            def is_tool_call(event, tool_name: str) -> bool:
-                """Check if event represents a tool call.
-                
-                Uses ADK Event model attributes for robust detection.
-                Falls back to string matching only if attributes are unavailable.
-                """
-                # Try to use proper Event model attributes first
-                try:
-                    from google.adk.events.event import Event
-                    if isinstance(event, Event):
-                        # Check if event has function_calls in content
-                        if hasattr(event, 'content') and event.content is not None:
-                            parts = getattr(event.content, 'parts', None)
-                            if parts is not None:
-                                for part in parts:
-                                    if hasattr(part, 'function_call') and part.function_call:
-                                        if part.function_call.name == tool_name:
-                                            return True
-                except (ImportError, AttributeError):
-                    pass
-                
-                # Fallback: String-based heuristic (brittle, but works for now)
-                # TODO: Replace with proper ADK event type checking when stable API is available
-                ev_str = str(event)
-                if f"name='{tool_name}'" in ev_str or f'name="{tool_name}"' in ev_str:
-                    if "TextPart" not in ev_str and "text=" not in ev_str:
-                        return True
-                return False
 
             max_attempts = 3
             current_user_message = user_input
+            if context:
+                current_user_message = f"[{context}]\n{user_input}"
             
+            # 最大3回のトライで望ましい回答（speakツールの使用）を誘導
             for attempt in range(max_attempts):
                 found_raw_text = False
                 async for event in self.runner.run_async(
@@ -97,38 +113,33 @@ class SaintGraph:
                     user_id="yt_user", 
                     session_id="yt_session"
                 ):
-                    if is_tool_call(event, "speak"):
+                    if self._is_tool_call(event, "speak"):
                         has_spoken = True
-                    if is_tool_call(event, "get_weather"):
+                    if self._is_tool_call(event, "get_weather"):
                         has_retrieved = True
-                    
-                    # Detect forbidden raw text output
-                    ev_str = str(event)
-                    if "TextPart" in ev_str and "text=" in ev_str:
-                        if "text=' '" not in ev_str and 'text=""' not in ev_str:
-                            found_raw_text = True
+                    if self._detect_raw_text(event):
+                        found_raw_text = True
                 
                 if has_spoken:
                     break
                 
-                # Nudge Logic: Targeted based on missing state
-                if found_raw_text and not (has_spoken or has_retrieved):
-                    logger.warning(f"Attempt {attempt + 1}: Unstructured text output detected. Forcing tool usage.")
-                    current_user_message = "テキストを直接返してはいけません。必ず speak ツールを使って話してください。情報が必要な場合はツールで検索してください。"
-                elif not has_retrieved and ("天気" in user_input or "weather" in user_input.lower()):
-                    logger.warning(f"Attempt {attempt + 1}: Retrieval skipped for weather request. Nudging...")
-                    current_user_message = "天気を検索してください。勝手に予想せず、必ず get_weather ツールを使用してください。"
+                # 再指示（Retry）ロジック：ツール使用状況に基づき誘導
+                if found_raw_text and not has_retrieved:
+                    logger.warning(f"Attempt {attempt + 1}: Unstructured text output detected. Retrying...")
+                    current_user_message = self.retry_templates.get("retry_no_tool", "テキストを直接返さず、必ず speak ツールを使って話してください。")
                 else:
-                    logger.warning(f"Attempt {attempt + 1}: Final response (speak) missing. Nudging...")
-                    current_user_message = "結果をユーザーに話してください。必ず speak ツールを使用してターンを完了させてください。"
+                    logger.warning(f"Attempt {attempt + 1}: turn incomplete (speak tool missing). Retrying...")
+                    current_user_message = self.retry_templates.get("retry_final_response", "最後に speak ツールを使用してターンを完了させてください。")
 
             logger.info(f"Turn completed. Spoken: {has_spoken}, Retrieved: {has_retrieved}")
 
         except Exception as e:
             logger.error(f"Error in ADK run: {e}", exc_info=True)
 
+    # --- セッション管理 ---
+
     async def _ensure_session(self):
-        """Helper to ensure the default session exists."""
+        """セッションが存在することを確認し、なければ作成します。"""
         session = await self.runner.session_service.get_session(
             app_name=self.runner.app_name, 
             user_id="yt_user", 
@@ -141,15 +152,17 @@ class SaintGraph:
                 session_id="yt_session"
             )
 
+    # --- ツール呼び出しユーティリティ ---
+
     async def call_tool(self, name: str, arguments: dict) -> str:
         """
-        Utility to call an MCP tool directly (e.g., for polling comments).
-        Uses a cache to avoid repeated tool discovery.
+        MCPツールを直接呼び出します（コメントのポーリングなどに使用）。
+        内部的にツールオブジェクトをキャッシュして再利用します。
         """
         if not hasattr(self, "_tool_cache"):
             self._tool_cache = {}
 
-        # 1. Check cache
+        # キャッシュの確認
         if name in self._tool_cache:
             try:
                 res = await self._tool_cache[name].run_async(args=arguments, tool_context=None)
@@ -158,8 +171,7 @@ class SaintGraph:
                 logger.warning(f"Cached tool {name} call failed, retrying discovery: {e}")
                 del self._tool_cache[name]
 
-        # 2. Discover and call
-        # Retry discovery a few times if not found (SSE connection might be warming up)
+        # ツールの探索と実行
         for attempt in range(5):
             for toolset in self.toolsets:
                 try:
@@ -173,14 +185,13 @@ class SaintGraph:
                     logger.debug(f"Toolset get_tools failed on attempt {attempt}: {e}")
             
             if attempt < 4:
-                await asyncio.sleep(1) # Small wait before retry
+                await asyncio.sleep(1)
         
         raise Exception(f"Tool {name} not found in any toolset after retries.")
 
     def _extract_text(self, res: Any) -> str:
-        """Helper to extract text from tool result."""
+        """ツール実行結果からテキストコンテンツを抽出します。"""
         extracted_text = None
-        # content attribute or dict key
         content = getattr(res, 'content', None)
         if content is None and isinstance(res, dict):
             content = res.get('content')
@@ -201,5 +212,3 @@ class SaintGraph:
         if extracted_text is not None:
             return extracted_text
         return str(res)
-
-

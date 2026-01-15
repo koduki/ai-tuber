@@ -1,5 +1,5 @@
 import pytest
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch, MagicMock, AsyncMock
 import json
 from body.weather.tools import get_weather
 
@@ -28,47 +28,59 @@ async def test_get_weather_success():
         }
     }
 
-    # Setup the mock for urlopen
-    with patch('urllib.request.urlopen') as mock_urlopen:
-        # First call for Geocoding
+    # Setup the mock for httpx.AsyncClient
+    with patch('httpx.AsyncClient') as mock_client_cls:
+        mock_client = mock_client_cls.return_value
+        mock_client.__aenter__.return_value = mock_client
+        mock_client.__aexit__.return_value = None
+
+        # Setup mock responses
         mock_res_geo = MagicMock()
-        mock_res_geo.read.return_value = json.dumps(geo_response).encode('utf-8')
-        mock_res_geo.__enter__.return_value = mock_res_geo
+        mock_res_geo.json.return_value = geo_response
         
-        # Second call for Weather
         mock_res_weather = MagicMock()
-        mock_res_weather.read.return_value = json.dumps(weather_response).encode('utf-8')
-        mock_res_weather.__enter__.return_value = mock_res_weather
+        mock_res_weather.json.return_value = weather_response
         
-        mock_urlopen.side_effect = [mock_res_geo, mock_res_weather]
+        # Async mock for get
+        mock_client.get = AsyncMock(side_effect=[mock_res_geo, mock_res_weather])
 
         # Call the tool
         result = await get_weather("Tokyo")
         
         assert "Tokyo" in result
-        assert "Clear sky" in result
+        assert "晴天" in result  # 'Clear sky' in Japanese
         assert "15.0" in result
-        assert "Max 18.0" in result
+        assert "最高 18.0" in result  # 'Max' in Japanese
 
 @pytest.mark.asyncio
 async def test_get_weather_not_found():
     # Mock Geocoding Response (no results)
     geo_response = {"results": []}
     
-    with patch('urllib.request.urlopen') as mock_urlopen:
-        mock_res = MagicMock()
-        mock_res.read.return_value = json.dumps(geo_response).encode('utf-8')
-        mock_res.__enter__.return_value = mock_res
-        mock_urlopen.return_value = mock_res
+    with patch('httpx.AsyncClient') as mock_client_cls:
+        mock_client = mock_client_cls.return_value
+        mock_client.__aenter__.return_value = mock_client
+        mock_client.__aexit__.return_value = None
+        
+        mock_res_geo = MagicMock()
+        mock_res_geo.json.return_value = geo_response
+        
+        # Async mock
+        mock_client.get = AsyncMock(return_value=mock_res_geo)
 
         result = await get_weather("UnknownCity")
-        assert "not found" in result
+        assert "見つかりませんでした" in result  # 'not found' in Japanese
 
 @pytest.mark.asyncio
 async def test_get_weather_error():
-    with patch('urllib.request.urlopen') as mock_urlopen:
-        mock_urlopen.side_effect = Exception("Network Error")
+    with patch('httpx.AsyncClient') as mock_client_cls:
+        mock_client = mock_client_cls.return_value
+        mock_client.__aenter__.return_value = mock_client
+        mock_client.__aexit__.return_value = None
+        
+        # Async mock raising exception
+        mock_client.get = AsyncMock(side_effect=Exception("Network Error"))
 
         result = await get_weather("Tokyo")
-        assert "Failed to get weather" in result
+        assert "失敗" in result  # 'Failed' in Japanese
         assert "Network Error" in result

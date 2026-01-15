@@ -1,67 +1,90 @@
-# SaintGraph Architecture Specification
+---
+description: AI Newscaster アプリケーション実装仕様書
+---
 
-## 概要
-SaintGraphは、AI Tuberの「脳」となる中核モジュールです。
-Google ADK (Agent Development Kit) を活用し、「Mind（人格）」と「Body（肉体/外部ツール）」を統合して、対話ループを効率的に実行します。
-`src/saint_graph/saint_graph.py` に実装されています。
+# アプリケーション実装仕様書: Saint Graph AI Newscaster
 
-## Core Components
+## 1. 概要
+**Saint Graph AI Newscaster** は、LLM (Gemini) によって駆動される、キャラクター主導の自動配信システムです。Markdown ファイルからニュース原稿を読み込み、ペルソナに基づいた解説を加え、CLI を通じて視聴者と交流します。システムは Docker を使用してコンテナ化されており、Google Agent Development Kit (ADK) を活用しています。
 
-### 1. SaintGraph (`saint_graph.py`)
-Google ADK を用いた対話制御のメインクラス。
+## 2. アーキテクチャ
+システムは主に 3 つの Docker サービスで構成されています。
+- **`saint-graph`**: コアロジックサービス。
+  - `data/news/news_script.md` からニュースをロードします。
+  - AI ペルソナ（「紅月れん」）と対話フローを管理します。
+  - MCP サーバー（Weather, User Comments）に接続します。
+- **`body-cli`**: AI の発話を出力し、ユーザーコメントを受け付ける CLI ベースのインターフェース。
+- **`body-weather`**: MCP を通じて天気データを提供するモックサーバー。
 
-*   **Responsibilities:**
-    *   **Agent Management:** `google.adk.Agent` を使用した人格（Mind）とツール（Body）の統合。
-    *   **Toolset Integration:** `McpToolset` を介した複数のMCPサーバーとの接続管理。
-    *   **Turn Processing:** `InMemoryRunner` を使用した自律的な対話ループ（Inner Loop）の実行。
+## 3. 主要コンポーネント
 
-*   **Logic: Initialization**
-    1.  **MCP Toolsets:** 設定された `MCP_URLS` に対して `SseConnectionParams` を生成し、`McpToolset` を初期化します。
-    2.  **Agent:** `google.adk.Agent` を構築。モデル（Gemini）、システム指示（Mind）、およびツールセットを紐付けます。
-    3.  **Runner:** `InMemoryRunner` を初期化し、セッション状態を管理します。
+### 3.1 News Service (`src/saint_graph/news_service.py`)
+- **機能**: `news_script.md` を解析して `NewsItem` オブジェクトに変換します。
+- **フォーマット**: `## Title` ヘッダーを持つ Markdown をサポート。
+- **ロジック**:
+  - `load_news()`: ファイルを読み込み、`##` で分割し、タイトルと本文を抽出します。
+  - `get_next_item()`: 次の未読ニュース項目を返します。
+  - `has_next()`: 未読の項目が存在するか確認します。
+- **ロギング**: 標準の `logging` モジュールを使用し、デバッグ情報とエラーを適切なログレベルで記録します。
 
-*   **Logic: Turn Processing (`process_turn`)**
-    *   `runner.run_async(...)` を呼び出して非同期にイベントを処理します。
-    *   **Logical Control (Nudge Logic):** LLMが自律的にツール（特に `speak`）を呼び出さない場合や、情報を検索せずに勝手に予想して回答しようとする場合に、システム側から自動的に「催促（Nudge）」メッセージを送信する制御ロジックを実装しています。
-        *   **Retry Mechanism:** 最大3回まで、不足しているアクション（情報検索、発話など）を特定して再試行を促します。
-        *   **Context Management:** 同一ターン内での履歴管理を行い、LLMが自身の過去の振る舞いを踏まえて修正できるように制御します。
-    *   **Robust Event Detection:** 
-        *   **Primary Approach:** ADK `Event` モデルの属性（`event.content.parts[].function_call.name`）を直接チェックして、ツール呼び出し（`speak`, `get_weather` 等）を検出します。
-        *   **Fallback Mechanism:** ADK の内部構造が変更された場合に備え、イベントの文字列表現からツール名をパターンマッチングで検出するフォールバック機構を実装しています。
-        *   **Null Safety:** `event.content` や `event.content.parts` が `None` の場合を適切にハンドリングし、`TypeError` を回避します。
-        *   予期せぬ生テキスト出力（Forbidden Raw Text）を検知し、ツール使用を強制します。
+### 3.2 Main Application Loop (`src/saint_graph/main.py`)
+- **初期化**:
+  - `PromptLoader` を使用して、キャラクター固有のペルソナとテンプレートをロードします。
+  - グローバルな指示事項 (`src/saint_graph/system_prompts/core_instructions.md`) をロードします。
+  - MCP ツールと Retry Instructions を使用して `SaintGraph` を初期化します。
+  - `NewsService` 経由でニュースをロードします（パスは `NEWS_DIR` 環境変数で設定可能）。
+- **プロンプト読み込み (`src/saint_graph/prompt_loader.py`)**:
+  - **`PromptLoader`**: システム指示と、キャラクターの `system_prompts` ディレクトリにある Markdown テンプレートの読み込みを一元管理します。
+  - **実装**: `pathlib.Path` を使用して動的にパスを解決し、環境に依存しない移植性の高い実装を実現しています。
+- **設定可能なパラメータ (`src/saint_graph/config.py`)**:
+  - `NEWS_DIR`: ニュース原稿ディレクトリ（デフォルト: `/app/data/news`）
+  - `MAX_WAIT_CYCLES`: 沈黙タイムアウト秒数（デフォルト: `20`）
+  - `MCP_URL`, `WEATHER_MCP_URL`: MCP サーバー接続先
+- **システムプロンプト**:
+  - **グローバル (`src/saint_graph/system_prompts/`)**:
+    - `core_instructions.md`: 基本的なシステム指示とグローバルルール。
+  - **キャラクター固有 (`src/mind/ren/system_prompts/`)**:
+    - `intro.md`: Signature Greetings を使用した最初の挨拶。
+    - `news_reading.md`: ニュース読み上げの指示（全文 + 解説）。
+    - `news_finished.md`: ニュース終了後にフィードバックを求める指示。
+    - `closing.md`: 配信終了の挨拶の指示。
+    - `retry_*.md`: エラーハンドリング（ツール呼び出しの欠落など）のための再指示。
+- **ループロジック**:
+  1.  **コメントのポーリング**: `_check_comments()` 経由で `body-cli` からのユーザー入力を確認します。
+  2.  **ニュースの読み上げ**: コメントがない場合、`_run_newscaster_loop()` 経由で次のニュース項目を読み上げます。
+  3.  **終了シーケンス**: 沈黙タイムアウト（`MAX_WAIT_CYCLES` で設定、デフォルト20秒）の後、終了シーケンスを開始します。
 
-*   **Logic: Direct Tool Call (`call_tool`)**
-    *   ポーリング（コメント取得など）のために、LLMの推論を介さずツールを直接実行するユーティリティ。
-    *   **Tool Discovery & Caching:** 接続されているすべてのツールをキャッシュし、2回目以降の検索を高速化します。
-    *   **Connection Resilience:** SSE接続のウォームアップ時間を考慮し、ツールが見つからない場合に最大5回（5秒間）の再試行を行います。
-    *   **Error Handling:** ツール未発見エラーを複数のパターン（"Tool ... not found", "not found in any toolset"）で検出します。ただし、この文字列ベースの判定は脆弱であり、将来的にADKが特定の例外型を提供した場合は置き換えるべきです（コード内にTODOコメントあり）。
-    *   **Result Handling:** MCPツールの実行結果（`CallToolResult`オブジェクトまたは辞書）から、テキストコンテンツを堅牢に抽出して文字列として返します。
+### 3.3 Saint Graph Agent (`src/saint_graph/saint_graph.py`)
+- **ADK 統合**: `google.adk.Agent` をラップ。
+- **ターン処理**: `process_turn(user_input, context)`
+  - プロンプトにコンテキストを注入し、AI の振る舞いをガイドします。
+  - **内部ヘルパー**:
+    - `_is_tool_call(event, tool_name)`: ADK イベントストリーム内の特定のツール呼び出しを識別します。
+    - `_detect_raw_text(event)`: エージェントがツール呼び出しの代わりに生テキストを出力したかどうかを検出します。
+  - **再指示 (Retry Instruction) ロジック**:
+    - `speak` ツールを使用せずに生テキストを出力した場合、またはユーザーへの最終回答なしにターンが終了した場合、AI に再指示を行います。
 
-### 2. Mind (`src/mind/`)
-キャラクターの人格定義。
-*   ファイルベース (`persona.md`) で管理。
-*   `load_persona(name)` により動的に読み込まれ、`src/saint_graph/core_instructions.md`（共通ルール）と結合して、ADK Agentの `instruction` として注入される。
+### 3.4 ペルソナ (`src/mind/ren/persona.md`)
+- **キャラクター**: 紅月れん（わらわ/のじゃロリ系）。
+- **口調**: 「わらわ」「のじゃ」「ぞい」の一貫した使用。
+- **指示事項**:
+  - **ニュース**: 本文をそのまま読み上げ、その後に個人的な意見を加える。
+  - **交流**: キャラクターを維持してコメントに反応し、視聴者とのエンゲージメントを優先する。
 
-### 3. Application Flow (`main.py`)
-1.  **Initialize:** `SaintGraph` インスタンスの作成。複数のMCPサーバへの接続が開始されます。
-2.  **Poll Loop:**
-    *   `call_tool("sys_get_comments", ...)` を定期的なインターバル（`config.POLL_INTERVAL`、デフォルト1.0秒）で呼び出し。
-    *   新規コメントを検知した場合、`SaintGraph.process_turn` を起動して対話を開始。
+## 4. 実装の詳細
 
-## Technical Stack
-*   **Language:** Python 3.11+
-*   **Agent Framework:** Google ADK (Agent Development Kit) v1.22.0+
-*   **LLM:** Google Gemini
-*   **Concurrency:** `asyncio` base
+### Docker 構成
+- **ビルドコンテキスト**: `data/news` が利用可能であることを保証するため、`/app` ディレクトリ全体をコピーします。
+- **ボリューム**: ビルド時の整合性を優先するため、`data` のボリュームマウントは現在無効化されています。
+- **環境変数**: `PYTHONPATH=/app`, `GOOGLE_API_KEY` (必須)。
 
-## Technical Implementation Notes
-*   **ADK Signature Requirement:** `Runner.run_async` は位置引数を1つ (`self`) のみ受け取り、その他 (`new_message`, `user_id`, `session_id`) は**すべてキーワード専用引数**として渡す必要があります。これを怠ると `TypeError` が発生します。
-*   **Context Management:** `run_async` を複数回呼び出す場合、セッション状態を維持するために `user_id` と `session_id` を固定して使用します。
-*   **Telemetry:** `ADK_TELEMETRY=true` の場合、OpenTelemetry (`ConsoleSpanExporter`) により詳細な実行トレースがコンソールに出力されます。これには Nudge ロジックの発動状況なども含まれます。
-*   **Robustness:** ポーリング（`call_tool`）においては、接続確立までの遅延を許容するためのリトライ機構が必須です。
+### 主な特徴
+- **堅牢なニュース読み上げ**: タイトルだけでなく、本文全文が読み上げられることを保証します。
+- **動的な交流**: 準備されたスクリプトよりもユーザーコメントを優先します。
+- **スマートタイムアウト**: 終了フェーズ中にユーザーが交流した場合、セッション時間を動的に延長します。
+- **キャラクターの一貫性**: システムプロンプトと Retry Instruction ロジックによって強制されます。
 
-## Robustness Considerations
-*   **Event Type Detection:** イベントオブジェクトからのツール呼び出し検出は、ADK `Event` モデルの公式属性を優先的に使用し、文字列パースはフォールバックとしてのみ使用します。これにより、ライブラリの将来的な変更に対する耐性が向上します。
-*   **Error Handling:** 例外メッセージの文字列マッチングは脆弱であるため、コード内に明示的なコメント（`NOTE:`, `TODO:`）を配置し、将来のメンテナンス性を確保しています。
-*   **Null Safety:** イベント処理において、`None` チェックを適切に実装することで、予期しない `NoneType` エラーを防止しています。
+## 5. 使い方
+1.  **起動**: `docker compose up --build`
+2.  **交流**: `docker attach app-body-cli-1` を使用して、出力の確認とコメントの入力を行います。
+3.  **ニュースの修正**: `data/news/news_script.md` を編集して、リビルド/再起動します。
