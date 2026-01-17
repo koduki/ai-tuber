@@ -1,0 +1,9 @@
+fastapi
+uvicorn
+mcp
+requests
+httpx
+obs-websocket-py
+google-api-python-client
+google-auth-oauthlib
+google-auth-httplib2

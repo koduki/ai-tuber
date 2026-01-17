@@ -1,3 +1,6 @@
+volumes:
+  audio_share:
+
 services:
   # --- Body CLI (MCP Server) ---
   body-cli:
@@ -22,15 +25,15 @@ services:
       context: .
       dockerfile: src/saint_graph/Dockerfile
     environment:
-      - RUN_MODE=cli
-      - MCP_URL=http://body-cli:8000/sse
+      - RUN_MODE=desktop
+      - MCP_URL=http://body-desktop:8000/sse
       - WEATHER_MCP_URL=http://body-weather:8001/sse
       - GOOGLE_API_KEY=${GOOGLE_API_KEY}
       - PYTHONPATH=/app
       - ADK_TELEMETRY=false
-      - NO_PROXY=body-cli,body-weather,localhost,127.0.0.1
+      - NO_PROXY=body-desktop,body-weather,localhost,127.0.0.1
     depends_on:
-      body-cli:
+      body-desktop:
         condition: service_healthy
       body-weather:
         condition: service_healthy
@@ -52,3 +55,65 @@ services:
       interval: 5s
       timeout: 2s
       retries: 5
+
+  # --- Body Desktop (MCP Server for Streaming) ---
+  body-desktop:
+    build:
+      context: .
+      dockerfile: src/body/desktop/Dockerfile
+    ports:
+      - "8002:8000"
+    volumes:
+      - audio_share:/tmp/audio
+    environment:
+      - PORT=8000
+      - VOICEVOX_HOST=voicevox
+      - VOICEVOX_PORT=50021
+      - OBS_HOST=obs-studio
+      - OBS_PORT=4455
+      - OBS_PASSWORD=${OBS_PASSWORD:-}
+      - YOUTUBE_API_KEY=${YOUTUBE_API_KEY:-}
+      - YOUTUBE_LIVE_CHAT_ID=${YOUTUBE_LIVE_CHAT_ID:-}
+      - YOUTUBE_POLLING_INTERVAL=5
+    depends_on:
+      voicevox:
+        condition: service_healthy
+      obs-studio:
+        condition: service_started
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:8000/health" ]
+      interval: 5s
+      timeout: 2s
+      retries: 5
+
+  # --- VoiceVox Engine (MCP Server) ---
+  voicevox:
+    image: voicevox/voicevox_engine:nvidia-ubuntu20.04-latest
+    ports:
+      - "50021:50021"
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    healthcheck:
+      test: [ "CMD", "wget", "--no-verbose", "--tries=1", "--output-document=/dev/null", "http://localhost:50021/version" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # --- OBS Studio (Streaming/Broadcasting) ---
+  obs-studio:
+    build:
+      context: .
+      dockerfile: docker/obs/Dockerfile
+    ports:
+      - "8080:8080"  # noVNC web interface
+      - "4455:4455"  # OBS WebSocket
+    volumes:
+      - audio_share:/tmp/audio
+      - ./data/obs_assets:/app/assets:ro
+    environment:
+      - DISPLAY=:99
