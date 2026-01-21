@@ -24,13 +24,22 @@ RUN apt-get update && apt-get install -y \
     wget \
     && rm -rf /var/lib/apt/lists/*
 
-# Create directories and pre-configure OBS WebSocket
-RUN mkdir -p /var/run/supervisor /var/log/supervisor /root/.config/obs-studio/plugin_config/obs-websocket \
+# Create directories and pre-configure OBS
+RUN mkdir -p /var/run/supervisor /var/log/supervisor \
+    /root/.config/obs-studio/plugin_config/obs-websocket \
+    /root/.config/obs-studio/basic/profiles/Untitled \
+    /root/.config/obs-studio/basic/scenes \
     && echo '{"address": "0.0.0.0", "port": 4455, "enabled": true, "authentication_enabled": false, "server_enabled": true, "server_port": 4455, "auth_required": false, "first_load": false}' > /root/.config/obs-studio/plugin_config/obs-websocket/config.json
 
 # Copy configuration files
-COPY docker/obs/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
-COPY docker/obs/apps /root/.fluxbox/apps
+COPY src/body/obs/config/fluxbox/init /root/.fluxbox/init
+COPY src/body/obs/config/global.ini /root/.config/obs-studio/global.ini
+COPY src/body/obs/config/basic/profiles/Untitled/basic.ini /root/.config/obs-studio/basic/profiles/Untitled/basic.ini
+# COPY src/body/obs/config/basic/scenes/Untitled.json /root/.config/obs-studio/basic/scenes/Untitled.json
+COPY src/body/obs/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
+COPY src/body/obs/apps /root/.fluxbox/apps
+COPY src/body/obs/start_obs.sh /usr/local/bin/start_obs.sh
+RUN chmod +x /usr/local/bin/start_obs.sh
 
 # Expose ports
 # 8080: noVNC web interface

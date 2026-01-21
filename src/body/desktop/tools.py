@@ -21,8 +21,8 @@ async def speak(text: str, style: str = "normal") -> str:
         # 音声を生成して共有ボリュームに保存
         file_path = await voice.generate_and_save(text, style)
         
-        # OBS経由で音声を再生 (オプション: メディアソースがある場合)
-        # await obs.refresh_media_source("audio_source", file_path)
+        # OBS経由で音声を再生
+        await obs.refresh_media_source("audio_source", file_path)
         
         logger.info(f"[speak] '{text}' (style: {style})")
         return f"発話完了: {text[:20]}..."

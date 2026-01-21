@@ -21,7 +21,10 @@ OBS_PASSWORD = os.getenv("OBS_PASSWORD", "")
 EMOTION_MAP = {
     "neutral": "avatar_neutral",
     "happy": "avatar_happy",
+    "joyful": "avatar_happy",
+    "fun": "avatar_happy",
     "sad": "avatar_sad",
+    "sorrow": "avatar_sad",
     "angry": "avatar_angry",
 }
 
