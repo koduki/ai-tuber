@@ -140,7 +140,7 @@ pytest tests/e2e/ -v -s
 
 **対処法**:
 1. VNC (`http://localhost:8080/vnc.html`) でOBSを確認
-2. `audio_source` メディアソースが存在し、`/tmp/audio/` を監視していることを確認
+2. `voice` メディアソースが存在し、`/app/shared/audio/` を監視していることを確認
 
 詳細は各仕様書のトラブルシューティングセクションを参照してください。
 

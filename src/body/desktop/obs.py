@@ -23,8 +23,8 @@ EMOTION_MAP = {
     "happy": "joyful",
     "joyful": "joyful",
     "fun": "fun",
-    "sad": "normal",  # main branch doesn't have sad, use normal
-    "sorrow": "normal",
+    "sad": "sad",
+    "sorrow": "sad",
     "angry": "angry",
 }
 
@@ -104,13 +104,25 @@ async def set_source_visibility(source_name: str, visible: bool, scene_name: Opt
             current_scene = ws_client.call(obs_requests.GetCurrentProgramScene())
             scene_name = current_scene.getSceneName()
         
-        # ソースの表示/非表示を設定
+        # アイテムリストを取得してIDを探す (OBS WebSocket v5)
+        scene_items = ws_client.call(obs_requests.GetSceneItemList(sceneName=scene_name))
+        scene_item_id = None
+        for item in scene_items.getSceneItems():
+            if item["sourceName"] == source_name:
+                scene_item_id = item["sceneItemId"]
+                break
+        
+        if scene_item_id is None:
+            logger.warning(f"Source '{source_name}' not found in scene '{scene_name}'")
+            return False
+            
+        # シーンアイテムの表示/非表示を設定
         ws_client.call(obs_requests.SetSceneItemEnabled(
             sceneName=scene_name,
-            sceneItemId=source_name,
+            sceneItemId=scene_item_id,
             sceneItemEnabled=visible
         ))
-        logger.info(f"Set source '{source_name}' visibility to {visible}")
+        logger.info(f"Set source '{source_name}' (ID: {scene_item_id}) visibility to {visible}")
         return True
     except Exception as e:
         logger.error(f"Error setting source visibility: {e}")

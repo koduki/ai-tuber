@@ -29,13 +29,14 @@ data/mind/ren/
 OBSで以下のソースを設定してください：
 
 ### 画像ソース（表情）
-- `avatar_neutral` → `/app/assets/ai_normal.png`
-- `avatar_happy` → `/app/assets/ai_joyful.png`
-- `avatar_sad` → `/app/assets/ai_sad.png`
-- `avatar_angry` → `/app/assets/ai_angry.png`
+- `normal` → `/app/assets/ai_normal.png`
+- `joyful` → `/app/assets/ai_joyful.png`
+- `fun` → `/app/assets/ai_fun.png`
+- `sad` → `/app/assets/ai_sad.png`
+- `angry` → `/app/assets/ai_angry.png`
 
 ### メディアソース（音声）
-- `audio_source` → `/tmp/audio/speech.wav`
+- `voice` → `/app/shared/audio/speech_0000.wav`
 
 ## 使用方法
 

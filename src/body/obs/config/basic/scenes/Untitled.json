@@ -242,6 +242,31 @@
             "mixers": 0,
             "monitoring_type": 0,
             "muted": false,
+            "name": "sad",
+            "prev_ver": 486539266,
+            "private_settings": {},
+            "push-to-mute": false,
+            "push-to-mute-delay": 0,
+            "push-to-talk": false,
+            "push-to-talk-delay": 0,
+            "settings": {
+                "file": "/app/assets/ai_sad.png"
+            },
+            "sync": 0,
+            "versioned_id": "image_source",
+            "volume": 1.0
+        },
+        {
+            "balance": 0.5,
+            "deinterlace_field_order": 0,
+            "deinterlace_mode": 0,
+            "enabled": true,
+            "flags": 0,
+            "hotkeys": {},
+            "id": "image_source",
+            "mixers": 0,
+            "monitoring_type": 0,
+            "muted": false,
             "name": "LLM_gpt4",
             "prev_ver": 486539266,
             "private_settings": {},
@@ -323,6 +348,7 @@
                 "libobs.hide_scene_item.fun": [],
                 "libobs.hide_scene_item.joyful": [],
                 "libobs.hide_scene_item.normal": [],
+                "libobs.hide_scene_item.sad": [],
                 "libobs.show_scene_item.BGM": [],
                 "libobs.show_scene_item.voice": [],
                 "libobs.show_scene_item.LLM_gemini": [],
@@ -346,7 +372,7 @@
             "push-to-talk-delay": 0,
             "settings": {
                 "custom_size": false,
-                "id_counter": 10,
+                "id_counter": 11,
                 "items": [
                     {
                         "align": 5,
@@ -482,6 +508,43 @@
                         "name": "joyful",
                         "pos": {
                             "x": -72.0,
+                            "y": 0.0
+                        },
+                        "private_settings": {},
+                        "rot": 0.0,
+                        "scale": {
+                            "x": 0.8330078125,
+                            "y": 0.8333333134651184
+                        },
+                        "scale_filter": "disable",
+                        "show_transition": {
+                            "duration": 0
+                        },
+                        "visible": false
+                    },
+                    {
+                        "align": 5,
+                        "blend_method": "default",
+                        "blend_type": "normal",
+                        "bounds": {
+                            "x": 0.0,
+                            "y": 0.0
+                        },
+                        "bounds_align": 0,
+                        "bounds_type": 0,
+                        "crop_bottom": 0,
+                        "crop_left": 0,
+                        "crop_right": 0,
+                        "crop_top": 0,
+                        "group_item_backup": false,
+                        "hide_transition": {
+                            "duration": 0
+                        },
+                        "id": 11,
+                        "locked": false,
+                        "name": "sad",
+                        "pos": {
+                            "x": -70.0,
                             "y": 0.0
                         },
                         "private_settings": {},

@@ -291,8 +291,8 @@ EMOTION_MAP = {
     "happy": "joyful",
     "joyful": "joyful",
     "fun": "fun",
-    "sad": "normal",
-    "sorrow": "normal",
+    "sad": "sad",
+    "sorrow": "sad",
     "angry": "angry",
 }
 ```

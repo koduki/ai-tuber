@@ -309,6 +309,46 @@ logging.basicConfig(
 - Docker内部ネットワークのみで通信
 - 外部公開はMCPエンドポイント（8002）のみ
 
+## 動作確認・テスト方法
+
+開発中や環境構築後に、各機能が正しく動作するかを以下のコマンドでテストできます。
+
+### 1. 音声合成と再生のテスト (`speak`)
+
+`body-desktop` コンテナ内で直接 `speak` ツールを呼び出し、音声が生成され、OBSで再生されるか確認します。
+
+```bash
+docker compose exec -e PYTHONPATH=/app body-desktop python3 -c "
+import asyncio
+from src.body.desktop.tools import speak
+asyncio.run(speak('これはテストメッセージです。正常に聞こえますか？', 'normal'))
+"
+```
+
+*   **期待結果**:
+    *   `body-desktop` のログに `Saved audio to /app/shared/audio/...` と出力される。
+    *   VNC画面上の OBS ミキサーの `voice` ソースが反応する。
+    *   （音声出力環境がある場合）音声が再生される。
+
+### 2. 表情変更のテスト (`change_emotion`)
+
+アバターの表情（イラスト）が正しく切り替わるか確認します。
+
+```bash
+docker compose exec -e PYTHONPATH=/app body-desktop python3 -c "
+import asyncio
+from src.body.desktop.tools import change_emotion
+asyncio.run(change_emotion('happy'))
+"
+```
+
+*   **期待結果**:
+    *   `body-desktop` のログに `Changed emotion to: happy (source: joyful)` と出力される。
+    *   VNC画面上の OBS プレビューでイラストが喜びの表情に切り替わる。
+    *   その他の表情ソースの表示（👁マーク）がオフになり、指定したソースのみがオンになる。
+
+*   **テスト可能な感情**: `neutral`, `happy`, `fun`, `angry`, `sad`
+
 ---
 
 ## トラブルシューティング
