@@ -114,6 +114,5 @@ services:
       - "4455:4455"  # OBS WebSocket
     volumes:
       - audio_share:/tmp/audio
-      - ./data/mind/ren/assets:/app/assets:ro
     environment:
       - DISPLAY=:99

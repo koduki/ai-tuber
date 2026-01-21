@@ -17,15 +17,15 @@ OBS_HOST = os.getenv("OBS_HOST", "obs-studio")
 OBS_PORT = int(os.getenv("OBS_PORT", "4455"))
 OBS_PASSWORD = os.getenv("OBS_PASSWORD", "")
 
-# Emotion to source name mapping
+# Emotion to source name mapping (matching main branch OBS scene collection)
 EMOTION_MAP = {
-    "neutral": "avatar_neutral",
-    "happy": "avatar_happy",
-    "joyful": "avatar_happy",
-    "fun": "avatar_happy",
-    "sad": "avatar_sad",
-    "sorrow": "avatar_sad",
-    "angry": "avatar_angry",
+    "neutral": "normal",
+    "happy": "joyful",
+    "joyful": "joyful",
+    "fun": "fun",
+    "sad": "normal",  # main branch doesn't have sad, use normal
+    "sorrow": "normal",
+    "angry": "angry",
 }
 
 # Global WebSocket client

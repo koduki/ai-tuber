@@ -35,11 +35,14 @@ RUN mkdir -p /var/run/supervisor /var/log/supervisor \
 COPY src/body/obs/config/fluxbox/init /root/.fluxbox/init
 COPY src/body/obs/config/global.ini /root/.config/obs-studio/global.ini
 COPY src/body/obs/config/basic/profiles/Untitled/basic.ini /root/.config/obs-studio/basic/profiles/Untitled/basic.ini
-# COPY src/body/obs/config/basic/scenes/Untitled.json /root/.config/obs-studio/basic/scenes/Untitled.json
+COPY src/body/obs/config/basic/scenes/Untitled.json /root/.config/obs-studio/basic/scenes/Untitled.json
 COPY src/body/obs/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 COPY src/body/obs/apps /root/.fluxbox/apps
 COPY src/body/obs/start_obs.sh /usr/local/bin/start_obs.sh
 RUN chmod +x /usr/local/bin/start_obs.sh
+
+# Copy character assets
+COPY data/mind/ren/assets /app/assets
 
 # Expose ports
 # 8080: noVNC web interface
