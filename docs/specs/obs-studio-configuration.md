@@ -138,13 +138,13 @@ AuthRequired=false  # 認証無効（内部ネットワークのみ）
 | `joyful` | Image | `/app/assets/ai_joyful.png` | 👻 非表示 | 喜び表情 |
 | `fun` | Image | `/app/assets/ai_fun.png` | 👻 非表示 | 楽しい表情 |
 | `angry` | Image | `/app/assets/ai_angry.png` | 👻 非表示 | 怒り表情 |
-| `BGM` | Media | `/app/assets/bgm.mp3` | 👁️ 表示 | BGM再生 |
-| `Audio Output Capture` | Audio | (Pulseaudio) | 👁️ 表示 | システム音声 |
+| `BGM` | Media | `/app/assets/bgm.mp3` | 👁️ 表示 | BGM再生 (Monitor and Output) |
+| `voice` | Media | `/app/shared/audio/speech_0000.wav` | 👁️ 表示 | AIの音声再生 (Monitor and Output) |
 | `LLM_gpt4` | Image | `/app/assets/gpt4.png` | 👁️ 表示 | LLMインジケーター |
 | `LLM_gpt3` | Image | `/app/assets/gpt3.png` | 👻 非表示 | LLMインジケーター |
 | `LLM_gemini` | Image | `/app/assets/gemini-pro.png` | 👻 非表示 | LLMインジケーター |
 
-**注意**: `audio_source` メディアソースは手動で追加する必要があります。
+**注意**: `voice` メディアソースは `body-desktop` からの自動再生指令（Restart）によって制御されます。
 
 ---
 
@@ -213,11 +213,17 @@ ws.call(obs_requests.SetSceneItemEnabled(
 
 ```python
 ws.call(obs_requests.SetInputSettings(
-    inputName="audio_source",
+    inputName="voice",
     inputSettings={
-        "local_file": "/tmp/audio/speech_1234.wav",
+        "local_file": "/app/shared/audio/speech_1234.wav",
         "restart_on_activate": True
     }
+))
+
+# 再生を強制リスタート (WebSocket v5)
+ws.call(obs_requests.TriggerMediaInputAction(
+    inputName="voice",
+    mediaAction="OBS_WEBSOCKET_MEDIA_INPUT_ACTION_RESTART"
 ))
 ```
 
@@ -243,15 +249,17 @@ http://localhost:8080/vnc.html
 
 ### 手動でのソース追加
 
-#### 音声ソースの追加
+#### 音声ソースの追加 (voice)
 
 1. Sources パネルで「+」をクリック
 2. 「Media Source」を選択
-3. 名前: `audio_source`
+3. 名前: `voice`
 4. 設定:
-   - Local File: `/tmp/audio/speech.wav`
+   - Local File: `/app/shared/audio/speech_0000.wav`
    - Restart playback when source becomes active: ✅ ON
    - Close file when inactive: ✅ ON
+5. オーディオの詳細プロパティ:
+   - 音声モニタリング: 「モニターと出力」に設定
 
 ---
 

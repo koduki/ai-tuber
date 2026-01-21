@@ -12,7 +12,7 @@ VOICEVOX_PORT = int(os.getenv("VOICEVOX_PORT", "50021"))
 VOICEVOX_BASE_URL = f"http://{VOICEVOX_HOST}:{VOICEVOX_PORT}"
 
 # Shared audio directory
-AUDIO_DIR = Path("/tmp/audio")
+AUDIO_DIR = Path("/app/shared/audio")
 AUDIO_DIR.mkdir(parents=True, exist_ok=True)
 
 # Speaker ID mapping (style -> speaker_id)
@@ -70,7 +70,11 @@ async def save_to_shared_volume(audio_data: bytes, filename: str) -> str:
     """
     file_path = AUDIO_DIR / filename
     file_path.write_bytes(audio_data)
-    logger.info(f"Saved audio to {file_path}")
+    if file_path.exists():
+        size = file_path.stat().st_size
+        logger.info(f"Saved audio to {file_path} (size: {size} bytes)")
+    else:
+        logger.error(f"Failed to verify written file: {file_path}")
     return str(file_path)
 
 

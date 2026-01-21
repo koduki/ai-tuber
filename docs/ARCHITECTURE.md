@@ -158,7 +158,7 @@ graph TD
 
 ## 通信フロー
 
-1. **思考→発話**: saint-graph → MCP → body-desktop → VoiceVox API → /tmp/audio → OBS
+1. **思考→発話**: saint-graph → MCP → body-desktop → VoiceVox API → /app/shared/audio → OBS (voiceソース)
 2. **表情変更**: saint-graph → MCP → body-desktop → OBS WebSocket (ソース切り替え)
 3. **コメント取得**: YouTube API ← body-desktop → MCP → saint-graph
 4. **配信監視**: Browser → VNC (8080) → OBS GUI

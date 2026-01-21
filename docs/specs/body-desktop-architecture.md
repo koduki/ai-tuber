@@ -121,8 +121,8 @@ str  # "[speak] '{text}' (style: {style})"
 **処理フロー**:
 1. VoiceVox APIで音声クエリ生成
 2. 音声データを合成
-3. `/tmp/audio/speech_{random}.wav` に保存
-4. OBS WebSocketで `audio_source` をリフレッシュ
+3. `/app/shared/audio/speech_{random}.wav` に保存
+4. OBS WebSocketで `voice` ソースを更新し、再生リスタートを指示
 
 **エラーハンドリング**:
 - VoiceVox接続失敗: ログ出力のみ、エラーを返さない
@@ -186,7 +186,7 @@ str  # JSONフォーマット: "[{'author': 'user1', 'message': 'hello'}]"
 
 ### `audio_share`
 
-**マウントポイント**: `/tmp/audio`  
+**マウントポイント**: `/app/shared/audio`  
 **用途**: 音声ファイルの受け渡し  
 **共有先**: `obs-studio` コンテナ
 
@@ -197,7 +197,7 @@ speech_{random_4digit}.wav
 
 **ライフサイクル**:
 - 生成: `voice.py` の `generate_speech()`
-- 参照: OBS Studio の `audio_source` メディアソース
+- 参照: OBS Studio の `voice` メディアソース
 - 削除: 手動削除が必要（自動クリーンアップなし）
 
 ---
@@ -266,8 +266,9 @@ logging.basicConfig(
 2026-01-21 15:47:03,679 - src.body.desktop.obs - INFO - Connecting to OBS at obs-studio:4455
 2026-01-21 15:47:03,682 - src.body.desktop.obs - INFO - Connected to OBS WebSocket
 2026-01-21 15:47:03,689 - src.body.desktop.obs - INFO - Changed emotion to: joyful (source: joyful)
-2026-01-21 15:47:04,596 - src.body.desktop.voice - INFO - Saved audio to /tmp/audio/speech_4794.wav
-2026-01-21 15:47:04,596 - src.body.desktop.obs - INFO - Refreshed media source 'audio_source'
+2026-01-21 15:47:04,596 - src.body.desktop.voice - INFO - Saved audio to /app/shared/audio/speech_4794.wav
+2026-01-21 15:47:04,596 - src.body.desktop.obs - INFO - Triggered restart for media source 'voice'
+2026-01-21 15:47:04,596 - src.body.desktop.obs - INFO - Refreshed media source 'voice'
 ```
 
 ---
@@ -336,8 +337,9 @@ ERROR - Failed to connect to OBS: [Errno 111] Connection refused
 
 **対処法**:
 1. VNC (`http://localhost:8080/vnc.html`) でOBSを確認
-2. `audio_source` メディアソースが存在するか確認
-3. ソースの設定で `/tmp/audio/` を監視していることを確認
+2. `voice` メディアソースが存在するか確認
+3. ソースの設定で `/app/shared/audio/` を指定していることを確認
+4. オーディオの詳細プロパティで「モニターと出力」が有効か確認
 
 #### 3. YouTube コメント取得失敗
 

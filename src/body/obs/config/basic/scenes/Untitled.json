@@ -67,26 +67,33 @@
             "enabled": true,
             "flags": 0,
             "hotkeys": {
+                "MediaSource.Pause": [],
+                "MediaSource.Play": [],
+                "MediaSource.Restart": [],
+                "MediaSource.Stop": [],
                 "libobs.mute": [],
                 "libobs.push-to-mute": [],
                 "libobs.push-to-talk": [],
                 "libobs.unmute": []
             },
-            "id": "pulse_output_capture",
+            "id": "ffmpeg_source",
             "mixers": 255,
-            "monitoring_type": 0,
+            "monitoring_type": 2,
             "muted": false,
-            "name": "Audio Output Capture (PulseAudio)",
+            "name": "BGM",
             "prev_ver": 486539266,
             "private_settings": {},
             "push-to-mute": false,
             "push-to-mute-delay": 0,
             "push-to-talk": false,
             "push-to-talk-delay": 0,
-            "settings": {},
+            "settings": {
+                "local_file": "/app/assets/bgm.mp3",
+                "looping": true
+            },
             "sync": 0,
-            "versioned_id": "pulse_output_capture",
-            "volume": 1.0
+            "versioned_id": "ffmpeg_source",
+            "volume": 0.3905651271343231
         },
         {
             "balance": 0.5,
@@ -106,9 +113,9 @@
             },
             "id": "ffmpeg_source",
             "mixers": 255,
-            "monitoring_type": 0,
+            "monitoring_type": 2,
             "muted": false,
-            "name": "BGM",
+            "name": "voice",
             "prev_ver": 486539266,
             "private_settings": {},
             "push-to-mute": false,
@@ -116,12 +123,13 @@
             "push-to-talk": false,
             "push-to-talk-delay": 0,
             "settings": {
-                "local_file": "/app/assets/bgm.mp3",
-                "looping": true
+                "close_when_inactive": true,
+                "local_file": "/app/shared/audio/speech_0000.wav",
+                "restart_on_activate": true
             },
             "sync": 0,
             "versioned_id": "ffmpeg_source",
-            "volume": 0.3905651271343231
+            "volume": 1.0
         },
         {
             "balance": 0.5,
@@ -306,8 +314,8 @@
             "flags": 0,
             "hotkeys": {
                 "OBSBasic.SelectScene": [],
-                "libobs.hide_scene_item.Audio Output Capture (PulseAudio)": [],
                 "libobs.hide_scene_item.BGM": [],
+                "libobs.hide_scene_item.voice": [],
                 "libobs.hide_scene_item.LLM_gemini": [],
                 "libobs.hide_scene_item.LLM_gpt3": [],
                 "libobs.hide_scene_item.LLM_gpt4": [],
@@ -315,8 +323,8 @@
                 "libobs.hide_scene_item.fun": [],
                 "libobs.hide_scene_item.joyful": [],
                 "libobs.hide_scene_item.normal": [],
-                "libobs.show_scene_item.Audio Output Capture (PulseAudio)": [],
                 "libobs.show_scene_item.BGM": [],
+                "libobs.show_scene_item.voice": [],
                 "libobs.show_scene_item.LLM_gemini": [],
                 "libobs.show_scene_item.LLM_gpt3": [],
                 "libobs.show_scene_item.LLM_gpt4": [],
@@ -338,7 +346,7 @@
             "push-to-talk-delay": 0,
             "settings": {
                 "custom_size": false,
-                "id_counter": 9,
+                "id_counter": 10,
                 "items": [
                     {
                         "align": 5,
@@ -654,9 +662,9 @@
                         "hide_transition": {
                             "duration": 0
                         },
-                        "id": 9,
+                        "id": 10,
                         "locked": false,
-                        "name": "Audio Output Capture (PulseAudio)",
+                        "name": "voice",
                         "pos": {
                             "x": 0.0,
                             "y": 0.0

@@ -35,14 +35,27 @@ ws_client: Optional[obsws] = None
 async def connect() -> bool:
     """
     OBS WebSocketに接続します。
+    既に関係がある場合は接続状態を確認し、切断されている場合は再接続します。
     
     Returns:
         接続成功の場合True
     """
     global ws_client
     
+    # すでにクライアントが存在する場合
     if ws_client is not None:
-        return True
+        try:
+            # 接続状態をテストするために簡単なリクエストを送る
+            ws_client.call(obs_requests.GetVersion())
+            return True
+        except Exception:
+            # 接続が切れている場合はクリーンアップして再接続へ
+            logger.info("OBS connection lost, attempting to reconnect...")
+            try:
+                ws_client.disconnect()
+            except:
+                pass
+            ws_client = None
     
     try:
         logger.info(f"Connecting to OBS at {OBS_HOST}:{OBS_PORT}")
@@ -51,7 +64,7 @@ async def connect() -> bool:
         logger.info("Connected to OBS WebSocket")
         return True
     except Exception as e:
-        logger.error(f"Failed to connect to OBS: {e}")
+        logger.debug(f"Failed to connect to OBS: {e}")
         ws_client = None
         return False
 
@@ -147,18 +160,59 @@ async def refresh_media_source(source_name: str, file_path: str) -> bool:
     Returns:
         成功の場合True
     """
+    # 接続を確実にする
     if not await connect():
+        logger.error(f"Cannot refresh media source '{source_name}': OBS not connected")
         return False
     
+    # パスが絶対パスであることを確認
+    abs_path = os.path.abspath(file_path)
+    
     try:
-        # メディアソースの設定を更新
+        # 1. メディアソースの設定を更新
         ws_client.call(obs_requests.SetInputSettings(
             inputName=source_name,
-            inputSettings={"local_file": file_path},
+            inputSettings={"local_file": abs_path},
             overlay=True
         ))
-        logger.info(f"Refreshed media source '{source_name}' with file: {file_path}")
+        
+        # 2. ソースを確実に表示状態にする（非表示だと再生されない場合があるため）
+        # シーンアイテムIDではなく名前で指定する場合、SetSceneItemEnabledの代わりに
+        # 他の手段が必要な場合もありますが、まずは再生命令を優先
+        
+        # 3. 再生を最初から開始 (Restart)
+        # OBS WebSocket v5 API: TriggerMediaInputAction
+        try:
+            ws_client.call(obs_requests.TriggerMediaInputAction(
+                inputName=source_name,
+                mediaAction="OBS_WEBSOCKET_MEDIA_INPUT_ACTION_RESTART"
+            ))
+            logger.info(f"Triggered restart for media source '{source_name}'")
+        except Exception as e:
+            logger.warning(f"Failed to trigger media restart (might be v4 protocol): {e}")
+            # v4互換のためのフォールバック (RestartMedia)
+            try:
+                ws_client.call(obs_requests.RestartMedia(sourceName=source_name))
+            except:
+                pass
+
+        logger.info(f"Refreshed media source '{source_name}' with file: {abs_path}")
         return True
     except Exception as e:
-        logger.error(f"Error refreshing media source: {e}")
+        logger.warning(f"Error refreshing media source (first attempt): {e}")
+        
+        # 接続が切れた可能性があるので再接続を試みる
+        await disconnect()
+        if await connect():
+            try:
+                ws_client.call(obs_requests.SetInputSettings(
+                    inputName=source_name,
+                    inputSettings={"local_file": abs_path},
+                    overlay=True
+                ))
+                logger.info(f"Refreshed media source '{source_name}' on second attempt")
+                return True
+            except Exception as e2:
+                logger.error(f"Error refreshing media source (final attempt): {e2}")
+        
         return False

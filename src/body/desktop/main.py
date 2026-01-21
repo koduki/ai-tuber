@@ -64,6 +64,23 @@ if __name__ == "__main__":
     logger.info("Starting YouTube comment polling...")
     start_comment_polling()
     
+    # OBS初期化用のダミーファイル作成
+    try:
+        os.makedirs("/app/shared/audio", exist_ok=True)
+        dummy_file = os.path.join("/app/shared/audio", "speech_0000.wav")
+        if not os.path.exists(dummy_file) or os.path.getsize(dummy_file) == 0:
+            # 最小限の無音WAVヘッダ (1秒, モノラル, 44100Hz, 16bit)
+            # RIFFヘッダ + fmtチャンク + dataチャンク
+            silent_wav = (
+                b'RIFF\x24\x00\x00\x00WAVEfmt \x10\x00\x00\x00\x01\x00\x01\x00'
+                b'\x44\xac\x00\x00\x88\x58\x01\x00\x02\x00\x10\x00data\x00\x00\x00\x00'
+            )
+            with open(dummy_file, "wb") as f:
+                f.write(silent_wav)
+            logger.info(f"Created valid dummy silent WAV: {dummy_file}")
+    except Exception as e:
+        logger.warning(f"Failed to create dummy audio file: {e}")
+    
     # Uvicornでサーバーを起動
     logger.info(f"Starting Body Desktop MCP server on port {port}")
     uvicorn.run(app, host="0.0.0.0", port=port, access_log=False)
