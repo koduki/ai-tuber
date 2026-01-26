@@ -3,6 +3,8 @@ from .config import logger
 
 # アプリケーションのルートパス (src directory)
 APP_ROOT = Path(__file__).resolve().parent.parent
+# データディレクトリ (project root/data)
+DATA_ROOT = APP_ROOT.parent / "data"
 
 
 class PromptLoader:
@@ -15,12 +17,12 @@ class PromptLoader:
         PromptLoaderを初期化します。
         
         Args:
-            character_name: 読み込むキャラクターの名前（Mindディレクトリ配下のフォルダ名）
+            character_name: 読み込むキャラクターの名前（data/mindディレクトリ配下のフォルダ名）
         """
         self.character_name = character_name
         self._saint_graph_prompts_dir = APP_ROOT / "saint_graph" / "system_prompts"
-        self._mind_prompts_dir = APP_ROOT / "mind" / character_name / "system_prompts"
-        self._persona_path = APP_ROOT / "mind" / character_name / "persona.md"
+        self._mind_prompts_dir = DATA_ROOT / "mind" / character_name / "system_prompts"
+        self._persona_path = DATA_ROOT / "mind" / character_name / "persona.md"
 
     def load_system_instruction(self) -> str:
         """

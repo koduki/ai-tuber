@@ -1,0 +1,8 @@
+# Fluxbox apps configuration
+# Makes OBS Studio start maximized on startup
+
+[app] (obs)
+  [Maximized] {yes}
+  [Position] (CENTER) {0 0}
+  [Layer] {2}
+end

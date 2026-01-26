@@ -8,7 +8,7 @@ RUN_MODE = os.getenv("RUN_MODE", "cli")
 if RUN_MODE == "cli":
     MCP_URL = os.getenv("MCP_URL", "http://body-cli:8000/sse")
 else:
-    MCP_URL = os.getenv("MCP_URL", "")
+    MCP_URL = os.getenv("MCP_URL", "http://body-streamer:8000/sse")
 
 WEATHER_MCP_URL = os.getenv("WEATHER_MCP_URL", "")
 MCP_URLS = [url for url in [MCP_URL, WEATHER_MCP_URL] if url]

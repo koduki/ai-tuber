@@ -55,6 +55,13 @@ async def _run_newscaster_loop(saint_graph: SaintGraph, news_service: NewsServic
     finished_news = False
     end_wait_counter = 0
 
+    # 録画開始の試行
+    try:
+        await saint_graph.call_tool("start_obs_recording", {})
+        logger.info("Automatically started OBS recording at loop start.")
+    except Exception as e:
+        logger.warning(f"Could not automatically start recording: {e}")
+
     # 配信開始の挨拶
     await saint_graph.process_turn(templates["intro"], context="Intro")
 
