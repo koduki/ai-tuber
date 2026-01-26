@@ -5,87 +5,58 @@ description: AI Newscaster アプリケーション実装仕様書
 # アプリケーション実装仕様書: Saint Graph AI Newscaster
 
 ## 1. 概要
-**Saint Graph AI Newscaster** は、LLM (Gemini) によって駆動される、キャラクター主導の自動配信システムです。Markdown ファイルからニュース原稿を読み込み、ペルソナに基づいた解説を加え、CLI を通じて視聴者と交流します。システムは Docker を使用してコンテナ化されており、Google Agent Development Kit (ADK) を活用しています。
+**Saint Graph AI Newscaster** は、LLM (Gemini) によって駆動される、キャラクター主導の自動配信システムです。
+Markdown ファイルからニュース原稿を読み込み、ペルソナに基づいた解説を加え、OBS を通じて配信を行います。
 
-## 2. アーキテクチャ
-システムは主に 3 つの Docker サービスで構成されています。
-- **`saint-graph`**: コアロジックサービス。
-  - `data/news/news_script.md` からニュースをロードします。
-  - AI ペルソナ（「紅月れん」）と対話フローを管理します。
-  - MCP サーバー（Weather, User Comments）に接続します。
-- **`body-cli`**: AI の発話を出力し、ユーザーコメントを受け付ける CLI ベースのインターフェース。
-- **`tools-weather`**: MCP を通じて天気データを提供するモックサーバー。
+## 2. アーキテクチャ (Hybrid REST/MCP)
+システムは役割に応じて通信プロトコルを使い分けるハイブリッド構成を採用しています。
+
+- **`saint-graph`**: コアロジック（魂/脳）。
+  - **REST Client**: `body-cli` または `body-streamer` に対して、発話・感情変更・コメント取得・録画制御などの「身体操作」を明示的に要求します。
+  - **MCP Client**: 天気予報などの「外部ツール」を ADK Toolset 経由で探索・実行します。
+  - **Output Parser**: AI の生成テキストから感情タグ `[emotion: type]` を抽出し、身体への指示に変換します。
+
+- **`body-streamer`**: ストリーミング制御（肉体）。
+  - **REST Server**: `saint-graph` からの HTTP リクエストを受け、OBS や VoiceVox を制御します。
+  - **Adapter**: VoiceVox, OBS WebSocket, YouTube Live 等の外部サービスを抽象化します。
+
+- **`tools-weather`**: 外部ツール（環境）。
+  - **MCP Server**: 天気データを提供します。AI が必要に応じて自律的に呼び出します。
 
 ## 3. 主要コンポーネント
 
 ### 3.1 News Service (`src/saint_graph/news_service.py`)
 - **機能**: `news_script.md` を解析して `NewsItem` オブジェクトに変換します。
-- **フォーマット**: `## Title` ヘッダーを持つ Markdown をサポート。
-- **ロジック**:
-  - `load_news()`: ファイルを読み込み、`##` で分割し、タイトルと本文を抽出します。
-  - `get_next_item()`: 次の未読ニュース項目を返します。
-  - `has_next()`: 未読の項目が存在するか確認します。
-- **ロギング**: 標準の `logging` モジュールを使用し、デバッグ情報とエラーを適切なログレベルで記録します。
+- **フォーマット**: `## Title` ヘッダーを持つ Markdown。
 
-### 3.2 Main Application Loop (`src/saint_graph/main.py`)
-- **初期化**:
-  - `PromptLoader` を使用して、キャラクター固有のペルソナとテンプレートをロードします。
-  - グローバルな指示事項 (`src/saint_graph/system_prompts/core_instructions.md`) をロードします。
-  - MCP ツールと Retry Instructions を使用して `SaintGraph` を初期化します。
-  - `NewsService` 経由でニュースをロードします（パスは `NEWS_DIR` 環境変数で設定可能）。
-- **プロンプト読み込み (`src/saint_graph/prompt_loader.py`)**:
-  - **`PromptLoader`**: システム指示と、キャラクターの `system_prompts` ディレクトリにある Markdown テンプレートの読み込みを一元管理します。
-  - **実装**: `pathlib.Path` を使用して動的にパスを解決し、環境に依存しない移植性の高い実装を実現しています。
-- **設定可能なパラメータ (`src/saint_graph/config.py`)**:
-  - `NEWS_DIR`: ニュース原稿ディレクトリ（デフォルト: `/app/data/news`）
-  - `MAX_WAIT_CYCLES`: 沈黙タイムアウト秒数（デフォルト: `20`）
-  - `MCP_URL`, `WEATHER_MCP_URL`: MCP サーバー接続先
-- **システムプロンプト**:
-  - **グローバル (`src/saint_graph/system_prompts/`)**:
-    - `core_instructions.md`: 基本的なシステム指示とグローバルルール。
-  - **キャラクター固有 (`src/mind/ren/system_prompts/`)**:
-    - `intro.md`: Signature Greetings を使用した最初の挨拶。
-    - `news_reading.md`: ニュース読み上げの指示（全文 + 解説）。
-    - `news_finished.md`: ニュース終了後にフィードバックを求める指示。
-    - `closing.md`: 配信終了の挨拶の指示。
-    - `retry_*.md`: エラーハンドリング（ツール呼び出しの欠落など）のための再指示。
-- **ループロジック**:
-  0.  **自動録画の開始**: 配信開始の挨拶を行う前に `start_obs_recording` ツールを自動的に呼び出します。
-  1.  **コメントのポーリング**: `_check_comments()` 経由で `body-cli` からのユーザー入力を確認します。
-  2.  **ニュースの読み上げ**: コメントがない場合、`_run_newscaster_loop()` 経由で次のニュース項目を読み上げます。
-  3.  **終了シーケンス**: 沈黙タイムアウト（`MAX_WAIT_CYCLES` で設定、デフォルト20秒）の後、終了シーケンスを開始します。
+### 3.2 Body Client (`src/saint_graph/body_client.py`)
+- **機能**: Body サービス (CLI/Streamer) への HTTP リクエストをカプセル化します。
+- **メソッド**: `speak()`, `change_emotion()`, `get_comments()`, `start_recording()`, `stop_recording()`。
 
 ### 3.3 Saint Graph Agent (`src/saint_graph/saint_graph.py`)
-- **ADK 統合**: `google.adk.Agent` をラップ。
-- **ターン処理**: `process_turn(user_input, context)`
-  - プロンプトにコンテキストを注入し、AI の振る舞いをガイドします。
-  - **内部ヘルパー**:
-    - `_is_tool_call(event, tool_name)`: ADK イベントストリーム内の特定のツール呼び出しを識別します。
-    - `_detect_raw_text(event)`: エージェントがツール呼び出しの代わりに生テキストを出力したかどうかを検出します。
-  - **再指示 (Retry Instruction) ロジック**:
-    - `speak` ツールを使用せずに生テキストを出力した場合、またはユーザーへの最終回答なしにターンが終了した場合、AI に再指示を行います。
+- **ADK 統合**: `google.adk.Agent` をラップし、MCP ツールセットを統合。
+- **ターン処理 (`process_turn`)**:
+  1. AI にユーザー入力を送り、ストリーミングレスポンスを受け取ります。
+  2. 生成されたテキスト全体から `[emotion: type]` タグを探します。
+  3. タグから感情を判定し（デフォルト: `neutral`）、タグを除去したテキスト（発話内容）を確定させます。
+  4. `BodyClient` を通じて `change_emotion()` と `speak()` を実行します。
 
-### 3.4 ペルソナ (`src/mind/ren/persona.md`)
-- **キャラクター**: 紅月れん（わらわ/のじゃロリ系）。
-- **口調**: 「わらわ」「のじゃ」「ぞい」の一貫した使用。
-- **指示事項**:
-  - **ニュース**: 本文をそのまま読み上げ、その後に個人的な意見を加える。
-  - **交流**: キャラクターを維持してコメントに反応し、視聴者とのエンゲージメントを優先する。
+### 3.4 システムプロンプト (`src/saint_graph/system_prompts/`)
+- **`core_instructions.md`**:
+  - レスポンスの先頭に必ず `[emotion: <type>]` を付けるよう指示。
+  - 天気などの外部情報取得は `get_weather` ツールを使うよう指示。
+  - 直接的な `speak` 工具の呼び出し指示を廃止し、自然なテキスト生成を優先。
 
-## 4. 実装の詳細
+## 4. 実行シーケンス
 
-### Docker 構成
-- **ビルドコンテキスト**: `data/news` が利用可能であることを保証するため、`/app` ディレクトリ全体をコピーします。
-- **ボリューム**: ビルド時の整合性を優先するため、`data` のボリュームマウントは現在無効化されています。
-- **環境変数**: `PYTHONPATH=/app`, `GOOGLE_API_KEY` (必須)。
+1. **初期化**: `BodyClient` を作成し、外部 MCP サーバーと接続。録画を開始。
+2. **メインループ**:
+   - `get_comments()` API を叩き、未処理のコメントがあれば AI に渡す。
+   - 次のニュース項目があれば AI に読み上げ指示を出す。
+   - AI からの返答（例: `[emotion: joyful] 皆の衆、おはのじゃ！`）を受け取る。
+   - `[emotion: joyful]` をパースし、Body API で感情を `joyful` に、発話をテキストに設定。
+3. **終了**: 一定時間の沈黙後、クロージング挨拶を行い、録画を停止して終了。
 
-### 主な特徴
-- **堅牢なニュース読み上げ**: タイトルだけでなく、本文全文が読み上げられることを保証します。
-- **動的な交流**: 準備されたスクリプトよりもユーザーコメントを優先します。
-- **スマートタイムアウト**: 終了フェーズ中にユーザーが交流した場合、セッション時間を動的に延長します。
-- **キャラクターの一貫性**: システムプロンプトと Retry Instruction ロジックによって強制されます。
-
-## 5. 使い方
-1.  **起動**: `docker compose up --build`
-2.  **交流**: `docker attach app-body-cli-1` を使用して、出力の確認とコメントの入力を行います。
-3.  **ニュースの修正**: `data/news/news_script.md` を編集して、リビルド/再起動します。
+## 5. 設計の意図
+- **確実性の向上**: AI にツール呼び出しを強制するのではなく、生成されたテキストから感情を抽出することで、発話忘れやツール呼び出しの失敗を防ぎます。
+- **疎結合思考**: 「身体」の操作は標準的な REST API とし、AI が「知恵」として使う外部ツールのみを MCP とすることで、システムの複雑さを分離しています。

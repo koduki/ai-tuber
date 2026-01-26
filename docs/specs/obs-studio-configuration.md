@@ -141,7 +141,7 @@ AuthRequired=false  # 認証無効（内部ネットワークのみ）
 | `BGM` | Media | `/app/assets/bgm.mp3` | 👁️ 表示 | BGM再生 (Monitor and Output) |
 | `voice` | Media | `/app/shared/audio/speech_0000.wav` | 👁️ 表示 | AIの音声再生 (Monitor and Output) |
 
-**注意**: `voice` メディアソースは `body-desktop` からの自動再生指令（Restart）によって制御されます。
+**注意**: `voice` メディアソースは `body-streamer` からの自動再生指令（Restart）によって制御されます。
 
 ---
 

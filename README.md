@@ -1,162 +1,92 @@
-# AI Tuber (Architecture Refactored)
+# AI Tuber (Hybrid REST/MCP Architecture)
 
-Model Context Protocol (MCP) と Google Agent Development Kit (ADK) を活用した AI Agent 構築の実験プロジェクトです。
+Google Agent Development Kit (ADK) と Model Context Protocol (MCP) に加え、確実な身体操作のための REST API を組み合わせた、次世代 AITuber 構築プロジェクトです。
+
+## 特徴
+
+*   **ハイブリッド構成**: 
+    *   **REST API**: 発話、表情、録画制御など、絶対に失敗したくない「身体操作」に使用。
+    *   **MCP**: 天気予報や知識検索など、AI が自律的に判断して使う「外部ツール」に使用。
+*   **感情パース**: AI の生成テキストから `[emotion: happy]` のようなタグを自動でパースし、リアルタイムにアバターの表情を切り替えます。
+*   **モジュール化**: 魂 (Logic)、精神 (Persona/Character)、身体 (IO/Control) が完全に分離されており、新しいキャラクターの追加が容易です。
 
 ## アーキテクチャ
 
-各コンポーネントを以下の様にモジュール化することで柔軟性な構成を確保します。
+*   **Saint Graph (魂)**: Google ADK をベースにした意思決定エンジン。
+*   **Mind (精神)**: `data/mind/` 以下に配置される、ペルソナ、プロンプト、アセットのパッケージ。
+*   **Body (肉体)**: OBS 制御、音声合成、YouTube 連携を担う REST API サービス。
 
-*   **Saint Graph (魂)**: AIエージェントとしてのコアロジック
-*   **Mind (精神)**: ペルソナ設定やシステム指示などキャラクター性（プラグイン型パッケージ）
-*   **Body (肉体)**: ストリーミング制御、CLI、天気など各種ツールや入出力機能
+### システム構成
 
-### システム構成（6サービス）
-
-| サービス | 役割 | ポート | 備考 |
-|---------|------|--------|------|
-| `saint-graph` | 思考・対話エンジン | - | MCP クライアント |
-| `body-streamer` | ストリーミング制御ハブ | 8002 (Host) / 8000 (Internal) | MCP: `/sse` |
-| `body-cli` | CLI入出力（開発用） | 8000 | MCP: `/sse` |
-| `tools-weather` | 天気情報取得 | 8001 | MCP: `/sse` |
-| `obs-studio` | 配信・映像合成 | 8080, 4455 | VNC: `/vnc.html`, WebSocket: 4455 |
+| サービス | 役割 | ポート | 通信方式 |
+|---------|------|--------|---------|
+| `saint-graph` | 思考・対話エンジン | - | REST Client / MCP Client |
+| `body-streamer` | ストリーミング制御ハブ | 8002 | REST API |
+| `body-cli` | 開発用 CLI 入出力 | 8000 | REST API |
+| `tools-weather` | 天気情報取得ツール | 8001 | MCP (SSE) |
+| `obs-studio` | 配信・映像合成 | 8080, 4455 | VNC / WebSocket |
 | `voicevox` | 音声合成エンジン | 50021 | HTTP API |
 
 詳細は [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) を参照してください。
 
 ## Quick Start
 
-### 設定
+### 1. 設定
 
-`.env` ファイルまたは環境変数で API キーを設定してください:
+`.env` ファイルを作成し、Gemini API キーを設定してください:
 
 ```bash
-export GOOGLE_API_KEY="your_api_key_here"
-
-# YouTube Live連携を使用する場合（オプション）
-export YOUTUBE_API_KEY="your_youtube_api_key"
-export YOUTUBE_LIVE_CHAT_ID="your_live_chat_id"
+GOOGLE_API_KEY="your_api_key_here"
+OBS_PASSWORD="" # オプション
 ```
 
-### 実行方法
+### 2. 実行
 
-#### 本番環境（ストリーミング配信）
-
-全サービスを起動:
+全サービス（本番ストリーミング構成）を起動します:
 
 ```bash
 docker compose up --build
 ```
 
-OBS設定（初回のみ）:
-1. ブラウザで `http://localhost:8080/vnc.html` にアクセス
-2. OBSのMissing Filesダイアログで「Search Directory...」をクリック
-3. `/app/assets/` を選択して「Apply」
-4. すべてのアセットが自動的にマッピングされます
+### 3. OBS 設定 (初回のみ)
 
-#### 開発環境（CLI）
+1. ブラウザで `http://localhost:8080/vnc.html` にアクセス。
+2. OBS で「Missing Files」警告が出た場合、「Search Directory...」をクリック。
+3. `/app/assets/` ディレクトリを選択して適用。
 
-このプロジェクトには `devcontainer` 設定が含まれています。VS Code でフォルダを開き、「コンテナーで再度開く」を選択してください。
+## 開発とテスト
 
-**DevContainer の構成:**
-- 専用の `dev` サービスが開発環境として起動します
-- `body-cli` サービスは自動的にバックグラウンドで起動します
-- `tools-weather` サービスは自動的にバックグラウンドで起動します
-- `saint-graph` は手動で起動してテストできます
+### 開発用 CLI モード
 
-**Saint Graph を手動で実行する方法:**
+`docker attach` を使用して、AI と直接テキストで対話できます。
+
 ```bash
-# DevContainer 内で実行 (/app/src を PYTHONPATH に通した状態で実行)
-PYTHONPATH=src python -m saint_graph.main
+docker attach app-body-cli-1
 ```
+> **入力例**: `こんにちは`  
+> **出力例**: `[AI (joyful)]: 面を上げよ！わらわこそが紅月れんじゃ！`
 
-**CLIからの入力:**
-```bash
-vscode ➜ /app $ docker attach app-body-cli-1
-こんにちは
-[Expression]: happy
-[AI (happy)]: こんにちはなのじゃ！
-```
-
-## キャラクター管理
-
-キャラクター定義は `data/mind/{character_name}/` にプラグイン型パッケージとして配置されます。
-
-### 既存キャラクター
-
-- **ren（紅月れん）**: `data/mind/ren/`
-
-詳細は [docs/specs/character-package-specification.md](docs/specs/character-package-specification.md) を参照してください。
-
-## テスト
-
-このプロジェクトでは、品質を担保するために複数のレイヤーでテストを実装しています。
-
-### テストの種類
-
-1.  **ユニットテスト (`tests/unit`)**:
-    *   `SaintGraph` の履歴管理や重複実行の防止ロジックの検証。
-    *   `MCPClient` のプロトコル解析の検証。
-    *   Gemini API とのやり取りにおけるエラーハンドリング。
-2.  **インテグレーションテスト (`tests/integration`)**:
-    *   MCP Body (FastAPI サーバー) のエンドポイントやプロトコル準拠の検証。
-3.  **E2E (End-to-End) テスト (`tests/e2e`)**:
-    *   `pytest-docker` を使用し、実際に Docker コンテナを起動・終了させて、システム全体の疎通とライフサイクルを検証。
-
-### テストの実行方法
-
-全てのテストを一括で実行するには、プロジェクトのルートディレクトリで以下のコマンドを実行します：
+### テストの実行
 
 ```bash
+# 全テスト実行
 pytest
-```
 
-特定のレイヤーのテストのみを実行する場合：
-
-```bash
 # ユニットテストのみ
-pytest tests/unit/ -v
+pytest tests/unit/
 
 # インテグレーションテストのみ
-pytest tests/integration/ -v
-
-# E2Eテストのみ (コンテナのビルドと起動が自動で行われます)
-pytest tests/e2e/ -v -s
+pytest tests/integration/
 ```
 
-## トラブルシューティング
+## キャラクターの追加
 
-### OBS接続エラー
-
-**症状**: `Failed to connect to OBS: [Errno 111] Connection refused`
-
-**対処法**:
-1. OBSコンテナが起動しているか確認: `docker compose ps`
-2. OBSログを確認: `docker compose logs obs-studio`
-3. 数秒待ってから再試行（OBS起動に時間がかかる場合があります）
-
-### 音声が再生されない
-
-**症状**: 音声ファイルは生成されるが再生されない
-
-**対処法**:
-1. VNC (`http://localhost:8080/vnc.html`) でOBSを確認
-2. `voice` メディアソースが存在し、`/app/shared/audio/` を監視していることを確認
-
-詳細は各仕様書のトラブルシューティングセクションを参照してください。
-
-## デバッグ (ADK Telemetry)
-
-エージェントの内部動作（思考、ツール呼び出し）を詳細に確認したい場合、ADK Telemetryを有効化できます。
-
-```bash
-ADK_TELEMETRY=true PYTHONPATH=src python -m saint_graph.main
-```
-
-詳細は [tests/README.md](tests/README.md) を参照してください。
+`data/mind/{character_name}/` ディレクトリを作成し、必要な Markdown ファイルと画像を配置するだけで、新しいキャラクターを構築できます。
+詳細は [キャラクターパッケージ仕様書](docs/specs/character-package-specification.md) を参照してください。
 
 ## ドキュメント
 
-- [アーキテクチャ概要](docs/ARCHITECTURE.md)
-- [Body Streamer仕様](docs/specs/body-streamer-architecture.md)
-- [OBS Studio設定](docs/specs/obs-studio-configuration.md)
-- [キャラクターパッケージ仕様](docs/specs/character-package-specification.md)
+*   [詳細アーキテクチャ](docs/ARCHITECTURE.md)
+*   [Saint Graph 仕様](docs/specs/saint-graph.md)
+*   [Body Streamer 仕様](docs/specs/body-streamer-architecture.md)
+*   [キャラクター定義ガイド](docs/specs/character-package-specification.md)

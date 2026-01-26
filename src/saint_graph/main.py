@@ -2,7 +2,7 @@ import asyncio
 import sys
 import os
 
-from .config import logger, MCP_URLS, POLL_INTERVAL, MAX_WAIT_CYCLES, NEWS_DIR
+from .config import logger, BODY_URL, MCP_URLS, POLL_INTERVAL, MAX_WAIT_CYCLES, NEWS_DIR
 from .saint_graph import SaintGraph
 from .telemetry import setup_telemetry
 from .prompt_loader import PromptLoader
@@ -35,17 +35,10 @@ async def main():
     except Exception as e:
         logger.error(f"Failed to load news: {e}")
 
-    # Body URL の取得（MCP_URLSの最初をRESTベースに変換）
-    primary_mcp = MCP_URLS[0] if MCP_URLS else "http://body-cli:8000/sse"
-    body_url = primary_mcp.replace("/sse", "")
-    
-    # 外部MCP URLのフィルタリング（body以外、例：weather）
-    external_mcp_urls = [url for url in MCP_URLS if "body" not in url]
-
     # SaintGraph (ADK + REST Body) の初期化
     saint_graph = SaintGraph(
-        body_url=body_url,
-        mcp_urls=external_mcp_urls, 
+        body_url=BODY_URL,
+        mcp_urls=MCP_URLS, 
         system_instruction=system_instruction
     )
 
