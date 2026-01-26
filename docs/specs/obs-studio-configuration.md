@@ -140,9 +140,6 @@ AuthRequired=false  # 認証無効（内部ネットワークのみ）
 | `angry` | Image | `/app/assets/ai_angry.png` | 👻 非表示 | 怒り表情 |
 | `BGM` | Media | `/app/assets/bgm.mp3` | 👁️ 表示 | BGM再生 (Monitor and Output) |
 | `voice` | Media | `/app/shared/audio/speech_0000.wav` | 👁️ 表示 | AIの音声再生 (Monitor and Output) |
-| `LLM_gpt4` | Image | `/app/assets/gpt4.png` | 👁️ 表示 | LLMインジケーター |
-| `LLM_gpt3` | Image | `/app/assets/gpt3.png` | 👻 非表示 | LLMインジケーター |
-| `LLM_gemini` | Image | `/app/assets/gemini-pro.png` | 👻 非表示 | LLMインジケーター |
 
 **注意**: `voice` メディアソースは `body-desktop` からの自動再生指令（Restart）によって制御されます。
 
@@ -165,9 +162,6 @@ AuthRequired=false  # 認証無効（内部ネットワークのみ）
 | `ai_angry.png` | 1.8MB | 怒り表情 |
 | `ai_sad.png` | 2.1MB | 悲しい表情 |
 | `bgm.mp3` | - | BGM |
-| `gpt4.png` | - | GPT-4インジケーター |
-| `gpt3.png` | - | GPT-3インジケーター |
-| `gemini-pro.png` | - | Geminiインジケーター |
 
 ### ビルド時のコピー
 
@@ -226,6 +220,24 @@ ws.call(obs_requests.TriggerMediaInputAction(
     mediaAction="OBS_WEBSOCKET_MEDIA_INPUT_ACTION_RESTART"
 ))
 ```
+
+---
+
+## 録画機能
+
+### 録画設定
+
+- **フォーマット**: MKV (デフォルト)
+- **出力パス**: `/config/recordings/` (コンテナ内)
+- **エンコーダ**: x264
+
+### 制御 API (WebSocket)
+
+`body-desktop` から以下のリクエストを使用して録画を制御します。
+
+- `StartRecord`: 録画開始
+- `StopRecord`: 録画停止
+- `GetRecordStatus`: 録画ステータス（実行中かどうか）の取得
 
 ---
 

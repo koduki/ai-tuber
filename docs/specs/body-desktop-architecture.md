@@ -156,15 +156,41 @@ EMOTION_MAP = {
     "happy": "joyful",
     "joyful": "joyful",
     "fun": "fun",
-    "sad": "normal",
-    "sorrow": "normal",
+    "sad": "sad",
+    "sorrow": "sad",
     "angry": "angry",
 }
 ```
 
 ---
 
-### 3. `sys_get_comments` (非推奨)
+### 3. `start_obs_recording`
+
+**目的**: OBSの録画を開始
+
+**引数**: なし
+
+**戻り値**:
+```python
+str  # "OBS録画を開始しました。" or エラーメッセージ
+```
+
+---
+
+### 4. `stop_obs_recording`
+
+**目的**: OBSの録画を停止
+
+**引数**: なし
+
+**戻り値**:
+```python
+str  # "OBS録画を停止しました。" or エラーメッセージ
+```
+
+---
+
+### 5. `sys_get_comments` (非推奨)
 
 **目的**: YouTube Liveコメントを取得
 
