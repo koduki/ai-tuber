@@ -1,7 +1,7 @@
 import pytest
 from unittest.mock import patch, MagicMock, AsyncMock
 import json
-from body.weather.tools import get_weather
+from tools.weather.tools import get_weather
 
 @pytest.mark.asyncio
 async def test_get_weather_success():

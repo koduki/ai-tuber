@@ -14,7 +14,7 @@ description: AI Newscaster アプリケーション実装仕様書
   - AI ペルソナ（「紅月れん」）と対話フローを管理します。
   - MCP サーバー（Weather, User Comments）に接続します。
 - **`body-cli`**: AI の発話を出力し、ユーザーコメントを受け付ける CLI ベースのインターフェース。
-- **`body-weather`**: MCP を通じて天気データを提供するモックサーバー。
+- **`tools-weather`**: MCP を通じて天気データを提供するモックサーバー。
 
 ## 3. 主要コンポーネント
 

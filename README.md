@@ -17,7 +17,7 @@ Model Context Protocol (MCP) と Google Agent Development Kit (ADK) を活用し
 | `saint-graph` | 思考・対話エンジン | - | MCP クライアント |
 | `body-streamer` | ストリーミング制御ハブ | 8002 (Host) / 8000 (Internal) | MCP: `/sse` |
 | `body-cli` | CLI入出力（開発用） | 8000 | MCP: `/sse` |
-| `body-weather` | 天気情報取得 | 8001 | MCP: `/sse` |
+| `tools-weather` | 天気情報取得 | 8001 | MCP: `/sse` |
 | `obs-studio` | 配信・映像合成 | 8080, 4455 | VNC: `/vnc.html`, WebSocket: 4455 |
 | `voicevox` | 音声合成エンジン | 50021 | HTTP API |
 
@@ -60,7 +60,7 @@ OBS設定（初回のみ）:
 **DevContainer の構成:**
 - 専用の `dev` サービスが開発環境として起動します
 - `body-cli` サービスは自動的にバックグラウンドで起動します
-- `body-weather` サービスは自動的にバックグラウンドで起動します
+- `tools-weather` サービスは自動的にバックグラウンドで起動します
 - `saint-graph` は手動で起動してテストできます
 
 **Saint Graph を手動で実行する方法:**

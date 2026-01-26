@@ -262,7 +262,7 @@ depends_on:
     condition: service_healthy
   obs-studio:
     condition: service_started
-  body-weather:
+  tools-weather:
     condition: service_healthy
 ```
 

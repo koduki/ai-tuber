@@ -4,7 +4,7 @@ SaintGraph はサーバーとして API を公開するのではなく、以下�
 
 ## MCP サーバーインターフェース (Body)
 URL (Primary): `http://body-cli:8000/sse` (`MCP_URL` で設定可能)
-URL (Weather): `http://body-weather:8001/sse` (`WEATHER_MCP_URL` で設定可能)
+URL (Weather): `http://tools-weather:8001/sse` (`WEATHER_MCP_URL` で設定可能)
 
 ### 必須ツール仕様
 SaintGraph の対話エンジンは、接続先の MCP サーバーが以下のツールセットを提供していることを前提に動作します。
@@ -60,7 +60,7 @@ SaintGraph の対話エンジンは、接続先の MCP サーバーが以下の�
       "required": ["location"]
     }
     ```
-*   **Note:** このツールは専用の `body-weather` マイクロサービスで提供されます。
+*   **Note:** このツールは専用の `tools-weather` マイクロサービスで提供されます。
 
 
 ## 制約事項
@@ -79,7 +79,7 @@ SaintGraph の対話エンジンは、接続先の MCP サーバーが以下の�
 *   `io_adapter.py`: **入出力管理**。標準入力スレッドと入出力バッファを管理。
 *   `tools.py`: **ロジック層**。`speak`, `get_comments` 等のツール関数の実体。
 
-#### 2. Body/Weather (`src/body/weather/`)
+#### 2. Tools/Weather (`src/tools/weather/`)
 *   `main.py`: **MCP サーバー層**。天気予報ツールの公開用 SSE エンドポイント。
 *   `tools.py`: **ロジック層**。Open-Meteo API を使用したジオコーディングおよび天気取得ロジック。
 *   **HTTP クライアント**: 非同期処理のため、`httpx.AsyncClient` を使用してブロッキングを回避。

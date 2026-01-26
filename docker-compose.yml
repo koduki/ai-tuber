@@ -27,25 +27,25 @@ services:
     environment:
       - RUN_MODE=desktop
       - MCP_URL=http://body-streamer:8000/sse
-      - WEATHER_MCP_URL=http://body-weather:8001/sse
+      - WEATHER_MCP_URL=http://tools-weather:8001/sse
       - GOOGLE_API_KEY=${GOOGLE_API_KEY}
       - PYTHONPATH=/app
       - ADK_TELEMETRY=false
-      - NO_PROXY=body-streamer,body-weather,localhost,127.0.0.1
+      - NO_PROXY=body-streamer,tools-weather,localhost,127.0.0.1
     depends_on:
       body-streamer:
         condition: service_healthy
-      body-weather:
+      tools-weather:
         condition: service_healthy
     # volumes:
     #   - ./data/news:/app/data/news
     command: python -m src.saint_graph.main
 
-  # --- Body Weather (MCP Server) ---
-  body-weather:
+  # --- Tools Weather (MCP Server) ---
+  tools-weather:
     build:
       context: .
-      dockerfile: src/body/weather/Dockerfile
+      dockerfile: src/tools/weather/Dockerfile
     ports:
       - "8001:8001"
     environment:

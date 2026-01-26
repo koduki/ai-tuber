@@ -9,7 +9,7 @@ Google ADK の `McpToolset` を使用し、Model Context Protocol (MCP) 仕様�
 ### URL コンベンション
 *   **Base URL リスト (SSE):** `config.MCP_URLS` (文字列のリスト)
     *   デフォルト Primary: `http://body-cli:8000/sse`
-    *   デフォルト Weather: `http://body-weather:8001/sse`
+    *   デフォルト Weather: `http://tools-weather:8001/sse`
 
 ### 接続戦略 (`McpToolset`)
 *   **初期化:** 各 Base URL に対して `SseConnectionParams(url=url)` を作成し、それを用いて `McpToolset` を初期化します。

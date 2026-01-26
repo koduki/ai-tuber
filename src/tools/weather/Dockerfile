@@ -8,11 +8,11 @@ ENV PYTHONUNBUFFERED=1
 
 RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
 
-COPY src/body/weather/requirements.txt .
+COPY src/tools/weather/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy source code (assuming docker-compose context is root)
-COPY src/body/weather /app/src/body/weather
+COPY src/tools/weather /app/src/tools/weather
 
 # Run the application
-CMD ["python", "-m", "src.body.weather.main"]
+CMD ["python", "-m", "src.tools.weather.main"]

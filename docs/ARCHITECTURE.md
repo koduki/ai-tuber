@@ -25,6 +25,10 @@ graph TD
     ServerCLI["MCP Server (CLI)"]
     ServerWeather["MCP Server (Weather)"]
   end
+
+  subgraph Tools ["Tools"]
+    ServerWeather
+  end
   
   subgraph ExternalServices ["外部サービス"]
     OBS["OBS Studio"]
@@ -71,9 +75,11 @@ graph TD
 *   **コード:** `src/body/cli/`
 *   **ステータス:** 🔧 開発・テスト用
 
-#### 2.3 Body Weather
+### 3. Tools
+
+#### 3.1 Weather
 *   **役割:** 天気情報取得
-*   **コード:** `src/body/weather/`
+*   **コード:** `src/tools/weather/`
 *   **ステータス:** ✅ 継続使用
 
 ### 3. Mind (人格)
@@ -135,13 +141,9 @@ graph TD
 │       │   ├── voice.py
 │       │   ├── obs.py
 │       │   └── youtube.py
-│       ├── cli/              # CLI入出力 (開発)
-│       ├── weather/          # 天気情報取得
-│       └── obs/              # OBS Studio コンテナ
-│           ├── Dockerfile
-│           ├── supervisord.conf
-│           ├── start_obs.sh
-│           └── config/
+│       └── cli/              # CLI入出力 (開発)
+│   └── tools/                # 共通ツール
+│       └── weather/          # 天気情報取得
 └── tests/                    # テストスイート
 ```
 
@@ -149,10 +151,10 @@ graph TD
 
 | サービス名 | 役割 | ポート | 依存関係 |
 |-----------|------|--------|---------|
-| `saint-graph` | 魂（思考エンジン） | - | body-desktop, body-weather |
+| `saint-graph` | 魂（思考エンジン） | - | body-desktop, tools-weather |
 | `body-desktop` | 肉体制御ハブ | 8002 | voicevox, obs-studio |
 | `body-cli` | CLI入出力（開発用） | 8000 | - |
-| `body-weather` | 天気情報 | 8001 | - |
+| `tools-weather` | 天気情報 | 8001 | - |
 | `obs-studio` | 配信・映像 | 8080, 4455 | - |
 | `voicevox` | 音声合成 | 50021 | - |
 

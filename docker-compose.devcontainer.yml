@@ -29,10 +29,10 @@ services:
     volumes:
       - ./src/body/cli:/app
 
-  body-weather:
+  tools-weather:
     # 開発中は明示的に起動する必要がある
     profiles:
       - manual
     # 開発中はローカルのソースコードをマウントして変更を即座に反映させる
     volumes:
-      - ./src/body/weather:/app
+      - ./src/tools/weather:/app
