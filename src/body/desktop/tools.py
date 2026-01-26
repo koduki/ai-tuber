@@ -69,3 +69,43 @@ async def get_comments() -> str:
     except Exception as e:
         logger.error(f"Error in get_comments tool: {e}")
         return json.dumps([])
+
+
+async def start_obs_recording() -> str:
+    """
+    OBSの録画を開始します。
+    
+    Returns:
+        実行結果メッセージ
+    """
+    try:
+        success = await obs.start_recording()
+        if success:
+            logger.info("[start_obs_recording] Success")
+            return "OBS録画を開始しました。"
+        else:
+            logger.warning("[start_obs_recording] Failed")
+            return "OBS録画の開始に失敗しました。接続を確認してください。"
+    except Exception as e:
+        logger.error(f"Error in start_obs_recording tool: {e}")
+        return f"録画開始エラー: {str(e)}"
+
+
+async def stop_obs_recording() -> str:
+    """
+    OBSの録画を停止します。
+    
+    Returns:
+        実行結果メッセージ
+    """
+    try:
+        success = await obs.stop_recording()
+        if success:
+            logger.info("[stop_obs_recording] Success")
+            return "OBS録画を停止しました。"
+        else:
+            logger.warning("[stop_obs_recording] Failed")
+            return "OBS録画の停止に失敗しました。接続を確認してください。"
+    except Exception as e:
+        logger.error(f"Error in stop_obs_recording tool: {e}")
+        return f"録画停止エラー: {str(e)}"

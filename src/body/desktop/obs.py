@@ -228,3 +228,44 @@ async def refresh_media_source(source_name: str, file_path: str) -> bool:
                 logger.error(f"Error refreshing media source (final attempt): {e2}")
         
         return False
+
+
+async def start_recording() -> bool:
+    """OBSの録画を開始します。"""
+    if not await connect():
+        return False
+    
+    try:
+        ws_client.call(obs_requests.StartRecord())
+        logger.info("Started OBS recording")
+        return True
+    except Exception as e:
+        logger.error(f"Error starting OBS recording: {e}")
+        return False
+
+
+async def stop_recording() -> bool:
+    """OBSの録画を停止します。"""
+    if not await connect():
+        return False
+    
+    try:
+        ws_client.call(obs_requests.StopRecord())
+        logger.info("Stopped OBS recording")
+        return True
+    except Exception as e:
+        logger.error(f"Error stopping OBS recording: {e}")
+        return False
+
+
+async def get_record_status() -> bool:
+    """録画中かどうかを確認します。"""
+    if not await connect():
+        return False
+    
+    try:
+        response = ws_client.call(obs_requests.GetRecordStatus())
+        return response.getOutputActive()
+    except Exception as e:
+        logger.error(f"Error getting OBS recording status: {e}")
+        return False

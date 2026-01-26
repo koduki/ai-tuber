@@ -4,7 +4,7 @@ import logging
 import uvicorn
 from mcp.server.fastmcp import FastMCP
 from starlette.responses import JSONResponse
-from .tools import speak, change_emotion, get_comments
+from .tools import speak, change_emotion, get_comments, start_obs_recording, stop_obs_recording
 from .youtube import start_comment_polling
 
 # ログ設定
@@ -40,6 +40,18 @@ async def sys_get_comments() -> str:
     システム内部用ツールとして設計されており、エージェントによる直接呼び出しは想定していません。
     """
     return await get_comments()
+
+
+@mcp.tool(name="start_obs_recording")
+async def start_obs_recording_tool() -> str:
+    """OBSの録画を開始します。"""
+    return await start_obs_recording()
+
+
+@mcp.tool(name="stop_obs_recording")
+async def stop_obs_recording_tool() -> str:
+    """OBSの録画を停止します。"""
+    return await stop_obs_recording()
 
 
 # Dockerネットワーク内でのDNSリバインディング保護を無効化
