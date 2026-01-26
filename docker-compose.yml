@@ -26,14 +26,14 @@ services:
       dockerfile: src/saint_graph/Dockerfile
     environment:
       - RUN_MODE=desktop
-      - MCP_URL=http://body-desktop:8000/sse
+      - MCP_URL=http://body-streamer:8000/sse
       - WEATHER_MCP_URL=http://body-weather:8001/sse
       - GOOGLE_API_KEY=${GOOGLE_API_KEY}
       - PYTHONPATH=/app
       - ADK_TELEMETRY=false
-      - NO_PROXY=body-desktop,body-weather,localhost,127.0.0.1
+      - NO_PROXY=body-streamer,body-weather,localhost,127.0.0.1
     depends_on:
-      body-desktop:
+      body-streamer:
         condition: service_healthy
       body-weather:
         condition: service_healthy
@@ -56,11 +56,11 @@ services:
       timeout: 2s
       retries: 5
 
-  # --- Body Desktop (MCP Server for Streaming) ---
-  body-desktop:
+  # --- Body Streamer (MCP Server for Streaming) ---
+  body-streamer:
     build:
       context: .
-      dockerfile: src/body/desktop/Dockerfile
+      dockerfile: src/body/streamer/Dockerfile
     ports:
       - "8002:8000"
     volumes:
@@ -108,7 +108,7 @@ services:
   obs-studio:
     build:
       context: .
-      dockerfile: src/body/desktop/obs/Dockerfile
+      dockerfile: src/body/streamer/obs/Dockerfile
     ports:
       - "8080:8080"  # noVNC web interface
       - "4455:4455"  # OBS WebSocket

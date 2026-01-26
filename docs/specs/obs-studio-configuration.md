@@ -9,7 +9,7 @@
 ## 概要
 
 `obs-studio` コンテナは、VNC経由でアクセス可能なOBS Studioの実行環境を提供します。
-WebSocket APIを通じて `body-desktop` から制御され、映像合成と配信エンコードを担当します。
+WebSocket APIを通じて `body-streamer` から制御され、映像合成と配信エンコードを担当します。
 
 ---
 

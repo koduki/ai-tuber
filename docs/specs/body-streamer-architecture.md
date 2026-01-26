@@ -1,6 +1,6 @@
-# Body Desktop - アーキテクチャ仕様書
+# Body Streamer - アーキテクチャ仕様書
 
-**サービス名**: body-desktop  
+**サービス名**: body-streamer  
 **役割**: ストリーミング制御ハブ  
 **バージョン**: 1.0.0  
 **最終更新**: 2026-01-21
@@ -9,7 +9,7 @@
 
 ## 概要
 
-`body-desktop` は、AITuberシステムにおいて「肉体」の役割を担う中核サービスです。
+`body-streamer` は、AITuberシステムにおいて「肉体」の役割を担う中核サービスです。
 `saint-graph`（脳）からのMCP経由の指示を受け取り、各種デバイス（OBS Studio、VoiceVox Engine、YouTube）を制御します。
 
 ### 責任範囲
@@ -27,7 +27,7 @@
 
 ```
 ┌─────────────────────────────────────────┐
-│         body-desktop (MCP Server)       │
+│         body-streamer (MCP Server)       │
 ├─────────────────────────────────────────┤
 │  ┌──────────┐  ┌──────────┐  ┌────────┐│
 │  │  Tools   │  │  Voice   │  │  OBS   ││
@@ -46,7 +46,7 @@
 ### ディレクトリ構造
 
 ```
-src/body/desktop/
+src/body/streamer/
 ├── __init__.py
 ├── main.py              # MCPサーバーエントリーポイント
 ├── tools.py             # MCPツール定義
@@ -341,10 +341,10 @@ logging.basicConfig(
 
 ### 1. 音声合成と再生のテスト (`speak`)
 
-`body-desktop` コンテナ内で直接 `speak` ツールを呼び出し、音声が生成され、OBSで再生されるか確認します。
+`body-streamer` コンテナ内で直接 `speak` ツールを呼び出し、音声が生成され、OBSで再生されるか確認します。
 
 ```bash
-docker compose exec -e PYTHONPATH=/app body-desktop python3 -c "
+docker compose exec -e PYTHONPATH=/app body-streamer python3 -c "
 import asyncio
 from src.body.desktop.tools import speak
 asyncio.run(speak('これはテストメッセージです。正常に聞こえますか？', 'normal'))
@@ -352,7 +352,7 @@ asyncio.run(speak('これはテストメッセージです。正常に聞こえ�
 ```
 
 *   **期待結果**:
-    *   `body-desktop` のログに `Saved audio to /app/shared/audio/...` と出力される。
+    *   `body-streamer` のログに `Saved audio to /app/shared/audio/...` と出力される。
     *   VNC画面上の OBS ミキサーの `voice` ソースが反応する。
     *   （音声出力環境がある場合）音声が再生される。
 
@@ -361,7 +361,7 @@ asyncio.run(speak('これはテストメッセージです。正常に聞こえ�
 アバターの表情（イラスト）が正しく切り替わるか確認します。
 
 ```bash
-docker compose exec -e PYTHONPATH=/app body-desktop python3 -c "
+docker compose exec -e PYTHONPATH=/app body-streamer python3 -c "
 import asyncio
 from src.body.desktop.tools import change_emotion
 asyncio.run(change_emotion('happy'))
@@ -369,7 +369,7 @@ asyncio.run(change_emotion('happy'))
 ```
 
 *   **期待結果**:
-    *   `body-desktop` のログに `Changed emotion to: happy (source: joyful)` と出力される。
+    *   `body-streamer` のログに `Changed emotion to: happy (source: joyful)` と出力される。
     *   VNC画面上の OBS プレビューでイラストが喜びの表情に切り替わる。
     *   その他の表情ソースの表示（👁マーク）がオフになり、指定したソースのみがオンになる。
 
@@ -416,7 +416,7 @@ ERROR - Failed to connect to OBS: [Errno 111] Connection refused
 **対処法**:
 1. `.env` ファイルを確認
 2. `YOUTUBE_API_KEY` と `YOUTUBE_LIVE_CHAT_ID` が設定されているか確認
-3. コンテナを再起動: `docker compose restart body-desktop`
+3. コンテナを再起動: `docker compose restart body-streamer`
 
 ---
 

@@ -18,7 +18,7 @@ logging.getLogger("uvicorn.access").setLevel(logging.WARNING)
 logger = logging.getLogger(__name__)
 
 # FastMCPサーバーの初期化
-mcp = FastMCP("body-desktop")
+mcp = FastMCP("body-streamer")
 
 
 @mcp.tool(name="speak")
@@ -94,5 +94,5 @@ if __name__ == "__main__":
         logger.warning(f"Failed to create dummy audio file: {e}")
     
     # Uvicornでサーバーを起動
-    logger.info(f"Starting Body Desktop MCP server on port {port}")
+    logger.info(f"Starting Body Streamer MCP server on port {port}")
     uvicorn.run(app, host="0.0.0.0", port=port, access_log=False)

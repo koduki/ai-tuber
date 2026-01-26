@@ -283,7 +283,7 @@ docker compose up --build obs-studio
 
 ## 感情マッピング設定
 
-### デフォルトマッピング (`body-desktop/obs.py`)
+### デフォルトマッピング (`body-streamer/obs.py`)
 
 ```python
 EMOTION_MAP = {
