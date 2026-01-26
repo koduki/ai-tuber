@@ -1,4 +1,4 @@
-"""MCP tools for body-desktop service"""
+"""MCP tools for body-streamer service"""
 import logging
 import json
 from . import voice, obs, youtube

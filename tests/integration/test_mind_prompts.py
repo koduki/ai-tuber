@@ -50,7 +50,7 @@ async def test_mind_prompt_loading():
     # Determine project root dynamically
     from pathlib import Path
     project_root = Path(__file__).resolve().parent.parent.parent
-    persona_path = project_root / "src" / "mind" / "ren" / "persona.md"
+    persona_path = project_root / "data" / "mind" / "ren" / "persona.md"
     
     assert persona_path.exists(), f"Persona file not found at {persona_path}"
     with open(persona_path, "r", encoding="utf-8") as f:
