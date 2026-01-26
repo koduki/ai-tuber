@@ -22,7 +22,7 @@ POLL_INTERVAL = 1.0
 SOLILOQUY_INTERVAL = 30.0 # 30秒間の沈黙でランダムな発話
 HISTORY_LIMIT = 20
 NEWS_DIR = os.getenv("NEWS_DIR", "/app/data/news")
-MAX_WAIT_CYCLES = int(os.getenv("MAX_WAIT_CYCLES", "20"))
+MAX_WAIT_CYCLES = int(os.getenv("MAX_WAIT_CYCLES", "100"))
 
 # ログ設定
 logging.basicConfig(level=logging.INFO)
