@@ -6,12 +6,8 @@ import queue
 from typing import List, Dict, Optional
 import time
 
-try:
-    from googleapiclient.discovery import build
-    from googleapiclient.errors import HttpError
-except ImportError:
-    build = None
-    HttpError = None
+from googleapiclient.discovery import build
+from googleapiclient.errors import HttpError
 
 logger = logging.getLogger(__name__)
 
@@ -36,10 +32,6 @@ def _fetch_comments_loop(live_chat_id: str, api_key: str):
         live_chat_id: YouTube Live Chat ID
         api_key: YouTube Data API v3 キー
     """
-    if not build:
-        logger.error("google-api-python-client is not installed")
-        return
-    
     youtube = build('youtube', 'v3', developerKey=api_key)
     next_page_token = None
     

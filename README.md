@@ -15,7 +15,7 @@ Model Context Protocol (MCP) と Google Agent Development Kit (ADK) を活用し
 | サービス | 役割 | ポート | 備考 |
 |---------|------|--------|------|
 | `saint-graph` | 思考・対話エンジン | - | MCP クライアント |
-| `body-desktop` | ストリーミング制御ハブ | 8002 | MCP: `/sse` |
+| `body-streamer` | ストリーミング制御ハブ | 8002 (Host) / 8000 (Internal) | MCP: `/sse` |
 | `body-cli` | CLI入出力（開発用） | 8000 | MCP: `/sse` |
 | `body-weather` | 天気情報取得 | 8001 | MCP: `/sse` |
 | `obs-studio` | 配信・映像合成 | 8080, 4455 | VNC: `/vnc.html`, WebSocket: 4455 |
@@ -157,6 +157,6 @@ ADK_TELEMETRY=true PYTHONPATH=src python -m saint_graph.main
 ## ドキュメント
 
 - [アーキテクチャ概要](docs/ARCHITECTURE.md)
-- [Body Desktop仕様](docs/specs/body-desktop-architecture.md)
+- [Body Streamer仕様](docs/specs/body-streamer-architecture.md)
 - [OBS Studio設定](docs/specs/obs-studio-configuration.md)
 - [キャラクターパッケージ仕様](docs/specs/character-package-specification.md)
