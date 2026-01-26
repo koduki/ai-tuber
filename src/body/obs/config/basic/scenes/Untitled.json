@@ -1,756 +1,591 @@
 {
-    "current_program_scene": "s001",
     "current_scene": "s001",
-    "current_transition": "Fade",
-    "groups": [],
-    "modules": {
-        "auto-scene-switcher": {
-            "active": false,
-            "interval": 300,
-            "non_matching_scene": "",
-            "switch_if_not_matching": false,
-            "switches": []
-        },
-        "output-timer": {
-            "autoStartRecordTimer": false,
-            "autoStartStreamTimer": false,
-            "pauseRecordTimer": true,
-            "recordTimerHours": 0,
-            "recordTimerMinutes": 0,
-            "recordTimerSeconds": 30,
-            "streamTimerHours": 0,
-            "streamTimerMinutes": 0,
-            "streamTimerSeconds": 30
-        },
-        "scripts-tool": []
-    },
-    "name": "Untitled",
-    "preview_locked": false,
-    "quick_transitions": [
-        {
-            "duration": 300,
-            "fade_to_black": false,
-            "hotkeys": [],
-            "id": 1,
-            "name": "Cut"
-        },
-        {
-            "duration": 300,
-            "fade_to_black": false,
-            "hotkeys": [],
-            "id": 2,
-            "name": "Fade"
-        },
-        {
-            "duration": 300,
-            "fade_to_black": true,
-            "hotkeys": [],
-            "id": 3,
-            "name": "Fade"
-        }
-    ],
-    "saved_projectors": [],
-    "scaling_enabled": false,
-    "scaling_level": 0,
-    "scaling_off_x": 0.0,
-    "scaling_off_y": 0.0,
+    "current_program_scene": "s001",
     "scene_order": [
         {
             "name": "s001"
         }
     ],
+    "name": "Untitled",
     "sources": [
         {
-            "balance": 0.5,
-            "deinterlace_field_order": 0,
-            "deinterlace_mode": 0,
-            "enabled": true,
-            "flags": 0,
-            "hotkeys": {
-                "MediaSource.Pause": [],
-                "MediaSource.Play": [],
-                "MediaSource.Restart": [],
-                "MediaSource.Stop": [],
-                "libobs.mute": [],
-                "libobs.push-to-mute": [],
-                "libobs.push-to-talk": [],
-                "libobs.unmute": []
-            },
-            "id": "ffmpeg_source",
-            "mixers": 255,
-            "monitoring_type": 2,
-            "muted": false,
+            "prev_ver": 503447555,
             "name": "BGM",
-            "prev_ver": 486539266,
-            "private_settings": {},
-            "push-to-mute": false,
-            "push-to-mute-delay": 0,
-            "push-to-talk": false,
-            "push-to-talk-delay": 0,
+            "uuid": "44b4ef67-de7d-4bf6-896f-ddcf97326ad4",
+            "id": "ffmpeg_source",
+            "versioned_id": "ffmpeg_source",
             "settings": {
                 "local_file": "/app/assets/bgm.mp3",
                 "looping": true
             },
+            "mixers": 255,
             "sync": 0,
-            "versioned_id": "ffmpeg_source",
-            "volume": 0.3905651271343231
-        },
-        {
-            "balance": 0.5,
-            "deinterlace_field_order": 0,
-            "deinterlace_mode": 0,
-            "enabled": true,
             "flags": 0,
+            "volume": 0.39056512713432312,
+            "balance": 0.5,
+            "enabled": true,
+            "muted": false,
+            "push-to-mute": false,
+            "push-to-mute-delay": 0,
+            "push-to-talk": false,
+            "push-to-talk-delay": 0,
             "hotkeys": {
-                "MediaSource.Pause": [],
-                "MediaSource.Play": [],
-                "MediaSource.Restart": [],
-                "MediaSource.Stop": [],
                 "libobs.mute": [],
+                "libobs.unmute": [],
                 "libobs.push-to-mute": [],
                 "libobs.push-to-talk": [],
-                "libobs.unmute": []
+                "MediaSource.Restart": [],
+                "MediaSource.Play": [],
+                "MediaSource.Pause": [],
+                "MediaSource.Stop": []
             },
-            "id": "ffmpeg_source",
-            "mixers": 255,
+            "deinterlace_mode": 0,
+            "deinterlace_field_order": 0,
             "monitoring_type": 2,
-            "muted": false,
-            "name": "voice",
-            "prev_ver": 486539266,
-            "private_settings": {},
-            "push-to-mute": false,
-            "push-to-mute-delay": 0,
-            "push-to-talk": false,
-            "push-to-talk-delay": 0,
-            "settings": {
-                "close_when_inactive": true,
-                "local_file": "/app/shared/audio/speech_0000.wav",
-                "restart_on_activate": true
-            },
-            "sync": 0,
-            "versioned_id": "ffmpeg_source",
-            "volume": 1.0
+            "private_settings": {}
         },
         {
-            "balance": 0.5,
-            "deinterlace_field_order": 0,
-            "deinterlace_mode": 0,
-            "enabled": true,
+            "prev_ver": 503447555,
+            "name": "voice",
+            "uuid": "6c9b47ff-70e1-4254-8e2f-01035aff81a8",
+            "id": "ffmpeg_source",
+            "versioned_id": "ffmpeg_source",
+            "settings": {
+                "close_when_inactive": true,
+                "local_file": "/app/shared/audio/speech_3367.wav",
+                "restart_on_activate": true
+            },
+            "mixers": 255,
+            "sync": 0,
             "flags": 0,
-            "hotkeys": {},
-            "id": "image_source",
-            "mixers": 0,
-            "monitoring_type": 0,
+            "volume": 1.0,
+            "balance": 0.5,
+            "enabled": true,
             "muted": false,
-            "name": "normal",
-            "prev_ver": 486539266,
-            "private_settings": {},
             "push-to-mute": false,
             "push-to-mute-delay": 0,
             "push-to-talk": false,
             "push-to-talk-delay": 0,
+            "hotkeys": {
+                "libobs.mute": [],
+                "libobs.unmute": [],
+                "libobs.push-to-mute": [],
+                "libobs.push-to-talk": [],
+                "MediaSource.Restart": [],
+                "MediaSource.Play": [],
+                "MediaSource.Pause": [],
+                "MediaSource.Stop": []
+            },
+            "deinterlace_mode": 0,
+            "deinterlace_field_order": 0,
+            "monitoring_type": 2,
+            "private_settings": {}
+        },
+        {
+            "prev_ver": 503447555,
+            "name": "normal",
+            "uuid": "94124abf-0555-404c-b8c3-963c26a11197",
+            "id": "image_source",
+            "versioned_id": "image_source",
             "settings": {
                 "file": "/app/assets/ai_normal.png"
             },
-            "sync": 0,
-            "versioned_id": "image_source",
-            "volume": 1.0
-        },
-        {
-            "balance": 0.5,
-            "deinterlace_field_order": 0,
-            "deinterlace_mode": 0,
-            "enabled": true,
-            "flags": 0,
-            "hotkeys": {},
-            "id": "image_source",
             "mixers": 0,
-            "monitoring_type": 0,
+            "sync": 0,
+            "flags": 0,
+            "volume": 1.0,
+            "balance": 0.5,
+            "enabled": true,
             "muted": false,
-            "name": "joyful",
-            "prev_ver": 486539266,
-            "private_settings": {},
             "push-to-mute": false,
             "push-to-mute-delay": 0,
             "push-to-talk": false,
             "push-to-talk-delay": 0,
+            "hotkeys": {},
+            "deinterlace_mode": 0,
+            "deinterlace_field_order": 0,
+            "monitoring_type": 0,
+            "private_settings": {}
+        },
+        {
+            "prev_ver": 503447555,
+            "name": "joyful",
+            "uuid": "6e3ac1ff-74e2-43bb-a2b9-7356a3ba2852",
+            "id": "image_source",
+            "versioned_id": "image_source",
             "settings": {
                 "file": "/app/assets/ai_joyful.png"
             },
-            "sync": 0,
-            "versioned_id": "image_source",
-            "volume": 1.0
-        },
-        {
-            "balance": 0.5,
-            "deinterlace_field_order": 0,
-            "deinterlace_mode": 0,
-            "enabled": true,
-            "flags": 0,
-            "hotkeys": {},
-            "id": "image_source",
             "mixers": 0,
-            "monitoring_type": 0,
+            "sync": 0,
+            "flags": 0,
+            "volume": 1.0,
+            "balance": 0.5,
+            "enabled": true,
             "muted": false,
-            "name": "fun",
-            "prev_ver": 486539266,
-            "private_settings": {},
             "push-to-mute": false,
             "push-to-mute-delay": 0,
             "push-to-talk": false,
             "push-to-talk-delay": 0,
+            "hotkeys": {},
+            "deinterlace_mode": 0,
+            "deinterlace_field_order": 0,
+            "monitoring_type": 0,
+            "private_settings": {}
+        },
+        {
+            "prev_ver": 503447555,
+            "name": "fun",
+            "uuid": "624f55d7-40ff-441b-b173-8845274ec54f",
+            "id": "image_source",
+            "versioned_id": "image_source",
             "settings": {
                 "file": "/app/assets/ai_fun.png"
             },
-            "sync": 0,
-            "versioned_id": "image_source",
-            "volume": 1.0
-        },
-        {
-            "balance": 0.5,
-            "deinterlace_field_order": 0,
-            "deinterlace_mode": 0,
-            "enabled": true,
-            "flags": 0,
-            "hotkeys": {},
-            "id": "image_source",
             "mixers": 0,
-            "monitoring_type": 0,
+            "sync": 0,
+            "flags": 0,
+            "volume": 1.0,
+            "balance": 0.5,
+            "enabled": true,
             "muted": false,
-            "name": "angry",
-            "prev_ver": 486539266,
-            "private_settings": {},
             "push-to-mute": false,
             "push-to-mute-delay": 0,
             "push-to-talk": false,
             "push-to-talk-delay": 0,
+            "hotkeys": {},
+            "deinterlace_mode": 0,
+            "deinterlace_field_order": 0,
+            "monitoring_type": 0,
+            "private_settings": {}
+        },
+        {
+            "prev_ver": 503447555,
+            "name": "angry",
+            "uuid": "5013617d-bdad-43ce-b142-6b68705443c9",
+            "id": "image_source",
+            "versioned_id": "image_source",
             "settings": {
                 "file": "/app/assets/ai_angry.png"
             },
-            "sync": 0,
-            "versioned_id": "image_source",
-            "volume": 1.0
-        },
-        {
-            "balance": 0.5,
-            "deinterlace_field_order": 0,
-            "deinterlace_mode": 0,
-            "enabled": true,
-            "flags": 0,
-            "hotkeys": {},
-            "id": "image_source",
             "mixers": 0,
-            "monitoring_type": 0,
+            "sync": 0,
+            "flags": 0,
+            "volume": 1.0,
+            "balance": 0.5,
+            "enabled": true,
             "muted": false,
-            "name": "sad",
-            "prev_ver": 486539266,
-            "private_settings": {},
             "push-to-mute": false,
             "push-to-mute-delay": 0,
             "push-to-talk": false,
             "push-to-talk-delay": 0,
+            "hotkeys": {},
+            "deinterlace_mode": 0,
+            "deinterlace_field_order": 0,
+            "monitoring_type": 0,
+            "private_settings": {}
+        },
+        {
+            "prev_ver": 503447555,
+            "name": "sad",
+            "uuid": "fe42cd3c-efd2-4375-8f7f-5cf6ba48e585",
+            "id": "image_source",
+            "versioned_id": "image_source",
             "settings": {
                 "file": "/app/assets/ai_sad.png"
             },
-            "sync": 0,
-            "versioned_id": "image_source",
-            "volume": 1.0
-        },
-        {
-            "balance": 0.5,
-            "deinterlace_field_order": 0,
-            "deinterlace_mode": 0,
-            "enabled": true,
-            "flags": 0,
-            "hotkeys": {},
-            "id": "image_source",
             "mixers": 0,
-            "monitoring_type": 0,
+            "sync": 0,
+            "flags": 0,
+            "volume": 1.0,
+            "balance": 0.5,
+            "enabled": true,
             "muted": false,
-            "name": "LLM_gpt4",
-            "prev_ver": 486539266,
-            "private_settings": {},
             "push-to-mute": false,
             "push-to-mute-delay": 0,
             "push-to-talk": false,
             "push-to-talk-delay": 0,
-            "settings": {
-                "file": "/app/assets/gpt4.png"
-            },
-            "sync": 0,
-            "versioned_id": "image_source",
-            "volume": 1.0
-        },
-        {
-            "balance": 0.5,
-            "deinterlace_field_order": 0,
-            "deinterlace_mode": 0,
-            "enabled": true,
-            "flags": 0,
             "hotkeys": {},
-            "id": "image_source",
-            "mixers": 0,
+            "deinterlace_mode": 0,
+            "deinterlace_field_order": 0,
             "monitoring_type": 0,
-            "muted": false,
-            "name": "LLM_gpt3",
-            "prev_ver": 486539266,
-            "private_settings": {},
-            "push-to-mute": false,
-            "push-to-mute-delay": 0,
-            "push-to-talk": false,
-            "push-to-talk-delay": 0,
-            "settings": {
-                "file": "/app/assets/gpt3.png"
-            },
-            "sync": 0,
-            "versioned_id": "image_source",
-            "volume": 1.0
+            "private_settings": {}
         },
         {
-            "balance": 0.5,
-            "deinterlace_field_order": 0,
-            "deinterlace_mode": 0,
-            "enabled": true,
-            "flags": 0,
-            "hotkeys": {},
-            "id": "image_source",
-            "mixers": 0,
-            "monitoring_type": 0,
-            "muted": false,
-            "name": "LLM_gemini",
-            "prev_ver": 486539266,
-            "private_settings": {},
-            "push-to-mute": false,
-            "push-to-mute-delay": 0,
-            "push-to-talk": false,
-            "push-to-talk-delay": 0,
-            "settings": {
-                "file": "/app/assets/gemini-pro.png"
-            },
-            "sync": 0,
-            "versioned_id": "image_source",
-            "volume": 1.0
-        },
-        {
-            "balance": 0.5,
-            "deinterlace_field_order": 0,
-            "deinterlace_mode": 0,
-            "enabled": true,
-            "flags": 0,
-            "hotkeys": {
-                "OBSBasic.SelectScene": [],
-                "libobs.hide_scene_item.BGM": [],
-                "libobs.hide_scene_item.voice": [],
-                "libobs.hide_scene_item.LLM_gemini": [],
-                "libobs.hide_scene_item.LLM_gpt3": [],
-                "libobs.hide_scene_item.LLM_gpt4": [],
-                "libobs.hide_scene_item.angry": [],
-                "libobs.hide_scene_item.fun": [],
-                "libobs.hide_scene_item.joyful": [],
-                "libobs.hide_scene_item.normal": [],
-                "libobs.hide_scene_item.sad": [],
-                "libobs.show_scene_item.BGM": [],
-                "libobs.show_scene_item.voice": [],
-                "libobs.show_scene_item.LLM_gemini": [],
-                "libobs.show_scene_item.LLM_gpt3": [],
-                "libobs.show_scene_item.LLM_gpt4": [],
-                "libobs.show_scene_item.angry": [],
-                "libobs.show_scene_item.fun": [],
-                "libobs.show_scene_item.joyful": [],
-                "libobs.show_scene_item.normal": []
-            },
-            "id": "scene",
-            "mixers": 0,
-            "monitoring_type": 0,
-            "muted": false,
+            "prev_ver": 503447555,
             "name": "s001",
-            "prev_ver": 486539266,
-            "private_settings": {},
-            "push-to-mute": false,
-            "push-to-mute-delay": 0,
-            "push-to-talk": false,
-            "push-to-talk-delay": 0,
+            "uuid": "da169a7b-5c55-44ba-b0d2-f9f00e65c3f6",
+            "id": "scene",
+            "versioned_id": "scene",
             "settings": {
                 "custom_size": false,
                 "id_counter": 11,
                 "items": [
                     {
-                        "align": 5,
-                        "blend_method": "default",
-                        "blend_type": "normal",
-                        "bounds": {
-                            "x": 0.0,
-                            "y": 0.0
-                        },
-                        "bounds_align": 0,
-                        "bounds_type": 0,
-                        "crop_bottom": 0,
-                        "crop_left": 0,
-                        "crop_right": 0,
-                        "crop_top": 0,
-                        "group_item_backup": false,
-                        "hide_transition": {
-                            "duration": 0
-                        },
-                        "id": 7,
-                        "locked": false,
                         "name": "normal",
+                        "source_uuid": "94124abf-0555-404c-b8c3-963c26a11197",
+                        "visible": false,
+                        "locked": false,
+                        "rot": 0.0,
                         "pos": {
                             "x": -70.0,
                             "y": 0.0
                         },
-                        "private_settings": {},
-                        "rot": 0.0,
                         "scale": {
                             "x": 0.8330078125,
-                            "y": 0.8333333134651184
+                            "y": 0.83333331346511841
                         },
-                        "scale_filter": "disable",
-                        "show_transition": {
-                            "duration": 0
-                        },
-                        "visible": true
-                    },
-                    {
                         "align": 5,
-                        "blend_method": "default",
-                        "blend_type": "normal",
+                        "bounds_type": 0,
+                        "bounds_align": 0,
+                        "bounds_crop": false,
                         "bounds": {
                             "x": 0.0,
                             "y": 0.0
                         },
-                        "bounds_align": 0,
-                        "bounds_type": 0,
-                        "crop_bottom": 0,
                         "crop_left": 0,
-                        "crop_right": 0,
                         "crop_top": 0,
+                        "crop_right": 0,
+                        "crop_bottom": 0,
+                        "id": 7,
                         "group_item_backup": false,
+                        "scale_filter": "disable",
+                        "blend_method": "default",
+                        "blend_type": "normal",
+                        "show_transition": {
+                            "duration": 0
+                        },
                         "hide_transition": {
                             "duration": 0
                         },
-                        "id": 4,
-                        "locked": false,
+                        "private_settings": {}
+                    },
+                    {
                         "name": "angry",
+                        "source_uuid": "5013617d-bdad-43ce-b142-6b68705443c9",
+                        "visible": false,
+                        "locked": false,
+                        "rot": 0.0,
                         "pos": {
                             "x": -70.0,
                             "y": 0.0
                         },
-                        "private_settings": {},
-                        "rot": 0.0,
                         "scale": {
                             "x": 0.8330078125,
-                            "y": 0.8333333134651184
+                            "y": 0.83333331346511841
                         },
-                        "scale_filter": "disable",
-                        "show_transition": {
-                            "duration": 0
-                        },
-                        "visible": false
-                    },
-                    {
                         "align": 5,
-                        "blend_method": "default",
-                        "blend_type": "normal",
+                        "bounds_type": 0,
+                        "bounds_align": 0,
+                        "bounds_crop": false,
                         "bounds": {
                             "x": 0.0,
                             "y": 0.0
                         },
-                        "bounds_align": 0,
-                        "bounds_type": 0,
-                        "crop_bottom": 0,
                         "crop_left": 0,
-                        "crop_right": 0,
                         "crop_top": 0,
+                        "crop_right": 0,
+                        "crop_bottom": 0,
+                        "id": 4,
                         "group_item_backup": false,
+                        "scale_filter": "disable",
+                        "blend_method": "default",
+                        "blend_type": "normal",
+                        "show_transition": {
+                            "duration": 0
+                        },
                         "hide_transition": {
                             "duration": 0
                         },
-                        "id": 5,
-                        "locked": false,
+                        "private_settings": {}
+                    },
+                    {
                         "name": "fun",
+                        "source_uuid": "624f55d7-40ff-441b-b173-8845274ec54f",
+                        "visible": false,
+                        "locked": false,
+                        "rot": 0.0,
                         "pos": {
                             "x": -75.0,
                             "y": 0.0
                         },
-                        "private_settings": {},
-                        "rot": 0.0,
                         "scale": {
                             "x": 0.837890625,
                             "y": 0.837890625
                         },
-                        "scale_filter": "disable",
-                        "show_transition": {
-                            "duration": 0
-                        },
-                        "visible": false
-                    },
-                    {
                         "align": 5,
-                        "blend_method": "default",
-                        "blend_type": "normal",
+                        "bounds_type": 0,
+                        "bounds_align": 0,
+                        "bounds_crop": false,
                         "bounds": {
                             "x": 0.0,
                             "y": 0.0
                         },
-                        "bounds_align": 0,
-                        "bounds_type": 0,
-                        "crop_bottom": 0,
                         "crop_left": 0,
-                        "crop_right": 0,
                         "crop_top": 0,
+                        "crop_right": 0,
+                        "crop_bottom": 0,
+                        "id": 5,
                         "group_item_backup": false,
+                        "scale_filter": "disable",
+                        "blend_method": "default",
+                        "blend_type": "normal",
+                        "show_transition": {
+                            "duration": 0
+                        },
                         "hide_transition": {
                             "duration": 0
                         },
-                        "id": 6,
-                        "locked": false,
+                        "private_settings": {}
+                    },
+                    {
                         "name": "joyful",
+                        "source_uuid": "6e3ac1ff-74e2-43bb-a2b9-7356a3ba2852",
+                        "visible": true,
+                        "locked": false,
+                        "rot": 0.0,
                         "pos": {
                             "x": -72.0,
                             "y": 0.0
                         },
-                        "private_settings": {},
-                        "rot": 0.0,
                         "scale": {
                             "x": 0.8330078125,
-                            "y": 0.8333333134651184
+                            "y": 0.83333331346511841
                         },
-                        "scale_filter": "disable",
-                        "show_transition": {
-                            "duration": 0
-                        },
-                        "visible": false
-                    },
-                    {
                         "align": 5,
-                        "blend_method": "default",
-                        "blend_type": "normal",
+                        "bounds_type": 0,
+                        "bounds_align": 0,
+                        "bounds_crop": false,
                         "bounds": {
                             "x": 0.0,
                             "y": 0.0
                         },
-                        "bounds_align": 0,
-                        "bounds_type": 0,
-                        "crop_bottom": 0,
                         "crop_left": 0,
-                        "crop_right": 0,
                         "crop_top": 0,
+                        "crop_right": 0,
+                        "crop_bottom": 0,
+                        "id": 6,
                         "group_item_backup": false,
+                        "scale_filter": "disable",
+                        "blend_method": "default",
+                        "blend_type": "normal",
+                        "show_transition": {
+                            "duration": 0
+                        },
                         "hide_transition": {
                             "duration": 0
                         },
-                        "id": 11,
-                        "locked": false,
+                        "private_settings": {}
+                    },
+                    {
                         "name": "sad",
+                        "source_uuid": "fe42cd3c-efd2-4375-8f7f-5cf6ba48e585",
+                        "visible": false,
+                        "locked": false,
+                        "rot": 0.0,
                         "pos": {
                             "x": -70.0,
                             "y": 0.0
                         },
-                        "private_settings": {},
-                        "rot": 0.0,
                         "scale": {
                             "x": 0.8330078125,
-                            "y": 0.8333333134651184
+                            "y": 0.83333331346511841
                         },
-                        "scale_filter": "disable",
-                        "show_transition": {
-                            "duration": 0
-                        },
-                        "visible": false
-                    },
-                    {
                         "align": 5,
-                        "blend_method": "default",
-                        "blend_type": "normal",
+                        "bounds_type": 0,
+                        "bounds_align": 0,
+                        "bounds_crop": false,
                         "bounds": {
                             "x": 0.0,
                             "y": 0.0
                         },
-                        "bounds_align": 0,
-                        "bounds_type": 0,
-                        "crop_bottom": 0,
                         "crop_left": 0,
-                        "crop_right": 0,
                         "crop_top": 0,
+                        "crop_right": 0,
+                        "crop_bottom": 0,
+                        "id": 11,
                         "group_item_backup": false,
-                        "hide_transition": {
-                            "duration": 0
-                        },
-                        "id": 1,
-                        "locked": false,
-                        "name": "LLM_gemini",
-                        "pos": {
-                            "x": 497.0,
-                            "y": 143.0
-                        },
-                        "private_settings": {},
-                        "rot": 0.0,
-                        "scale": {
-                            "x": 1.0,
-                            "y": 1.0
-                        },
                         "scale_filter": "disable",
+                        "blend_method": "default",
+                        "blend_type": "normal",
                         "show_transition": {
                             "duration": 0
                         },
-                        "visible": false
-                    },
-                    {
-                        "align": 5,
-                        "blend_method": "default",
-                        "blend_type": "normal",
-                        "bounds": {
-                            "x": 0.0,
-                            "y": 0.0
-                        },
-                        "bounds_align": 0,
-                        "bounds_type": 0,
-                        "crop_bottom": 0,
-                        "crop_left": 0,
-                        "crop_right": 0,
-                        "crop_top": 0,
-                        "group_item_backup": false,
                         "hide_transition": {
                             "duration": 0
                         },
-                        "id": 2,
-                        "locked": false,
-                        "name": "LLM_gpt3",
-                        "pos": {
-                            "x": 490.0,
-                            "y": 140.0
-                        },
-                        "private_settings": {},
-                        "rot": 0.0,
-                        "scale": {
-                            "x": 1.0,
-                            "y": 1.0
-                        },
-                        "scale_filter": "disable",
-                        "show_transition": {
-                            "duration": 0
-                        },
-                        "visible": false
+                        "private_settings": {}
                     },
                     {
-                        "align": 5,
-                        "blend_method": "default",
-                        "blend_type": "normal",
-                        "bounds": {
-                            "x": 0.0,
-                            "y": 0.0
-                        },
-                        "bounds_align": 0,
-                        "bounds_type": 0,
-                        "crop_bottom": 0,
-                        "crop_left": 0,
-                        "crop_right": 0,
-                        "crop_top": 0,
-                        "group_item_backup": false,
-                        "hide_transition": {
-                            "duration": 0
-                        },
-                        "id": 3,
-                        "locked": false,
-                        "name": "LLM_gpt4",
-                        "pos": {
-                            "x": 490.0,
-                            "y": 123.0
-                        },
-                        "private_settings": {},
-                        "rot": 0.0,
-                        "scale": {
-                            "x": 1.0,
-                            "y": 1.0
-                        },
-                        "scale_filter": "disable",
-                        "show_transition": {
-                            "duration": 0
-                        },
-                        "visible": true
-                    },
-                    {
-                        "align": 5,
-                        "blend_method": "default",
-                        "blend_type": "normal",
-                        "bounds": {
-                            "x": 0.0,
-                            "y": 0.0
-                        },
-                        "bounds_align": 0,
-                        "bounds_type": 0,
-                        "crop_bottom": 0,
-                        "crop_left": 0,
-                        "crop_right": 0,
-                        "crop_top": 0,
-                        "group_item_backup": false,
-                        "hide_transition": {
-                            "duration": 0
-                        },
-                        "id": 8,
-                        "locked": false,
                         "name": "BGM",
+                        "source_uuid": "44b4ef67-de7d-4bf6-896f-ddcf97326ad4",
+                        "visible": true,
+                        "locked": false,
+                        "rot": 0.0,
                         "pos": {
                             "x": 0.0,
                             "y": 0.0
                         },
-                        "private_settings": {},
-                        "rot": 0.0,
                         "scale": {
                             "x": 1.0,
                             "y": 1.0
                         },
-                        "scale_filter": "disable",
-                        "show_transition": {
-                            "duration": 0
-                        },
-                        "visible": true
-                    },
-                    {
                         "align": 5,
-                        "blend_method": "default",
-                        "blend_type": "normal",
+                        "bounds_type": 0,
+                        "bounds_align": 0,
+                        "bounds_crop": false,
                         "bounds": {
                             "x": 0.0,
                             "y": 0.0
                         },
-                        "bounds_align": 0,
-                        "bounds_type": 0,
-                        "crop_bottom": 0,
                         "crop_left": 0,
-                        "crop_right": 0,
                         "crop_top": 0,
+                        "crop_right": 0,
+                        "crop_bottom": 0,
+                        "id": 8,
                         "group_item_backup": false,
+                        "scale_filter": "disable",
+                        "blend_method": "default",
+                        "blend_type": "normal",
+                        "show_transition": {
+                            "duration": 0
+                        },
                         "hide_transition": {
                             "duration": 0
                         },
-                        "id": 10,
-                        "locked": false,
+                        "private_settings": {}
+                    },
+                    {
                         "name": "voice",
+                        "source_uuid": "6c9b47ff-70e1-4254-8e2f-01035aff81a8",
+                        "visible": true,
+                        "locked": false,
+                        "rot": 0.0,
                         "pos": {
                             "x": 0.0,
                             "y": 0.0
                         },
-                        "private_settings": {},
-                        "rot": 0.0,
                         "scale": {
                             "x": 1.0,
                             "y": 1.0
                         },
+                        "align": 5,
+                        "bounds_type": 0,
+                        "bounds_align": 0,
+                        "bounds_crop": false,
+                        "bounds": {
+                            "x": 0.0,
+                            "y": 0.0
+                        },
+                        "crop_left": 0,
+                        "crop_top": 0,
+                        "crop_right": 0,
+                        "crop_bottom": 0,
+                        "id": 10,
+                        "group_item_backup": false,
                         "scale_filter": "disable",
+                        "blend_method": "default",
+                        "blend_type": "normal",
                         "show_transition": {
                             "duration": 0
                         },
-                        "visible": true
+                        "hide_transition": {
+                            "duration": 0
+                        },
+                        "private_settings": {}
                     }
                 ]
             },
+            "mixers": 0,
             "sync": 0,
-            "versioned_id": "scene",
-            "volume": 1.0
+            "flags": 0,
+            "volume": 1.0,
+            "balance": 0.5,
+            "enabled": true,
+            "muted": false,
+            "push-to-mute": false,
+            "push-to-mute-delay": 0,
+            "push-to-talk": false,
+            "push-to-talk-delay": 0,
+            "hotkeys": {
+                "OBSBasic.SelectScene": [],
+                "libobs.show_scene_item.7": [],
+                "libobs.hide_scene_item.7": [],
+                "libobs.show_scene_item.4": [],
+                "libobs.hide_scene_item.4": [],
+                "libobs.show_scene_item.5": [],
+                "libobs.hide_scene_item.5": [],
+                "libobs.show_scene_item.6": [],
+                "libobs.hide_scene_item.6": [],
+                "libobs.show_scene_item.11": [],
+                "libobs.hide_scene_item.11": [],
+                "libobs.show_scene_item.8": [],
+                "libobs.hide_scene_item.8": [],
+                "libobs.show_scene_item.10": [],
+                "libobs.hide_scene_item.10": []
+            },
+            "deinterlace_mode": 0,
+            "deinterlace_field_order": 0,
+            "monitoring_type": 0,
+            "private_settings": {}
         }
     ],
+    "groups": [],
+    "quick_transitions": [
+        {
+            "name": "Cut",
+            "duration": 300,
+            "hotkeys": [],
+            "id": 1,
+            "fade_to_black": false
+        },
+        {
+            "name": "Fade",
+            "duration": 300,
+            "hotkeys": [],
+            "id": 2,
+            "fade_to_black": false
+        },
+        {
+            "name": "Fade",
+            "duration": 300,
+            "hotkeys": [],
+            "id": 3,
+            "fade_to_black": true
+        }
+    ],
+    "transitions": [],
+    "saved_projectors": [],
+    "current_transition": "Fade",
     "transition_duration": 300,
-    "transitions": []
+    "preview_locked": false,
+    "scaling_enabled": false,
+    "scaling_level": 0,
+    "scaling_off_x": 0.0,
+    "scaling_off_y": 0.0,
+    "modules": {
+        "auto-scene-switcher": {
+            "interval": 300,
+            "non_matching_scene": "",
+            "switch_if_not_matching": false,
+            "active": false,
+            "switches": []
+        },
+        "output-timer": {
+            "streamTimerHours": 0,
+            "streamTimerMinutes": 0,
+            "streamTimerSeconds": 30,
+            "recordTimerHours": 0,
+            "recordTimerMinutes": 0,
+            "recordTimerSeconds": 30,
+            "autoStartStreamTimer": false,
+            "autoStartRecordTimer": false,
+            "pauseRecordTimer": true
+        },
+        "scripts-tool": []
+    },
+    "resolution": {
+        "x": 1920,
+        "y": 1080
+    }
 }
