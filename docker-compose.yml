@@ -108,7 +108,7 @@ services:
   obs-studio:
     build:
       context: .
-      dockerfile: src/body/obs/Dockerfile
+      dockerfile: src/body/desktop/obs/Dockerfile
     ports:
       - "8080:8080"  # noVNC web interface
       - "4455:4455"  # OBS WebSocket

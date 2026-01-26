@@ -260,7 +260,7 @@ touch system_prompts/retry_final_response.md
 ### 4. Dockerfile更新
 
 ```dockerfile
-# src/body/obs/Dockerfile
+# src/body/desktop/obs/Dockerfile
 - COPY data/mind/ren/assets /app/assets
 + COPY data/mind/{new_character}/assets /app/assets
 ```
