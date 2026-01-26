@@ -57,6 +57,8 @@ async def _run_newscaster_loop(saint_graph: SaintGraph, news_service: NewsServic
     try:
         res = await saint_graph.body.start_recording()
         logger.info(f"Automatic Recording Start result: {res}")
+        # 録画開始の安定待ち
+        await asyncio.sleep(3)
     except Exception as e:
         logger.warning(f"Could not automatically start recording: {e}")
 
