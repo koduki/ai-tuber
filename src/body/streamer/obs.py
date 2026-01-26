@@ -236,9 +236,13 @@ async def start_recording() -> bool:
         return False
     
     try:
-        ws_client.call(obs_requests.StartRecord())
-        logger.info("Started OBS recording")
-        return True
+        response = ws_client.call(obs_requests.StartRecord())
+        if response.status:
+            logger.info(f"Started OBS recording: {response.status}")
+            return True
+        else:
+            logger.warning(f"Failed to start OBS recording: {response}")
+            return False
     except Exception as e:
         logger.error(f"Error starting OBS recording: {e}")
         return False

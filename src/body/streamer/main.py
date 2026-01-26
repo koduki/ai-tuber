@@ -1,9 +1,11 @@
-"""Body Desktop - MCP Server Entry Point"""
+"""Body Streamer - REST API Server Entry Point"""
 import os
 import logging
 import uvicorn
-from mcp.server.fastmcp import FastMCP
+from starlette.applications import Starlette
 from starlette.responses import JSONResponse
+from starlette.requests import Request
+from starlette.routing import Route
 from .tools import speak, change_emotion, get_comments, start_obs_recording, stop_obs_recording
 from .youtube import start_comment_polling
 
@@ -12,60 +14,102 @@ logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
-logging.getLogger("mcp").setLevel(logging.WARNING)
 logging.getLogger("uvicorn.access").setLevel(logging.WARNING)
 
 logger = logging.getLogger(__name__)
 
-# FastMCPサーバーの初期化
-mcp = FastMCP("body-streamer")
 
-
-@mcp.tool(name="speak")
-async def speak_tool(text: str, style: str = "normal") -> str:
-    """視聴者に対してテキストを発話します。"""
-    return await speak(text, style)
-
-
-@mcp.tool(name="change_emotion")
-async def change_emotion_tool(emotion: str) -> str:
-    """アバターの表情（感情）を変更します。"""
-    return await change_emotion(emotion)
-
-
-@mcp.tool(name="sys_get_comments")
-async def sys_get_comments() -> str:
-    """
-    ユーザーからのコメントを取得します。
-    システム内部用ツールとして設計されており、エージェントによる直接呼び出しは想定していません。
-    """
-    return await get_comments()
-
-
-@mcp.tool(name="start_obs_recording")
-async def start_obs_recording_tool() -> str:
-    """OBSの録画を開始します。"""
-    return await start_obs_recording()
-
-
-@mcp.tool(name="stop_obs_recording")
-async def stop_obs_recording_tool() -> str:
-    """OBSの録画を停止します。"""
-    return await stop_obs_recording()
-
-
-# Dockerネットワーク内でのDNSリバインディング保護を無効化
-mcp.settings.transport_security.enable_dns_rebinding_protection = False
-
-
-@mcp.custom_route("/health", methods=["GET"])
-async def health_check(request):
+async def health_check(request: Request) -> JSONResponse:
     """ヘルスチェック用エンドポイント"""
     return JSONResponse({"status": "ok"})
 
 
-# FastMCPからStarlette（ASGI）アプリを取得
-app = mcp.sse_app()
+async def speak_api(request: Request) -> JSONResponse:
+    """
+    発話API
+    POST /api/speak
+    Body: {"text": "発話内容", "style": "normal"}
+    """
+    try:
+        body = await request.json()
+        text = body.get("text", "")
+        style = body.get("style", "normal")
+        result = await speak(text, style)
+        return JSONResponse({"status": "ok", "result": result})
+    except Exception as e:
+        logger.error(f"Error in speak API: {e}")
+        return JSONResponse({"status": "error", "message": str(e)}, status_code=500)
+
+
+async def change_emotion_api(request: Request) -> JSONResponse:
+    """
+    表情変更API
+    POST /api/change_emotion
+    Body: {"emotion": "happy"}
+    """
+    try:
+        body = await request.json()
+        emotion = body.get("emotion", "neutral")
+        result = await change_emotion(emotion)
+        return JSONResponse({"status": "ok", "result": result})
+    except Exception as e:
+        logger.error(f"Error in change_emotion API: {e}")
+        return JSONResponse({"status": "error", "message": str(e)}, status_code=500)
+
+
+async def get_comments_api(request: Request) -> JSONResponse:
+    """
+    コメント取得API
+    GET /api/comments
+    """
+    try:
+        result = await get_comments()
+        # JSON文字列をパースしてリストとして返す
+        import json
+        comments = json.loads(result) if result else []
+        return JSONResponse({"status": "ok", "comments": comments})
+    except Exception as e:
+        logger.error(f"Error in get_comments API: {e}")
+        return JSONResponse({"status": "error", "message": str(e)}, status_code=500)
+
+
+async def start_recording_api(request: Request) -> JSONResponse:
+    """
+    OBS録画開始API
+    POST /api/recording/start
+    """
+    try:
+        result = await start_obs_recording()
+        return JSONResponse({"status": "ok", "result": result})
+    except Exception as e:
+        logger.error(f"Error in start_recording API: {e}")
+        return JSONResponse({"status": "error", "message": str(e)}, status_code=500)
+
+
+async def stop_recording_api(request: Request) -> JSONResponse:
+    """
+    OBS録画停止API
+    POST /api/recording/stop
+    """
+    try:
+        result = await stop_obs_recording()
+        return JSONResponse({"status": "ok", "result": result})
+    except Exception as e:
+        logger.error(f"Error in stop_recording API: {e}")
+        return JSONResponse({"status": "error", "message": str(e)}, status_code=500)
+
+
+# Starletteアプリケーションを構築
+routes = [
+    Route("/health", health_check, methods=["GET"]),
+    Route("/api/speak", speak_api, methods=["POST"]),
+    Route("/api/change_emotion", change_emotion_api, methods=["POST"]),
+    Route("/api/comments", get_comments_api, methods=["GET"]),
+    Route("/api/recording/start", start_recording_api, methods=["POST"]),
+    Route("/api/recording/stop", stop_recording_api, methods=["POST"]),
+]
+
+app = Starlette(routes=routes)
 
 
 if __name__ == "__main__":
@@ -82,7 +126,6 @@ if __name__ == "__main__":
         dummy_file = os.path.join("/app/shared/audio", "speech_0000.wav")
         if not os.path.exists(dummy_file) or os.path.getsize(dummy_file) == 0:
             # 最小限の無音WAVヘッダ (1秒, モノラル, 44100Hz, 16bit)
-            # RIFFヘッダ + fmtチャンク + dataチャンク
             silent_wav = (
                 b'RIFF\x24\x00\x00\x00WAVEfmt \x10\x00\x00\x00\x01\x00\x01\x00'
                 b'\x44\xac\x00\x00\x88\x58\x01\x00\x02\x00\x10\x00data\x00\x00\x00\x00'
@@ -94,5 +137,5 @@ if __name__ == "__main__":
         logger.warning(f"Failed to create dummy audio file: {e}")
     
     # Uvicornでサーバーを起動
-    logger.info(f"Starting Body Streamer MCP server on port {port}")
+    logger.info(f"Starting Body Streamer REST server on port {port}")
     uvicorn.run(app, host="0.0.0.0", port=port, access_log=False)

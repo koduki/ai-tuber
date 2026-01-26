@@ -1,8 +1,44 @@
 volumes:
   audio_share:
+  recordings:
 
 services:
-  # --- Body CLI (MCP Server) ---
+  # --- Saint Graph (Spirit/Logic) ---
+  saint-graph:
+    build:
+      context: .
+      dockerfile: src/saint_graph/Dockerfile
+    environment:
+      - RUN_MODE=desktop
+      - BODY_URL=http://body-streamer:8000
+      - WEATHER_MCP_URL=http://tools-weather:8001/sse
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY}
+      - PYTHONPATH=/app
+      - ADK_TELEMETRY=false
+      - NO_PROXY=body-streamer,tools-weather,localhost,127.0.0.1
+    depends_on:
+      body-streamer:
+        condition: service_healthy
+      tools-weather:
+        condition: service_healthy
+    command: python -m src.saint_graph.main
+
+  # --- Tools Weather (MCP Server) ---
+  tools-weather:
+    build:
+      context: .
+      dockerfile: src/tools/weather/Dockerfile
+    ports:
+      - "8001:8001"
+    environment:
+      - PORT=8001
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:8001/health" ]
+      interval: 5s
+      timeout: 2s
+      retries: 5
+
+  # --- Body CLI (REST Server / For Development) ---
   body-cli:
     build:
       context: .
@@ -19,44 +55,7 @@ services:
       timeout: 2s
       retries: 5
 
-  # --- Saint Graph (Spirit/Logic) ---
-  saint-graph:
-    build:
-      context: .
-      dockerfile: src/saint_graph/Dockerfile
-    environment:
-      - RUN_MODE=desktop
-      - MCP_URL=http://body-streamer:8000/sse
-      - WEATHER_MCP_URL=http://body-weather:8001/sse
-      - GOOGLE_API_KEY=${GOOGLE_API_KEY}
-      - PYTHONPATH=/app
-      - ADK_TELEMETRY=false
-      - NO_PROXY=body-streamer,body-weather,localhost,127.0.0.1
-    depends_on:
-      body-streamer:
-        condition: service_healthy
-      body-weather:
-        condition: service_healthy
-    # volumes:
-    #   - ./data/news:/app/data/news
-    command: python -m src.saint_graph.main
-
-  # --- Body Weather (MCP Server) ---
-  body-weather:
-    build:
-      context: .
-      dockerfile: src/body/weather/Dockerfile
-    ports:
-      - "8001:8001"
-    environment:
-      - PORT=8001
-    healthcheck:
-      test: [ "CMD", "curl", "-f", "http://localhost:8001/health" ]
-      interval: 5s
-      timeout: 2s
-      retries: 5
-
-  # --- Body Streamer (MCP Server for Streaming) ---
+  # --- Body Streamer (REST Server for Streaming) ---
   body-streamer:
     build:
       context: .
@@ -86,7 +85,7 @@ services:
       timeout: 2s
       retries: 5
 
-  # --- VoiceVox Engine (MCP Server) ---
+  # --- VoiceVox Engine ---
   voicevox:
     image: voicevox/voicevox_engine:nvidia-ubuntu20.04-latest
     ports:

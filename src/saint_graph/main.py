@@ -2,7 +2,7 @@ import asyncio
 import sys
 import os
 
-from .config import logger, MCP_URLS, POLL_INTERVAL, MAX_WAIT_CYCLES, NEWS_DIR
+from .config import logger, BODY_URL, MCP_URLS, POLL_INTERVAL, MAX_WAIT_CYCLES, NEWS_DIR
 from .saint_graph import SaintGraph
 from .telemetry import setup_telemetry
 from .prompt_loader import PromptLoader
@@ -19,11 +19,9 @@ async def main():
     system_instruction = loader.load_system_instruction()
     
     template_names = [
-        "intro", "news_reading", "news_finished", "closing",
-        "retry_no_tool", "retry_final_response"
+        "intro", "news_reading", "news_finished", "closing"
     ]
     templates = loader.load_templates(template_names)
-    retry_templates = loader.get_retry_templates(templates)
 
     # ニュースサービスの初期化
     news_path = os.path.join(NEWS_DIR, "news_script.md")
@@ -37,11 +35,11 @@ async def main():
     except Exception as e:
         logger.error(f"Failed to load news: {e}")
 
-    # SaintGraph (ADK) の初期化
+    # SaintGraph (ADK + REST Body) の初期化
     saint_graph = SaintGraph(
+        body_url=BODY_URL,
         mcp_urls=MCP_URLS, 
-        system_instruction=system_instruction,
-        retry_templates=retry_templates
+        system_instruction=system_instruction
     )
 
     # メインループ
@@ -55,10 +53,10 @@ async def _run_newscaster_loop(saint_graph: SaintGraph, news_service: NewsServic
     finished_news = False
     end_wait_counter = 0
 
-    # 録画開始の試行
+    # 録画開始の試行 (REST API)
     try:
-        await saint_graph.call_tool("start_obs_recording", {})
-        logger.info("Automatically started OBS recording at loop start.")
+        res = await saint_graph.body.start_recording()
+        logger.info(f"Automatic Recording Start result: {res}")
     except Exception as e:
         logger.warning(f"Could not automatically start recording: {e}")
 
@@ -90,6 +88,13 @@ async def _run_newscaster_loop(saint_graph: SaintGraph, news_service: NewsServic
                     logger.info(f"Silence timeout ({MAX_WAIT_CYCLES}s) reached. Finishing broadcast.")
                     await saint_graph.process_turn(templates["closing"], context="Closing")
                     await asyncio.sleep(3)
+                    
+                    # 録画停止の試行
+                    try:
+                        await saint_graph.body.stop_recording()
+                    except:
+                        pass
+                        
                     await saint_graph.close()
                     break
 
@@ -106,16 +111,27 @@ async def _run_newscaster_loop(saint_graph: SaintGraph, news_service: NewsServic
 async def _check_comments(saint_graph: SaintGraph) -> bool:
     """コメントをポーリングし、あれば応答します。インタラクションがあればTrueを返します。"""
     try:
-        comments = await saint_graph.call_tool("sys_get_comments", {})
-        if comments and comments != "No new comments.":
-            logger.info(f"Comments received: {comments}")
-            await saint_graph.process_turn(comments)
-            return True
+        # BodyClient経由でコメント取得 (REST API)
+        comments_data = await saint_graph.body.get_comments()
+        
+        if comments_data:
+            # コメントの整形（リストから文字列へ）
+            if isinstance(comments_data, list):
+                # body-streamerの場合の形式
+                if comments_data and isinstance(comments_data[0], dict):
+                    comments_text = "\n".join([f"{c['author']}: {c['message']}" for c in comments_data])
+                else:
+                    # body-cliの場合の形式
+                    comments_text = "\n".join(comments_data)
+            else:
+                comments_text = str(comments_data)
+                
+            if comments_text:
+                logger.info(f"Comments received: {comments_text}")
+                await saint_graph.process_turn(comments_text)
+                return True
     except Exception as e:
-        if "not found in any toolset" in str(e):
-            logger.warning("Waiting for sys_get_comments tool to become available...")
-        else:
-            logger.error(f"Error in polling/turn: {e}")
+        logger.error(f"Error in polling/turn: {e}")
     return False
 
 
@@ -126,4 +142,5 @@ if __name__ == "__main__":
     except Exception:
         traceback.print_exc()
         sys.stderr.flush()
+        sys.stdout.flush()
         sys.stdout.flush()

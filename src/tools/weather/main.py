@@ -12,7 +12,7 @@ logging.getLogger("mcp").setLevel(logging.WARNING)
 logging.getLogger("uvicorn.access").setLevel(logging.WARNING)
 
 # FastMCPサーバーの初期化
-mcp = FastMCP("body-weather")
+mcp = FastMCP("tools-weather")
 
 @mcp.tool(name="get_weather")
 async def weather_tool(location: str, date: str = None) -> str:

@@ -54,12 +54,18 @@ async def test_weather_scenario():
     loader = PromptLoader("ren")
     system_instruction = loader.load_system_instruction()
     
-    # Initialize SaintGraph with empty mcp_urls and custom tools
-    sg = SaintGraph(
-        mcp_urls=[], 
-        system_instruction=system_instruction,
-        tools=[weather_tool, speak_tool, change_emotion_tool]
-    )
+    with patch("saint_graph.saint_graph.BodyClient") as mock_body_class:
+        mock_body_client = mock_body_class.return_value
+        mock_body_client.speak = AsyncMock(side_effect=speak)
+        mock_body_client.change_emotion = AsyncMock(side_effect=change_emotion)
+        
+        # Initialize SaintGraph with dummy body_url, empty mcp_urls and custom tools
+        sg = SaintGraph(
+            body_url="http://mock-body",
+            mcp_urls=[], 
+            system_instruction=system_instruction,
+            tools=[weather_tool]
+        )
     
     try:
         # 3. Execute Turn

@@ -1,35 +1,35 @@
-# MCP クライアント仕様書
+# 外部ツール連携仕様 (MCP & REST)
 
-## 概要
-SaintGraph が外部環境（Body）と通信するためのクライアントモジュール。
-Google ADK の `McpToolset` を使用し、Model Context Protocol (MCP) 仕様に基づいたツールの動的発見と実行を行います。
+## 1. 概要
+SaintGraph は、外部サービスとの連携に **REST Client (Body操作用)** と **MCP Client (情報取得ツール用)** の 2 つを併用します。
 
-## プロトコル & 接続管理
+## 2. Body Client (REST)
+`src/saint_graph/body_client.py`
 
-### URL コンベンション
-*   **Base URL リスト (SSE):** `config.MCP_URLS` (文字列のリスト)
-    *   デフォルト Primary: `http://body-cli:8000/sse`
-    *   デフォルト Weather: `http://body-weather:8001/sse`
+アバターの身体的動作（発話、表情、録画、YouTube連携）を制御するための専用クライアントです。確実な実行と同期制御のために HTTP REST API を使用します。
 
-### 接続戦略 (`McpToolset`)
-*   **初期化:** 各 Base URL に対して `SseConnectionParams(url=url)` を作成し、それを用いて `McpToolset` を初期化します。
-*   **トランスポート:** ADK 内部で SSE (Server-Sent Events) を用いた接続と、JSON-RPC メッセージの送受信が管理されます。
-*   **ディスカバリー:** Toolset の初期化時、または `get_tools()` 呼び出し時に、サーバーの提供するツールが自動的にリストアップされます。
+- **通信先**: `http://body-streamer:8000` (または `body-cli:8000`)
+- **役割**: システムループ (`main.py`) モジュールからの直接的な指令の実行。
 
-## データ変換ロジック
-ADK の `McpToolset` は、以下の変換を内部的に行います。
+## 3. Tool Client (MCP)
+`google.adk.tools.McpToolset`
 
-*   **スキーマ変換:** MCP の JSON Schema 形式から Google Gemini 互換のスキーマ形式への変換。
-*   **ツールラッピング:** 各 MCP ツールを ADK の `Tool` オブジェクトとしてラップ。
+AI (Gemini) が自発的に使用する外部ツールのためのクライアントです。Model Context Protocol (MCP) を使用し、ツールの動的な発見と実行を行います。
 
-## 主要メソッド仕様
+- **通信先**: `config.WEATHER_MCP_URL` (例: `http://tools-weather:8001/sse`)
+- **役割**:
+  - `get_tools()`: AI が利用可能なツールの一覧を動的に取得。
+  - `run_async()`: AI が「ツールを使いたい」と判断した際の命令実行。
+- **データ変換**: MCP の JSON Schema を Google Gemini 互換形式に変換して ADK Agent に統合します。
 
-### `get_tools()` (ADK 内部用)
-*   サーバーからツールの一覧を取得し、モデル（Gemini）が理解できる形式で返します。
+## 4. 呼び出しパターンの棲み分け
 
-### `run_async(args, tool_context)` (ADK 内部用)
-*   モデルからの `function_call` に基づき、対象の MCP サーバーに対して `tools/call` RPC を発行します。
-*   実行結果を文字列（またはオブジェクト）としてモデルに返します。
+| 機能 | 通信方式 | 起動トリガー | 理由 |
+|---|---|---|---|
+| **発話・感情変更** | REST | **プログラム (Parser)** | エラーを許容せず、常に確実に実行するため |
+| **コメント取得** | REST | **プログラム (Loop)** | 定期的なポーリングが必要なため |
+| **録画制御** | REST | **プログラム (Setup/Teardown)** | システムの開始・終了と同期させるため |
+| **天気予報取得** | MCP | **AI (Autonomous)** | 必要かどうかを AI が判断し、動的に拡張したいため |
 
-### SaintGraph における直接利用
-SaintGraph クラスでは、これらを `google.adk.Agent` に渡すことで統合します。また、`call_tool` メソッドにより、特定のツールを手動で呼び出すことが可能です。
+## 5. 設定管理
+`src/saint_graph/config.py` において、`MCP_URLS` リストから Body 用の URL (REST) と情報取得用の URL (MCP) を識別し、それぞれのクライアントに分配します。
