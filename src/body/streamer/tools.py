@@ -1,14 +1,41 @@
 """MCP tools for body-streamer service"""
 import logging
 import json
+import asyncio
 from . import voice, obs, youtube
 
 logger = logging.getLogger(__name__)
 
 
+async def play_audio_file(file_path: str, duration: float) -> str:
+    """
+    事前生成された音声ファイルを再生し、完了まで待機します。
+    
+    Args:
+        file_path: WAVファイルのパス
+        duration: 再生時間（秒）
+        
+    Returns:
+        実行結果メッセージ
+    """
+    try:
+        await obs.set_source_visibility("voice", True)
+        await obs.refresh_media_source("voice", file_path)
+        
+        # 再生完了まで待機（バッファとして0.2秒追加）
+        await asyncio.sleep(duration + 0.2)
+        
+        logger.info(f"[play_audio_file] Completed playback ({duration:.1f}s)")
+        return f"再生完了 ({duration:.1f}s)"
+    except Exception as e:
+        logger.error(f"Error in play_audio_file: {e}")
+        return f"再生エラー: {str(e)}"
+
+
 async def speak(text: str, style: str = "normal") -> str:
     """
     視聴者に対してテキストを発話します。
+    音声生成と再生を行い、完了まで待機します。
     
     Args:
         text: 発話するテキスト
@@ -19,14 +46,13 @@ async def speak(text: str, style: str = "normal") -> str:
     """
     try:
         # 音声を生成して共有ボリュームに保存
-        file_path = await voice.generate_and_save(text, style)
+        file_path, duration = await voice.generate_and_save(text, style)
         
-        # OBS経由で音声を再生
-        await obs.set_source_visibility("voice", True)
-        await obs.refresh_media_source("voice", file_path)
+        # 再生して完了まで待機
+        result = await play_audio_file(file_path, duration)
         
-        logger.info(f"[speak] '{text}' (style: {style})")
-        return f"発話完了: {text[:20]}..."
+        logger.info(f"[speak] '{text[:30]}...' (style: {style}, {duration:.1f}s)")
+        return result
     except Exception as e:
         logger.error(f"Error in speak tool: {e}")
         return f"発話エラー: {str(e)}"

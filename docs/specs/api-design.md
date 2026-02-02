@@ -27,7 +27,21 @@ URL (Streamer): `http://body-streamer:8000`
     ```
 *   **Response:** `{"status": "ok", "result": "..."}`
 
-### 3. `GET /api/comments`
+### 3. `POST /api/play_audio_file` (v1.2 新規)
+事前生成された音声ファイルを再生し、完了まで待機する。センテンス毎の順次再生で使用。
+*   **Request Body:**
+    ```json
+    {
+      "file_path": "/app/shared/audio/speech_1234.wav",
+      "duration": 5.2
+    }
+    ```
+*   **Response:** `{"status": "ok", "result": "再生完了 (5.2s)"}`
+*   **説明**: 
+    - `duration` (秒) の間、再生完了を待機してから応答を返す。
+    - センテンス毎の音声再生で、前の音声が完了するまで次の音声が始まらないことを保証。
+
+### 4. `GET /api/comments`
 直近のユーザーコメントを取得するポーリング用 API。
 *   **Response:**
     ```json

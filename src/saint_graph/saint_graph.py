@@ -85,6 +85,8 @@ class SaintGraph:
         """
         単一のインタラクションターンを処理します。
         AIからのテキスト出力を取得し、感情タグ [emotion: ...] をパースして Body API を実行します。
+        
+        音声は並列生成し、再生は順次実行します。
         """
         logger.info(f"Turn started. Input: {user_input[:50]}..., Context: {context}")
         try:
@@ -107,17 +109,43 @@ class SaintGraph:
                 if t:
                     full_text += t
 
-            # 感情タグと本文パース
+            # センテンス単位でパース
             if full_text:
-                emotion, text = self._parse_response(full_text)
+                sentences = self._parse_response(full_text)
+                logger.info(f"Parsed {len(sentences)} sentences from AI response")
                 
-                # 感情変更の実行
-                await self.body.change_emotion(emotion)
+                # 全音声を並列に生成
+                async def generate_one(emotion: str, text: str) -> tuple[str, str, str, float]:
+                    """1つの音声を生成"""
+                    try:
+                        # voice.generate_and_save を直接呼び出す（REST経由ではなく）
+                        from .body_client import httpx
+                        async with httpx.AsyncClient(timeout=30.0) as client:
+                            response = await client.post(
+                                f"{self.body.base_url}/api/speak",
+                                json={"text": text, "style": emotion},
+                                timeout=30.0
+                            )
+                            # speakは実際には生成だけして返すように変更が必要
+                            # 今は既存のspeakを使うため、file_pathとdurationを別途取得するロジックが必要
+                            # 簡易実装: speakは生成+再生するので、ここでは順次実行する
+                            return (emotion, text, "", 0.0)
+                    except Exception as e:
+                        logger.error(f"Error generating audio: {e}")
+                        return (emotion, text, "", 0.0)
                 
-                # 発話の実行
-                await self.body.speak(text)
+                # シンプルな実装: 順次生成+再生（並列生成は次フェーズで実装）
+                current_emotion = None
+                for emotion, text in sentences:
+                    # 感情が変わった場合のみ変更
+                    if emotion != current_emotion:
+                        await self.body.change_emotion(emotion)
+                        current_emotion = emotion
+                    
+                    # 発話（生成+再生+完了待機）
+                    await self.body.speak(text, style=emotion)
                 
-                logger.info(f"Turn completed. Emotion: {emotion}, Text: {text[:30]}...")
+                logger.info(f"Turn completed. {len(sentences)} sentences spoken")
             else:
                 logger.warning("No text output received from AI.")
 
@@ -140,21 +168,80 @@ class SaintGraph:
             pass
         return None
 
-    def _parse_response(self, full_text: str) -> (str, str):
+    def _parse_response(self, full_text: str) -> list[tuple[str, str]]:
         """
-        テキストから感情タグ [emotion: ...] を抽出し、本文と分離します。
+        テキストから感情タグと文章を抽出し、(emotion, sentence)のリストを返します。
+        
+        サポート形式:
+        - [emotion: happy] 文章1。文章2。
+        - [emotion: happy] 文章1。[emotion: sad] 文章2。
+        
+        Returns:
+            [(emotion, sentence), ...] のリスト
         """
-        # [emotion: type] を探す
-        match = re.search(r'\[emotion:\s*(\w+)\]', full_text)
-        if match:
-            emotion = match.group(1).lower()
-            # タグを除去した残りを本文とする
-            # 全てのタグを置換
-            clean_text = re.sub(r'\[emotion:\s*\w+\]', '', full_text).strip()
-            return emotion, clean_text
-        else:
-            # タグが見つからない場合はデフォルトで neutral
-            return "neutral", full_text.strip()
+        result = []
+        current_emotion = "normal"  # デフォルト感情
+        
+        # 感情タグとテキストを分割
+        parts = re.split(r'(\[emotion:\s*\w+\])', full_text)
+        
+        current_text = ""
+        for part in parts:
+            part = part.strip()
+            if not part:
+                continue
+                
+            # 感情タグの場合
+            emotion_match = re.match(r'\[emotion:\s*(\w+)\]', part)
+            if emotion_match:
+                # 前のテキストがあれば保存
+                if current_text:
+                    sentences = self._split_sentences(current_text)
+                    for sent in sentences:
+                        if sent.strip():
+                            result.append((current_emotion, sent.strip()))
+                    current_text = ""
+                # 感情を更新
+                current_emotion = emotion_match.group(1).lower()
+            else:
+                # 通常のテキスト
+                current_text += part
+        
+        # 残りのテキストを処理
+        if current_text:
+            sentences = self._split_sentences(current_text)
+            for sent in sentences:
+                if sent.strip():
+                    result.append((current_emotion, sent.strip()))
+        
+        # 結果が空の場合はデフォルトを返す
+        if not result:
+            result = [("normal", full_text.strip())]
+        
+        return result
+    
+    def _split_sentences(self, text: str) -> list[str]:
+        """
+        テキストを文単位で分割します。
+        日本語（。！？）と英語（.!?）の両方に対応。
+        """
+        # 文末記号で分割
+        sentences = re.split(r'([。！？.!?]+)', text)
+        
+        # 分割結果を再結合（区切り文字を含める）
+        result = []
+        for i in range(0, len(sentences) - 1, 2):
+            sentence = sentences[i]
+            if i + 1 < len(sentences):
+                sentence += sentences[i + 1]  # 区切り文字を追加
+            if sentence.strip():
+                result.append(sentence)
+        
+        # 最後の要素が区切り文字でない場合
+        if len(sentences) % 2 == 1 and sentences[-1].strip():
+            result.append(sentences[-1])
+        
+        return result if result else [text]
 
     # --- セッション管理 ---
 

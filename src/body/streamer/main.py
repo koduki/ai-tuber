@@ -6,7 +6,7 @@ from starlette.applications import Starlette
 from starlette.responses import JSONResponse
 from starlette.requests import Request
 from starlette.routing import Route
-from .tools import speak, change_emotion, get_comments, start_obs_recording, stop_obs_recording
+from .tools import speak, change_emotion, get_comments, start_obs_recording, stop_obs_recording, play_audio_file
 from .youtube import start_comment_polling
 
 # ログ設定
@@ -99,11 +99,33 @@ async def stop_recording_api(request: Request) -> JSONResponse:
         return JSONResponse({"status": "error", "message": str(e)}, status_code=500)
 
 
+async def play_audio_file_api(request: Request) -> JSONResponse:
+    """
+    音声ファイル再生API (完了まで待機)
+    POST /api/play_audio_file
+    Body: {"file_path": "/app/shared/audio/speech_1234.wav", "duration": 5.2}
+    """
+    try:
+        body = await request.json()
+        file_path = body.get("file_path")
+        duration = body.get("duration", 0.0)
+        
+        if not file_path:
+            return JSONResponse({"status": "error", "message": "file_path is required"}, status_code=400)
+        
+        result = await play_audio_file(file_path, duration)
+        return JSONResponse({"status": "ok", "result": result})
+    except Exception as e:
+        logger.error(f"Error in play_audio_file API: {e}")
+        return JSONResponse({"status": "error", "message": str(e)}, status_code=500)
+
+
 # Starletteアプリケーションを構築
 routes = [
     Route("/health", health_check, methods=["GET"]),
     Route("/api/speak", speak_api, methods=["POST"]),
     Route("/api/change_emotion", change_emotion_api, methods=["POST"]),
+    Route("/api/play_audio_file", play_audio_file_api, methods=["POST"]),
     Route("/api/comments", get_comments_api, methods=["GET"]),
     Route("/api/recording/start", start_recording_api, methods=["POST"]),
     Route("/api/recording/stop", stop_recording_api, methods=["POST"]),
