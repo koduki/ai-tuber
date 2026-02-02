@@ -22,8 +22,6 @@ ADK_TELEMETRY = os.getenv("ADK_TELEMETRY", "false").lower() == "true"
 
 # システム定数
 POLL_INTERVAL = 1.0        # コメント取得間隔
-SOLILOQUY_INTERVAL = 30.0 # 沈黙時にAIが自発的に話すまでの時間
-HISTORY_LIMIT = 20        # 会話履歴の保持数
 NEWS_DIR = os.getenv("NEWS_DIR", "/app/data/news")
 MAX_WAIT_CYCLES = int(os.getenv("MAX_WAIT_CYCLES", "30")) # 終了までの沈黙カウント(秒)
 

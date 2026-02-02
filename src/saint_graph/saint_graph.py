@@ -72,10 +72,6 @@ class SaintGraph:
             if hasattr(ts, 'close'):
                 await ts.close()
 
-    def _get_tools(self) -> List[Any]:
-        """ADKエージェントに渡すツールリストを生成します。"""
-        return self.local_tools + self.toolsets
-
     # --- 録画制御ツール (AIが呼べる) ---
 
     async def start_recording(self) -> str:

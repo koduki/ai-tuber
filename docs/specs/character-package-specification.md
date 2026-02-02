@@ -19,15 +19,10 @@ AITuberシステムでは、キャラクターごとの定義（ペルソナ、�
 
 ```
 data/mind/{character_name}/
-├── README.md                    # パッケージ説明書
+├── mind.json                    # 技術設定（speaker_idなど）[NEW]
 ├── persona.md                   # キャラクター設定（AIの性格・口調）
-├── system_prompts/              # シーン別システムプロンプト
-│   ├── intro.md                # 配信開始時
-│   ├── news_reading.md         # ニュース読み上げ
-│   ├── news_finished.md        # ニュース終了時
-│   └── closing.md              # 配信終了時
 └── assets/                      # OBSアセット（画像・音声）
-    ├── ai_normal.png           # 通常表情
+    ├── ai_neutral.png          # 通常表情（以前の ai_normal.png）
     ├── ai_joyful.png           # 喜び表情
     ├── ai_fun.png              # 楽しい表情
     ├── ai_sad.png              # 悲しい表情
@@ -39,21 +34,16 @@ data/mind/{character_name}/
 
 ## ファイル仕様
 
-### 1. persona.md
+### 1. mind.json [NEW]
+キャラクター固有の技術的な設定を記述します。
+- `speaker_id`: VoiceVox の話者IDを指定します。
+
+### 2. persona.md
 キャラクターの魂（口調・性格）を定義します。
-- **感情タグの指示**: 現在のシステムでは、発話の先頭に `[emotion: <type>]` を付与するルールが `core_instructions.md` で定義されています。各キャラクタープロンプトはこのルールに従う必要があります。
+- **感情タグの指示**: 現在のシステムでは、発話の最後または文中に `[emotion: <type>]` を付与するルールが `core_instructions.md` で定義されています。各キャラクタープロンプトはこのルールに従う必要があります。
 
-### 2. system_prompts/
-各配信シーンにおけるAIへの具体的な指示を定義します。
-
-| ファイル名 | 用途 | 備考 |
-|-----------|------|------|
-| `intro.md` | 配信開始時の挨拶 | |
-| `news_reading.md` | ニュースの音読と解説 | `{title}`, `{content}` が注入される |
-| `news_finished.md` | ニュース読了後のリアクション | |
-| `closing.md` | 配信終了時の挨拶 | |
-
-※ 以前のバージョンで存在した `retry_*.md` は、リトライロジックの廃止に伴い不要となりました。
+> [!NOTE]
+> 以前のバージョンで存在した `system_prompts/` は、配信フローの共通化のため `src/saint_graph/system_prompts/` に移動されました。これにより、キャラクターを切り替えても同じ配信ロジックが維持されます。
 
 ---
 
