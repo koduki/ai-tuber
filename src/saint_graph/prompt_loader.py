@@ -41,7 +41,7 @@ class PromptLoader:
 
     def load_templates(self, names: list[str]) -> dict[str, str]:
         """
-        指定された名前のテンプレートをMind配下から読み込みます。
+        指定された名前のテンプレートをsaint_graph配下から読み込みます。
         
         Args:
             names: 読み込むテンプレート名のリスト（拡張子なし）
@@ -51,7 +51,7 @@ class PromptLoader:
         """
         templates = {}
         for name in names:
-            path = self._mind_prompts_dir / f"{name}.md"
+            path = self._saint_graph_prompts_dir / f"{name}.md"
             with open(path, "r", encoding="utf-8") as f:
                 templates[name] = f.read()
         return templates

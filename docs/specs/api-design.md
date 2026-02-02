@@ -100,3 +100,20 @@ URL (Weather): `http://tools-weather:8001/sse` (`WEATHER_MCP_URL` で設定可�
 #### 2. Tools/Weather (`src/tools/weather/`)
 *   `main.py`: **MCP サーバー層**（FastMCP）。
 *   `tools.py`: **ロジック層**。
+
+#### 3. SaintGraph (`src/saint_graph/`)
+*   `main.py`: **メインループ**。ニュース配信のライフサイクル管理。
+*   `saint_graph.py`: **コアロジック**。Google ADK を使用した LLM 制御と Body 操作。
+*   `prompt_loader.py`: **プロンプト管理**。システムプロンプトとキャラクタープロンプトの結合。
+
+### プロンプト設計
+プロンプトは、キャラクターに依存しない「システム命令」と、キャラクター固有の「ペルソナ」に分離して定義されます。
+
+#### 1. システムプロンプト (`src/saint_graph/system_prompts/`)
+配信のフローや共通の動作ルールを定義します。
+*   `core_instructions.md`: 感情タグの付与やツール利用ルールなどの基本原則。
+*   `intro.md`, `news_reading.md`, `news_finished.md`, `closing.md`: 各配信フェーズの指示。
+
+#### 2. キャラクタープロンプト (`data/mind/<character_name>/`)
+キャラクターの性格、口調、固有の挨拶などを定義します。
+*   `persona.md`: キャラクターのアイデンティティと対話スタイルの定義。
