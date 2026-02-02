@@ -12,8 +12,8 @@ VOICEVOX_PORT = int(os.getenv("VOICEVOX_PORT", "50021"))
 VOICEVOX_BASE_URL = f"http://{VOICEVOX_HOST}:{VOICEVOX_PORT}"
 
 # Shared audio directory
-AUDIO_DIR = Path("/app/shared/audio")
-AUDIO_DIR.mkdir(parents=True, exist_ok=True)
+VOICE_DIR = Path("/app/shared/voice")
+VOICE_DIR.mkdir(parents=True, exist_ok=True)
 
 # Speaker ID mapping (style -> speaker_id)
 SPEAKER_MAP = {
@@ -92,7 +92,7 @@ async def save_to_shared_volume(audio_data: bytes, filename: str) -> str:
     Returns:
         保存されたファイルのパス
     """
-    file_path = AUDIO_DIR / filename
+    file_path = VOICE_DIR / filename
     file_path.write_bytes(audio_data)
     if file_path.exists():
         size = file_path.stat().st_size

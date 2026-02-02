@@ -103,7 +103,7 @@ async def play_audio_file_api(request: Request) -> JSONResponse:
     """
     音声ファイル再生API (完了まで待機)
     POST /api/play_audio_file
-    Body: {"file_path": "/app/shared/audio/speech_1234.wav", "duration": 5.2}
+    Body: {"file_path": "/app/shared/voice/speech_1234.wav", "duration": 5.2}
     """
     try:
         body = await request.json()
@@ -144,24 +144,24 @@ if __name__ == "__main__":
     
     # OBS初期化用のダミーファイル作成
     try:
-        audio_dir = "/app/shared/audio"
-        os.makedirs(audio_dir, exist_ok=True)
+        voice_dir = "/app/shared/voice"
+        os.makedirs(voice_dir, exist_ok=True)
         
         # 起動時に古い音声ファイルをクリーンアップ
-        logger.info("Cleaning up old audio files...")
+        logger.info("Cleaning up old voice files...")
         audio_files_deleted = 0
-        for filename in os.listdir(audio_dir):
+        for filename in os.listdir(voice_dir):
             if filename.startswith("speech_") and filename.endswith(".wav") and filename != "speech_0000.wav":
                 try:
-                    file_path = os.path.join(audio_dir, filename)
+                    file_path = os.path.join(voice_dir, filename)
                     os.remove(file_path)
                     audio_files_deleted += 1
                 except Exception as e:
                     logger.warning(f"Failed to delete {filename}: {e}")
-        logger.info(f"Cleaned up {audio_files_deleted} old audio files")
+        logger.info(f"Cleaned up {audio_files_deleted} old voice files")
         
         # ダミーファイル作成
-        dummy_file = os.path.join(audio_dir, "speech_0000.wav")
+        dummy_file = os.path.join(voice_dir, "speech_0000.wav")
         if not os.path.exists(dummy_file) or os.path.getsize(dummy_file) == 0:
             # 最小限の無音WAVヘッダ (1秒, モノラル, 44100Hz, 16bit)
             silent_wav = (

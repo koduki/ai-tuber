@@ -32,7 +32,7 @@ URL (Streamer): `http://body-streamer:8000`
 *   **Request Body:**
     ```json
     {
-      "file_path": "/app/shared/audio/speech_1234.wav",
+      "file_path": "/app/shared/voice/speech_1234.wav",
       "duration": 5.2
     }
     ```

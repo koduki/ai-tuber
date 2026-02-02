@@ -1,5 +1,5 @@
 volumes:
-  audio_share:
+  voice_share:
   recordings:
 
 services:
@@ -63,7 +63,7 @@ services:
     ports:
       - "8002:8000"
     volumes:
-      - audio_share:/app/shared/audio
+      - voice_share:/app/shared/voice
     environment:
       - PORT=8000
       - VOICEVOX_HOST=voicevox
@@ -112,6 +112,6 @@ services:
       - "8080:8080"  # noVNC web interface
       - "4455:4455"  # OBS WebSocket
     volumes:
-      - audio_share:/app/shared/audio
+      - voice_share:/app/shared/voice
     environment:
       - DISPLAY=:99

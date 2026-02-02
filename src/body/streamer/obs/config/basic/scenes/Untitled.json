@@ -52,7 +52,7 @@
             "versioned_id": "ffmpeg_source",
             "settings": {
                 "close_when_inactive": false,
-                "local_file": "/app/shared/audio/speech_0000.wav",
+                "local_file": "/app/shared/voice/speech_0000.wav",
                 "restart_on_activate": true
             },
             "mixers": 255,
