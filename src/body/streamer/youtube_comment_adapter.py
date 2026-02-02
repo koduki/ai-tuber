@@ -26,12 +26,22 @@ class YouTubeCommentAdapter:
             stdout=subprocess.PIPE, 
             stderr=subprocess.PIPE, 
             text=True, 
-            bufsize=1
+            bufsize=1,
+            env=os.environ.copy()  # 環境変数を子プロセスに渡す（YOUTUBE_API_KEY等）
         )
         self.q: queue.Queue = queue.Queue()
+        self.error_q: queue.Queue = queue.Queue()
+        
+        # stdout監視スレッド（コメント取得用）
         self.thread = threading.Thread(target=self.enqueue_output, args=(self.process.stdout, self.q))
-        self.thread.daemon = True  # スレッドがデーモン化され、メインプログラム終了時に終了
+        self.thread.daemon = True
         self.thread.start()
+        
+        # stderr監視スレッド（エラー検出用）
+        self.error_thread = threading.Thread(target=self.enqueue_output, args=(self.process.stderr, self.error_q))
+        self.error_thread.daemon = True
+        self.error_thread.start()
+        
         logger.info(f"Started YouTube comment adapter for video: {video_id}")
 
     def enqueue_output(self, out, queue: queue.Queue):
@@ -48,13 +58,25 @@ class YouTubeCommentAdapter:
             List of comment dictionaries
         """
         new_comments = []
+        
+        # エラー出力をチェック
+        while not self.error_q.empty():
+            error_line = self.error_q.get_nowait()
+            if error_line:
+                logger.error(f"YouTube comment subprocess error: {error_line.strip()}")
+        
+        # コメントを取得
         while not self.q.empty():
-            line = self.q.get_nowait()  # キューからデータを取得
+            line = self.q.get_nowait()
             if line:
                 try:
-                    new_comments.append(json.loads(line.strip()))
+                    comment_data = json.loads(line.strip())
+                    if "error" in comment_data:
+                        logger.error(f"YouTube API error: {comment_data['error']}")
+                    else:
+                        new_comments.append(comment_data)
                 except json.JSONDecodeError as e:
-                    logger.warning(f"Failed to parse comment JSON: {e}")
+                    logger.warning(f"Failed to parse comment JSON: {e}, line: {line.strip()}")
         return new_comments
 
     def close(self):
