@@ -58,12 +58,27 @@ async def _run_newscaster_loop(saint_graph: SaintGraph, news_service: NewsServic
     finished_news = False
     end_wait_counter = 0
 
-    # 録画開始の試行 (REST API)
+    # 録画・配信開始の試行 (REST API)
+    streaming_mode = os.getenv("STREAMING_MODE", "false").lower() == "true"
     try:
-        res = await saint_graph.body.start_recording()
-        logger.info(f"Automatic Recording Start result: {res}")
+        if streaming_mode:
+            from datetime import datetime
+            now_iso = datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ')
+            title = os.getenv("STREAM_TITLE", f"AI Tuber Live Stream - {now_iso}")
+            description = os.getenv("STREAM_DESCRIPTION", "AI Tuber Live Stream")
+            
+            res = await saint_graph.body.start_streaming(
+                title=title,
+                description=description,
+                scheduled_start_time=now_iso,
+                privacy_status=os.getenv("STREAM_PRIVACY", "private")
+            )
+            logger.info(f"Automatic Streaming Start result: {res}")
+        else:
+            res = await saint_graph.body.start_recording()
+            logger.info(f"Automatic Recording Start result: {res}")
     except Exception as e:
-        logger.warning(f"Could not automatically start recording: {e}")
+        logger.warning(f"Could not automatically start: {e}")
 
     # 配信開始の挨拶
     await saint_graph.process_turn(templates["intro"], context="Intro")
@@ -71,7 +86,7 @@ async def _run_newscaster_loop(saint_graph: SaintGraph, news_service: NewsServic
     while True:
         try:
             # ユーザーからのコメント確認
-            has_user_interaction = await _check_comments(saint_graph)
+            has_user_interaction = await _check_comments(saint_graph, streaming_mode)
             if has_user_interaction:
                 end_wait_counter = 0
                 await asyncio.sleep(POLL_INTERVAL)
@@ -94,9 +109,12 @@ async def _run_newscaster_loop(saint_graph: SaintGraph, news_service: NewsServic
                     await saint_graph.process_turn(templates["closing"], context="Closing")
                     await asyncio.sleep(3)
                     
-                    # 録画停止の試行
+                    # 停止の試行
                     try:
-                        await saint_graph.body.stop_recording()
+                        if streaming_mode:
+                            await saint_graph.body.stop_streaming()
+                        else:
+                            await saint_graph.body.stop_recording()
                     except:
                         pass
                         
@@ -113,11 +131,14 @@ async def _run_newscaster_loop(saint_graph: SaintGraph, news_service: NewsServic
             raise
 
 
-async def _check_comments(saint_graph: SaintGraph) -> bool:
+async def _check_comments(saint_graph: SaintGraph, streaming_mode: bool = False) -> bool:
     """コメントをポーリングし、あれば応答します。インタラクションがあればTrueを返します。"""
     try:
         # BodyClient経由でコメント取得 (REST API)
-        comments_data = await saint_graph.body.get_comments()
+        if streaming_mode:
+            comments_data = await saint_graph.body.get_streaming_comments()
+        else:
+            comments_data = await saint_graph.body.get_comments()
         
         if comments_data:
             # コメントの整形（リストから文字列へ）

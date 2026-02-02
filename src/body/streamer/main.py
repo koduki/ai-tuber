@@ -6,7 +6,7 @@ from starlette.applications import Starlette
 from starlette.responses import JSONResponse
 from starlette.requests import Request
 from starlette.routing import Route
-from .tools import speak, change_emotion, get_comments, start_obs_recording, stop_obs_recording, play_audio_file
+from .tools import speak, change_emotion, get_comments, start_obs_recording, stop_obs_recording, play_audio_file, start_streaming, stop_streaming, get_streaming_comments
 from .youtube import start_comment_polling
 
 # ログ設定
@@ -121,6 +121,65 @@ async def play_audio_file_api(request: Request) -> JSONResponse:
         return JSONResponse({"status": "error", "message": str(e)}, status_code=500)
 
 
+async def start_streaming_api(request: Request) -> JSONResponse:
+    """
+    YouTube Live配信開始API
+    POST /api/streaming/start
+    Body: {
+        "title": "配信タイトル",
+        "description": "配信説明",
+        "scheduled_start_time": "2024-12-31T00:00:00.000Z",
+        "thumbnail_path": "/path/to/thumbnail.png",
+        "privacy_status": "private"
+    }
+    """
+    try:
+        body = await request.json()
+        title = body.get("title", "AI Tuber Live Stream")
+        description = body.get("description", "")
+        scheduled_start_time = body.get("scheduled_start_time")
+        thumbnail_path = body.get("thumbnail_path")
+        privacy_status = body.get("privacy_status", "private")
+        
+        if not scheduled_start_time:
+            return JSONResponse({"status": "error", "message": "scheduled_start_time is required"}, status_code=400)
+        
+        result = await start_streaming(title, description, scheduled_start_time, thumbnail_path, privacy_status)
+        return JSONResponse({"status": "ok", "result": result})
+    except Exception as e:
+        logger.error(f"Error in start_streaming API: {e}")
+        return JSONResponse({"status": "error", "message": str(e)}, status_code=500)
+
+
+async def stop_streaming_api(request: Request) -> JSONResponse:
+    """
+    YouTube Live配信停止API
+    POST /api/streaming/stop
+    """
+    try:
+        result = await stop_streaming()
+        return JSONResponse({"status": "ok", "result": result})
+    except Exception as e:
+        logger.error(f"Error in stop_streaming API: {e}")
+        return JSONResponse({"status": "error", "message": str(e)}, status_code=500)
+
+
+async def get_streaming_comments_api(request: Request) -> JSONResponse:
+    """
+    YouTube Live配信コメント取得API
+    GET /api/streaming/comments
+    """
+    try:
+        result = await get_streaming_comments()
+        # JSON文字列をパースしてリストとして返す
+        import json
+        comments = json.loads(result) if result else []
+        return JSONResponse({"status": "ok", "comments": comments})
+    except Exception as e:
+        logger.error(f"Error in get_streaming_comments API: {e}")
+        return JSONResponse({"status": "error", "message": str(e)}, status_code=500)
+
+
 # Starletteアプリケーションを構築
 routes = [
     Route("/health", health_check, methods=["GET"]),
@@ -130,6 +189,9 @@ routes = [
     Route("/api/comments", get_comments_api, methods=["GET"]),
     Route("/api/recording/start", start_recording_api, methods=["POST"]),
     Route("/api/recording/stop", stop_recording_api, methods=["POST"]),
+    Route("/api/streaming/start", start_streaming_api, methods=["POST"]),
+    Route("/api/streaming/stop", stop_streaming_api, methods=["POST"]),
+    Route("/api/streaming/comments", get_streaming_comments_api, methods=["GET"]),
 ]
 
 app = Starlette(routes=routes)
@@ -175,6 +237,28 @@ if __name__ == "__main__":
     except Exception as e:
         logger.warning(f"Failed to create dummy audio file: {e}")
     
+    # YouTube秘匿情報を環境変数からファイルに出力 (Docker用)
+    try:
+        # クライアントシークレット
+        secret_json = os.getenv("YOUTUBE_CLIENT_SECRET_JSON")
+        secret_path = os.getenv("YOUTUBE_CLIENT_SECRET_PATH", "/secret/google_client_secret.json")
+        if secret_json:
+            os.makedirs(os.path.dirname(secret_path), exist_ok=True)
+            with open(secret_path, "w") as f:
+                f.write(secret_json)
+            logger.info(f"Written YOUTUBE_CLIENT_SECRET_JSON to {secret_path}")
+        
+        # トークンキャッシュ
+        token_json = os.getenv("YOUTUBE_TOKEN_JSON")
+        token_path = os.getenv("YOUTUBE_TOKEN_PATH", "/secret/yt_token.json")
+        if token_json:
+            os.makedirs(os.path.dirname(token_path), exist_ok=True)
+            with open(token_path, "w") as f:
+                f.write(token_json)
+            logger.info(f"Written YOUTUBE_TOKEN_JSON to {token_path}")
+    except Exception as e:
+        logger.error(f"Failed to write YouTube secrets: {e}")
+
     # Uvicornでサーバーを起動
     logger.info(f"Starting Body Streamer REST server on port {port}")
     uvicorn.run(app, host="0.0.0.0", port=port, access_log=False)

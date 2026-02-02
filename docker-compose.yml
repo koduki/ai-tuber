@@ -13,6 +13,10 @@ services:
       - BODY_URL=http://body-streamer:8000
       - WEATHER_MCP_URL=http://tools-weather:8001/sse
       - GOOGLE_API_KEY=${GOOGLE_API_KEY}
+      - STREAMING_MODE=${STREAMING_MODE:-false}
+      - STREAM_TITLE=${STREAM_TITLE:-}
+      - STREAM_DESCRIPTION=${STREAM_DESCRIPTION:-}
+      - STREAM_PRIVACY=${STREAM_PRIVACY:-private}
       - PYTHONPATH=/app
       - ADK_TELEMETRY=false
       - NO_PROXY=body-streamer,tools-weather,localhost,127.0.0.1
@@ -62,6 +66,8 @@ services:
       dockerfile: src/body/streamer/Dockerfile
     ports:
       - "8002:8000"
+    stdin_open: true
+    tty: true
     volumes:
       - voice_share:/app/shared/voice
     environment:
@@ -71,9 +77,14 @@ services:
       - OBS_HOST=obs-studio
       - OBS_PORT=4455
       - OBS_PASSWORD=${OBS_PASSWORD:-}
+      - STREAMING_MODE=${STREAMING_MODE:-false}
       - YOUTUBE_API_KEY=${YOUTUBE_API_KEY:-}
       - YOUTUBE_LIVE_CHAT_ID=${YOUTUBE_LIVE_CHAT_ID:-}
       - YOUTUBE_POLLING_INTERVAL=5
+      - YOUTUBE_CLIENT_SECRET_PATH=${YOUTUBE_CLIENT_SECRET_PATH:-/secret/google_client_secret.json}
+      - YOUTUBE_TOKEN_PATH=${YOUTUBE_TOKEN_PATH:-/secret/yt_token.json}
+      - YOUTUBE_CLIENT_SECRET_JSON=${YOUTUBE_CLIENT_SECRET_JSON:-}
+      - YOUTUBE_TOKEN_JSON=${YOUTUBE_TOKEN_JSON:-}
     depends_on:
       voicevox:
         condition: service_healthy
@@ -115,3 +126,11 @@ services:
       - voice_share:/app/shared/voice
     environment:
       - DISPLAY=:99
+    shm_size: '2gb'
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu, video, graphics, utility, display]

@@ -278,3 +278,67 @@ async def get_record_status() -> bool:
     except Exception as e:
         logger.error(f"Error getting OBS recording status: {e}")
         return False
+
+
+async def start_streaming(stream_key: str) -> bool:
+    """
+    OBSのストリーミングを開始します。
+    
+    Args:
+        stream_key: YouTube RTMP stream key
+        
+    Returns:
+        成功の場合True
+    """
+    if not await connect():
+        return False
+    
+    try:
+        # Use custom RTMP for better reliability
+        custom_settings = {
+            "server": "rtmp://a.rtmp.youtube.com/live2",
+            "key": stream_key,
+            "use_auth": False
+        }
+        
+        ws_client.call(obs_requests.SetStreamServiceSettings(
+            streamServiceType="rtmp_custom",
+            streamServiceSettings=custom_settings
+        ))
+        logger.info(f"Updated OBS stream settings with Custom RTMP and key")
+        logger.info(f"Updated OBS stream settings with new key")
+        
+        # Start streaming
+        ws_client.call(obs_requests.StartStream())
+        logger.info("Started OBS streaming")
+        return True
+    except Exception as e:
+        logger.error(f"Error starting OBS streaming: {e}")
+        return False
+
+
+async def stop_streaming() -> bool:
+    """OBSのストリーミングを停止します。"""
+    if not await connect():
+        return False
+    
+    try:
+        ws_client.call(obs_requests.StopStream())
+        logger.info("Stopped OBS streaming")
+        return True
+    except Exception as e:
+        logger.error(f"Error stopping OBS streaming: {e}")
+        return False
+
+
+async def get_streaming_status() -> bool:
+    """ストリーミング中かどうかを確認します。"""
+    if not await connect():
+        return False
+    
+    try:
+        response = ws_client.call(obs_requests.GetStreamStatus())
+        return response.getOutputActive()
+    except Exception as e:
+        logger.error(f"Error getting OBS streaming status: {e}")
+        return False

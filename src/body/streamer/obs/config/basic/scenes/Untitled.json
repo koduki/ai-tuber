@@ -224,7 +224,7 @@
                     {
                         "name": "normal",
                         "source_uuid": "94124abf-0555-404c-b8c3-963c26a11197",
-                        "visible": true,
+                        "visible": false,
                         "locked": false,
                         "rot": 0.0,
                         "pos": {
@@ -341,7 +341,7 @@
                     {
                         "name": "joyful",
                         "source_uuid": "6e3ac1ff-74e2-43bb-a2b9-7356a3ba2852",
-                        "visible": false,
+                        "visible": true,
                         "locked": false,
                         "rot": 0.0,
                         "pos": {

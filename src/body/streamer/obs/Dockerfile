@@ -1,7 +1,9 @@
-FROM ubuntu:22.04
+FROM nvidia/cuda:11.8.0-runtime-ubuntu22.04
 
 ENV DEBIAN_FRONTEND=noninteractive
 ENV DISPLAY=:99
+ENV NVIDIA_VISIBLE_DEVICES=all
+ENV NVIDIA_DRIVER_CAPABILITIES=all,graphics,utility,video,display
 
 # Install basic packages, OBS PPA, and OBS Studio
 RUN apt-get update && apt-get install -y \
@@ -19,6 +21,8 @@ RUN apt-get update && apt-get install -y \
     libegl1-mesa \
     libgl1-mesa-dri \
     libgl1-mesa-glx \
+    libglvnd0 \
+    libglx0 \
     dbus-x11 \
     curl \
     wget \
