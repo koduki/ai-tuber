@@ -1,25 +1,136 @@
-version: '3.8'
+volumes:
+  voice_share:
+  recordings:
 
 services:
-  ai-tuber:
-    image: gcr.io/ren-studio-ai/ai-tuber
+  # --- Saint Graph (Spirit/Logic) ---
+  saint-graph:
+    build:
+      context: .
+      dockerfile: src/saint_graph/Dockerfile
     environment:
-      - YT_LIVE_KEY=xxx-xxx-xxx-xxx-xxx
-    volumes:
-      - ./:/workspaces/ai-tuber
-      - C:\Users\koduki\.secret\:/secret
+      - RUN_MODE=desktop
+      - BODY_URL=http://body-streamer:8000
+      - WEATHER_MCP_URL=http://tools-weather:8001/sse
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY}
+      - STREAMING_MODE=${STREAMING_MODE:-false}
+      - STREAM_TITLE=${STREAM_TITLE:-}
+      - STREAM_DESCRIPTION=${STREAM_DESCRIPTION:-}
+      - STREAM_PRIVACY=${STREAM_PRIVACY:-private}
+      - PYTHONPATH=/app
+      - ADK_TELEMETRY=false
+      - NO_PROXY=body-streamer,tools-weather,localhost,127.0.0.1
+    depends_on:
+      body-streamer:
+        condition: service_healthy
+      tools-weather:
+        condition: service_healthy
+    command: python -m src.saint_graph.main
+
+  # --- Tools Weather (MCP Server) ---
+  tools-weather:
+    build:
+      context: .
+      dockerfile: src/tools/weather/Dockerfile
     ports:
-      - "6080:6080"
-      - "5901:5901"
-      - "5000:5000"
-    restart: always
+      - "8001:8001"
+    environment:
+      - PORT=8001
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:8001/health" ]
+      interval: 5s
+      timeout: 2s
+      retries: 5
+
+  # --- Body CLI (REST Server / For Development) ---
+  body-cli:
+    build:
+      context: .
+      dockerfile: src/body/cli/Dockerfile
+    ports:
+      - "8000:8000"
+    stdin_open: true
+    tty: true
+    environment:
+      - PORT=8000
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:8000/health" ]
+      interval: 5s
+      timeout: 2s
+      retries: 5
+
+  # --- Body Streamer (REST Server for Streaming) ---
+  body-streamer:
+    build:
+      context: .
+      dockerfile: src/body/streamer/Dockerfile
+    ports:
+      - "8002:8000"
+    stdin_open: true
+    tty: true
+    volumes:
+      - voice_share:/app/shared/voice
+    environment:
+      - PORT=8000
+      - VOICEVOX_HOST=voicevox
+      - VOICEVOX_PORT=50021
+      - OBS_HOST=obs-studio
+      - OBS_PORT=4455
+      - OBS_PASSWORD=${OBS_PASSWORD:-}
+      - STREAMING_MODE=${STREAMING_MODE:-false}
+      - YOUTUBE_API_KEY=${YOUTUBE_API_KEY:-}
+      - YOUTUBE_LIVE_CHAT_ID=${YOUTUBE_LIVE_CHAT_ID:-}
+      - YOUTUBE_POLLING_INTERVAL=5
+      - YOUTUBE_CLIENT_SECRET_PATH=${YOUTUBE_CLIENT_SECRET_PATH:-/secret/google_client_secret.json}
+      - YOUTUBE_TOKEN_PATH=${YOUTUBE_TOKEN_PATH:-/secret/yt_token.json}
+      - YOUTUBE_CLIENT_SECRET_JSON=${YOUTUBE_CLIENT_SECRET_JSON:-}
+      - YOUTUBE_TOKEN_JSON=${YOUTUBE_TOKEN_JSON:-}
+    depends_on:
+      voicevox:
+        condition: service_healthy
+      obs-studio:
+        condition: service_started
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:8000/health" ]
+      interval: 5s
+      timeout: 2s
+      retries: 5
+
+  # --- VoiceVox Engine ---
   voicevox:
     image: voicevox/voicevox_engine:nvidia-ubuntu20.04-latest
+    ports:
+      - "50021:50021"
     deploy:
       resources:
         reservations:
           devices:
-            - capabilities: [gpu]
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    healthcheck:
+      test: [ "CMD", "wget", "--no-verbose", "--tries=1", "--output-document=/dev/null", "http://localhost:50021/version" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # --- OBS Studio (Streaming/Broadcasting) ---
+  obs-studio:
+    build:
+      context: .
+      dockerfile: src/body/streamer/obs/Dockerfile
     ports:
-      - "127.0.0.1:50021:50021"
-    restart: always
+      - "8080:8080"  # noVNC web interface
+      - "4455:4455"  # OBS WebSocket
+    volumes:
+      - voice_share:/app/shared/voice
+    environment:
+      - DISPLAY=:99
+    shm_size: '2gb'
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu, video, graphics, utility, display]

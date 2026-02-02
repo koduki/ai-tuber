@@ -1,0 +1,5 @@
+fastapi
+uvicorn
+sse-starlette
+httpx
+mcp

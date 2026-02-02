@@ -1,0 +1,37 @@
+services:
+  # 開発専用コンテナ - すべての開発ツールと依存関係を含む
+  dev:
+    build:
+      context: .
+      dockerfile: .devcontainer/Dockerfile
+    volumes:
+      - .:/app
+    # VS Code サーバーが起動するまで待機
+    command: sleep infinity
+    # body-cli は profiles: manual で手動起動のため、depends_on は設定しない
+    environment:
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY}
+      - PYTHONPATH=/app
+
+  # 開発モードでは saint-graph を自動起動しない（手動でテスト実行するため）
+  saint-graph:
+    # 開発中は明示的に起動する必要がある
+    profiles:
+      - manual
+  body-cli:
+    # 開発中は明示的に起動する必要がある
+    profiles:
+      - manual
+  tools-weather:
+    # 開発中は明示的に起動する必要がある
+    profiles:
+      - manual
+  body-streamer:
+    profiles:
+      - manual
+  voicevox:
+    profiles:
+      - manual
+  obs-studio:
+    profiles:
+      - manual

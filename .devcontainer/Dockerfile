@@ -1,46 +1,25 @@
-FROM mcr.microsoft.com/devcontainers/base:jammy
-# FROM mcr.microsoft.com/devcontainers/base:jammy 
+FROM mcr.microsoft.com/devcontainers/python:1-3.11-bullseye
 
-ARG DEBIAN_FRONTEND=noninteractive
-ARG USER=vscode
+# Install wget/git-lfs which is required by VSCode server install/LFS
+RUN apt-get update && apt-get install -y wget git-lfs ca-certificates curl gnupg && git lfs install
 
-RUN DEBIAN_FRONTEND=noninteractive \
-    && apt-get update \ 
-    && apt-get install -y build-essential --no-install-recommends make \
-        ca-certificates \
-        git \
-        libssl-dev \
-        zlib1g-dev \
-        libbz2-dev \
-        libreadline-dev \
-        libsqlite3-dev \
-        wget \
-        curl \
-        llvm \
-        libncurses5-dev \
-        xz-utils \
-        tk-dev \
-        libxml2-dev \
-        libxmlsec1-dev \
-        libffi-dev \
-        liblzma-dev \
-        libportaudio2
 
-# Python and poetry installation
-USER $USER
-ARG HOME="/home/$USER"
-ARG PYTHON_VERSION=3.11
-# ARG PYTHON_VERSION=3.10
 
-ENV PYENV_ROOT="${HOME}/.pyenv"
-ENV PATH="${PYENV_ROOT}/shims:${PYENV_ROOT}/bin:${HOME}/.local/bin:$PATH"
+# Install GitHub CLI
+RUN mkdir -p -m 755 /etc/apt/keyrings \
+    && wget -qO- https://cli.github.com/packages/githubcli-archive-keyring.gpg | tee /etc/apt/keyrings/githubcli-archive-keyring.gpg > /dev/null \
+    && chmod go+r /etc/apt/keyrings/githubcli-archive-keyring.gpg \
+    && echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" > /etc/apt/sources.list.d/github-cli.list \
+    && apt-get update \
+    && apt-get install -y gh
 
-RUN echo "done 0" \
-    && curl https://pyenv.run | bash \
-    && echo "done 1" \
-    && pyenv install ${PYTHON_VERSION} \
-    && echo "done 2" \
-    && pyenv global ${PYTHON_VERSION} \
-    && echo "done 3" \
-    && curl -sSL https://install.python-poetry.org | python3 - \
-    && poetry config virtualenvs.in-project true
+# Install Python dependencies for both services to allow development in one container
+COPY src/saint_graph/requirements.txt /tmp/sg-req.txt
+COPY src/body/cli/requirements.txt /tmp/body-req.txt
+COPY requirements-dev.txt /tmp/dev-req.txt
+RUN pip install -r /tmp/sg-req.txt && \
+    pip install -r /tmp/body-req.txt && \
+    pip install -r /tmp/dev-req.txt
+
+# Set the default shell to bash rather than sh
+ENV SHELL /bin/bash

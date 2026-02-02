@@ -1,4 +1,11 @@
-# .dockerignore
 .git
+__pycache__
+*.pyc
+tests
+.env
+# Allow data and its contents
+!data/
+!data/**
+node_modules
+.vscode
 .devcontainer
-.venv
