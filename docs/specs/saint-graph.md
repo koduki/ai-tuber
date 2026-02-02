@@ -35,11 +35,14 @@ Markdown ファイルからニュース原稿を読み込み、ペルソナに�
 
 ### 3.3 Saint Graph Agent (`src/saint_graph/saint_graph.py`)
 - **ADK 統合**: `google.adk.Agent` をラップし、MCP ツールセットを統合。
-- **ターン処理 (`process_turn`)**:
+- **ターン処理 (`process_turn`)** (v1.2 更新):
   1. AI にユーザー入力を送り、ストリーミングレスポンスを受け取ります。
-  2. 生成されたテキスト全体から `[emotion: type]` タグを探します。
-  3. タグから感情を判定し（デフォルト: `neutral`）、タグを除去したテキスト（発話内容）を確定させます。
-  4. `BodyClient` を通じて `change_emotion()` と `speak()` を実行します。
+  2. 生成されたテキスト全体をセンテンス単位（`。！？.!?`）で分割します。
+  3. 各センテンスから `[emotion: type]` タグを抽出し、感情と発話内容を確定します。
+  4. センテンスごとに以下を順次実行:
+     - 感情が変わっている場合: `BodyClient.change_emotion()` を実行
+     - 音声生成と再生: `BodyClient.speak()` を実行（再生完了まで待機）
+  5. 全センテンスの再生が完了してから次のターンへ進みます。
 
 ### 3.4 システムプロンプト (`src/saint_graph/system_prompts/`)
 - **`core_instructions.md`**:

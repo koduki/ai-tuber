@@ -12,8 +12,8 @@ VOICEVOX_PORT = int(os.getenv("VOICEVOX_PORT", "50021"))
 VOICEVOX_BASE_URL = f"http://{VOICEVOX_HOST}:{VOICEVOX_PORT}"
 
 # Shared audio directory
-AUDIO_DIR = Path("/app/shared/audio")
-AUDIO_DIR.mkdir(parents=True, exist_ok=True)
+VOICE_DIR = Path("/app/shared/voice")
+VOICE_DIR.mkdir(parents=True, exist_ok=True)
 
 # Speaker ID mapping (style -> speaker_id)
 SPEAKER_MAP = {
@@ -22,6 +22,30 @@ SPEAKER_MAP = {
     "sad": 9,
     "angry": 6,
 }
+
+
+def get_wav_duration(file_path: str) -> float:
+    """
+    Calculate WAV file duration in seconds.
+    
+    Args:
+        file_path: Path to WAV file
+        
+    Returns:
+        Duration in seconds
+    """
+    import wave
+    try:
+        with wave.open(file_path, 'rb') as wav:
+            frames = wav.getnframes()
+            rate = wav.getframerate()
+            duration = frames / float(rate)
+            logger.debug(f"WAV duration for {file_path}: {duration:.2f}s")
+            return duration
+    except Exception as e:
+        logger.error(f"Error calculating WAV duration: {e}")
+        # Fallback: estimate ~0.1s per character for Japanese text
+        return 3.0  # Default fallback
 
 
 async def generate_speech(text: str, speaker_id: int = 1) -> bytes:
@@ -68,7 +92,7 @@ async def save_to_shared_volume(audio_data: bytes, filename: str) -> str:
     Returns:
         保存されたファイルのパス
     """
-    file_path = AUDIO_DIR / filename
+    file_path = VOICE_DIR / filename
     file_path.write_bytes(audio_data)
     if file_path.exists():
         size = file_path.stat().st_size
@@ -78,7 +102,7 @@ async def save_to_shared_volume(audio_data: bytes, filename: str) -> str:
     return str(file_path)
 
 
-async def generate_and_save(text: str, style: str = "normal") -> str:
+async def generate_and_save(text: str, style: str = "normal") -> tuple[str, float]:
     """
     音声を生成して共有ボリュームに保存します。
     
@@ -87,7 +111,7 @@ async def generate_and_save(text: str, style: str = "normal") -> str:
         style: 発話スタイル (normal, happy, sad, angry)
         
     Returns:
-        保存されたファイルのパス
+        (file_path, duration) のタプル
     """
     speaker_id = SPEAKER_MAP.get(style, 1)
     logger.info(f"Generating speech: '{text}' with style '{style}' (speaker {speaker_id})")
@@ -96,7 +120,8 @@ async def generate_and_save(text: str, style: str = "normal") -> str:
         audio_data = await generate_speech(text, speaker_id)
         filename = f"speech_{hash(text) % 10000}.wav"
         file_path = await save_to_shared_volume(audio_data, filename)
-        return file_path
+        duration = get_wav_duration(file_path)
+        return file_path, duration
     except Exception as e:
         logger.error(f"Error generating speech: {e}")
         raise

@@ -136,6 +136,30 @@ class BodyClient:
                 logger.error(f"Error calling stop_recording API: {e}")
                 return f"Error: {e}"
     
+    async def play_audio_file(self, file_path: str, duration: float) -> str:
+        """
+        Call the play_audio_file API (plays pre-generated audio and waits for completion).
+        
+        Args:
+            file_path: Path to the audio file
+            duration: Duration of the audio in seconds
+            
+        Returns:
+            Result message from the API
+        """
+        async with httpx.AsyncClient(timeout=duration + 10.0) as client:
+            try:
+                response = await client.post(
+                    f"{self.base_url}/api/play_audio_file",
+                    json={"file_path": file_path, "duration": duration}
+                )
+                response.raise_for_status()
+                data = response.json()
+                return data.get("result", "Playback completed")
+            except Exception as e:
+                logger.error(f"Error calling play_audio_file API: {e}")
+                return f"Error: {e}"
+    
     async def health_check(self) -> bool:
         """
         Check if the body service is healthy.

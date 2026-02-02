@@ -21,7 +21,7 @@
             "mixers": 255,
             "sync": 0,
             "flags": 0,
-            "volume": 0.39056512713432312,
+            "volume": 0.023382939398288727,
             "balance": 0.5,
             "enabled": true,
             "muted": false,
@@ -52,7 +52,7 @@
             "versioned_id": "ffmpeg_source",
             "settings": {
                 "close_when_inactive": false,
-                "local_file": "/app/shared/audio/speech_0000.wav",
+                "local_file": "/app/shared/voice/speech_0000.wav",
                 "restart_on_activate": true
             },
             "mixers": 255,
@@ -224,7 +224,7 @@
                     {
                         "name": "normal",
                         "source_uuid": "94124abf-0555-404c-b8c3-963c26a11197",
-                        "visible": false,
+                        "visible": true,
                         "locked": false,
                         "rot": 0.0,
                         "pos": {
@@ -341,7 +341,7 @@
                     {
                         "name": "joyful",
                         "source_uuid": "6e3ac1ff-74e2-43bb-a2b9-7356a3ba2852",
-                        "visible": true,
+                        "visible": false,
                         "locked": false,
                         "rot": 0.0,
                         "pos": {
@@ -585,7 +585,7 @@
         "scripts-tool": []
     },
     "resolution": {
-        "x": 1920,
-        "y": 1080
+        "x": 720,
+        "y": 1280
     }
 }

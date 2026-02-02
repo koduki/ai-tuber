@@ -6,7 +6,7 @@ from starlette.applications import Starlette
 from starlette.responses import JSONResponse
 from starlette.requests import Request
 from starlette.routing import Route
-from .tools import speak, change_emotion, get_comments, start_obs_recording, stop_obs_recording
+from .tools import speak, change_emotion, get_comments, start_obs_recording, stop_obs_recording, play_audio_file
 from .youtube import start_comment_polling
 
 # ログ設定
@@ -99,11 +99,33 @@ async def stop_recording_api(request: Request) -> JSONResponse:
         return JSONResponse({"status": "error", "message": str(e)}, status_code=500)
 
 
+async def play_audio_file_api(request: Request) -> JSONResponse:
+    """
+    音声ファイル再生API (完了まで待機)
+    POST /api/play_audio_file
+    Body: {"file_path": "/app/shared/voice/speech_1234.wav", "duration": 5.2}
+    """
+    try:
+        body = await request.json()
+        file_path = body.get("file_path")
+        duration = body.get("duration", 0.0)
+        
+        if not file_path:
+            return JSONResponse({"status": "error", "message": "file_path is required"}, status_code=400)
+        
+        result = await play_audio_file(file_path, duration)
+        return JSONResponse({"status": "ok", "result": result})
+    except Exception as e:
+        logger.error(f"Error in play_audio_file API: {e}")
+        return JSONResponse({"status": "error", "message": str(e)}, status_code=500)
+
+
 # Starletteアプリケーションを構築
 routes = [
     Route("/health", health_check, methods=["GET"]),
     Route("/api/speak", speak_api, methods=["POST"]),
     Route("/api/change_emotion", change_emotion_api, methods=["POST"]),
+    Route("/api/play_audio_file", play_audio_file_api, methods=["POST"]),
     Route("/api/comments", get_comments_api, methods=["GET"]),
     Route("/api/recording/start", start_recording_api, methods=["POST"]),
     Route("/api/recording/stop", stop_recording_api, methods=["POST"]),
@@ -122,8 +144,24 @@ if __name__ == "__main__":
     
     # OBS初期化用のダミーファイル作成
     try:
-        os.makedirs("/app/shared/audio", exist_ok=True)
-        dummy_file = os.path.join("/app/shared/audio", "speech_0000.wav")
+        voice_dir = "/app/shared/voice"
+        os.makedirs(voice_dir, exist_ok=True)
+        
+        # 起動時に古い音声ファイルをクリーンアップ
+        logger.info("Cleaning up old voice files...")
+        audio_files_deleted = 0
+        for filename in os.listdir(voice_dir):
+            if filename.startswith("speech_") and filename.endswith(".wav") and filename != "speech_0000.wav":
+                try:
+                    file_path = os.path.join(voice_dir, filename)
+                    os.remove(file_path)
+                    audio_files_deleted += 1
+                except Exception as e:
+                    logger.warning(f"Failed to delete {filename}: {e}")
+        logger.info(f"Cleaned up {audio_files_deleted} old voice files")
+        
+        # ダミーファイル作成
+        dummy_file = os.path.join(voice_dir, "speech_0000.wav")
         if not os.path.exists(dummy_file) or os.path.getsize(dummy_file) == 0:
             # 最小限の無音WAVヘッダ (1秒, モノラル, 44100Hz, 16bit)
             silent_wav = (
