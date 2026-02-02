@@ -5,8 +5,9 @@ Google Agent Development Kit (ADK) と Model Context Protocol (MCP) に加え、
 ## 特徴
 
 *   **ハイブリッド構成**: 
-    *   **REST API**: 発話、表情、録画制御など、絶対に失敗したくない「身体操作」に使用。
+    *   **REST API**: 発話、表情、録画・配信制御など、絶対に失敗したくない「身体操作」に使用。
     *   **MCP**: 天気予報や知識検索など、AI が自律的に判断して使う「外部ツール」に使用。
+*   **YouTube Live配信**: OAuth認証によるライブ配信作成・管理、リアルタイムチャット取得に対応。
 *   **感情パース**: AI の生成テキストから `[emotion: happy]` のようなタグを自動でパースし、リアルタイムにアバターの表情を切り替えます。
 *   **モジュール化**: 魂 (Logic)、精神 (Persona/Character)、身体 (IO/Control) が完全に分離されており、新しいキャラクターの追加が容易です。
 
@@ -14,7 +15,7 @@ Google Agent Development Kit (ADK) と Model Context Protocol (MCP) に加え、
 
 *   **Saint Graph (魂)**: Google ADK をベースにした意思決定エンジン。
 *   **Mind (精神)**: `data/mind/` 以下に配置される、ペルソナ、プロンプト、アセットのパッケージ。
-*   **Body (肉体)**: OBS 制御、音声合成、YouTube 連携を担う REST API サービス。
+*   **Body (肉体)**: OBS 制御、音声合成、YouTube Live 配信・連携を担う REST API サービス。
 
 ### システム構成
 
@@ -40,13 +41,14 @@ GOOGLE_API_KEY="your_api_key_here"
 OBS_PASSWORD="" # オプション
 ```
 
-### 2. 実行
-
 全サービス（本番ストリーミング構成）を起動します:
 
 ```bash
 docker compose up --build
 ```
+
+> [!NOTE]
+> `STREAMING_MODE=true` が設定されている場合、`saint-graph` の起動時に自動的に YouTube Live 配信が開始されます。詳細は [YouTube Live 配信仕様](docs/specs/youtube-live-streaming.md) を参照してください。
 
 ### 3. OBS 設定 (初回のみ)
 
@@ -98,4 +100,5 @@ pytest tests/integration/
 *   [詳細アーキテクチャ](docs/ARCHITECTURE.md)
 *   [Saint Graph 仕様](docs/specs/saint-graph.md)
 *   [Body Streamer 仕様](docs/specs/body-streamer-architecture.md)
+*   [YouTube Live 配信仕様](docs/specs/youtube-live-streaming.md)
 *   [キャラクター定義ガイド](docs/specs/character-package-specification.md)

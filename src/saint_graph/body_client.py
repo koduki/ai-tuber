@@ -139,6 +139,56 @@ class BodyClient:
                 logger.error(f"Error calling stop_recording API: {e}")
                 return f"Error: {e}"
     
+    async def start_streaming(self, title: str, description: str, scheduled_start_time: str, 
+                             thumbnail_path: Optional[str] = None, privacy_status: str = "private") -> str:
+        """
+        Call the start_streaming API.
+        """
+        async with httpx.AsyncClient(timeout=DEFAULT_TIMEOUT) as client:
+            try:
+                payload = {
+                    "title": title,
+                    "description": description,
+                    "scheduled_start_time": scheduled_start_time,
+                    "thumbnail_path": thumbnail_path,
+                    "privacy_status": privacy_status
+                }
+                response = await client.post(f"{self.base_url}/api/streaming/start", json=payload)
+                response.raise_for_status()
+                data = response.json()
+                return data.get("result", "Streaming started")
+            except Exception as e:
+                logger.error(f"Error calling start_streaming API: {e}")
+                return f"Error: {e}"
+
+    async def stop_streaming(self) -> str:
+        """
+        Call the stop_streaming API.
+        """
+        async with httpx.AsyncClient(timeout=DEFAULT_TIMEOUT) as client:
+            try:
+                response = await client.post(f"{self.base_url}/api/streaming/stop")
+                response.raise_for_status()
+                data = response.json()
+                return data.get("result", "Streaming stopped")
+            except Exception as e:
+                logger.error(f"Error calling stop_streaming API: {e}")
+                return f"Error: {e}"
+
+    async def get_streaming_comments(self) -> List[Dict[str, Any]]:
+        """
+        Call the get_streaming_comments API.
+        """
+        async with httpx.AsyncClient(timeout=DEFAULT_TIMEOUT) as client:
+            try:
+                response = await client.get(f"{self.base_url}/api/streaming/comments")
+                response.raise_for_status()
+                data = response.json()
+                return data.get("comments", [])
+            except Exception as e:
+                logger.error(f"Error calling get_streaming_comments API: {e}")
+                return []
+
     async def play_audio_file(self, file_path: str, duration: float) -> str:
         """
         Call the play_audio_file API (plays pre-generated audio and waits for completion).

@@ -2,7 +2,7 @@
 
 **サービス名**: body-streamer  
 **役割**: ストリーミング制御ハブ（身体）  
-**バージョン**: 1.2.2  
+**バージョン**: 1.3.0  
 **最終更新**: 2026-02-02
 
 ---
@@ -15,8 +15,8 @@
 ### 責任範囲
 
 1. **音声合成**: VoiceVox Engine API を使用した音声生成
-2. **映像制御**: OBS WebSocket を使用した表情切り替え、音声再生、録画制御
-3. **配信連携**: YouTube Live API を使用したコメント取得
+2. **映像制御**: OBS WebSocket を使用した表情切り替え、音声再生、録画制御、配信制御
+3. **YouTube連携**: YouTube Data API v3 を使用したLive配信管理とリアルタイムチャット取得
 4. **API 提供**: `saint-graph`（脳）に対して RESTful な制御エンドポイントを提供
 
 ---
@@ -33,9 +33,10 @@
 │  │   API    │  │  Voice   │  │  OBS   ││
 │  │ Endpoints│  │ Adapter  │  │Adapter ││
 │  └──────────┘  └──────────┘  └────────┘│
-│  ┌──────────────────────────────────┐  │
-│  │      YouTube Adapter (Polling)   │  │
-│  └──────────────────────────────────┘  │
+│  ┌────────────┐  ┌──────────────────┐  │
+│  │  YouTube   │  │  YouTube Comment │  │
+│  │Live Adapter│  │     Adapter      │  │
+│  └────────────┘  └──────────────────┘  │
 └─────────────────────────────────────────┘
           ▲              │         │
           │ HTTP/JSON    │HTTP     │WebSocket
@@ -83,6 +84,35 @@ OBS の録画を開始します。
 ### 5. `POST /api/recording/stop`
 OBS の録画を停止します。
 
+### 6. `POST /api/streaming/start`
+YouTube Live配信を作成・開始します。
+- **Request Body**:
+  ```json
+  {
+    "title": "配信タイトル",
+    "description": "配信説明",
+    "scheduled_start_time": "2024-12-31T00:00:00.000Z",
+    "thumbnail_path": "/path/to/thumbnail.png",
+    "privacy_status": "private"
+  }
+  ```
+- **Response**: `{"status": "ok", "result": "YouTube Live配信を開始しました。ブロードキャストID: xxxxx"}`
+
+### 7. `POST /api/streaming/stop`
+YouTube Live配信を停止します。
+
+### 8. `GET /api/streaming/comments`
+YouTube Live配信のリアルタイムチャットコメントを取得します。
+- **Response**:
+  ```json
+  {
+    "status": "ok",
+    "comments": [
+      { "author": "名前", "message": "内容", "timestamp": "..." }
+    ]
+  }
+  ```
+
 ---
 
 ## 環境変数 (主要項目)
@@ -92,6 +122,11 @@ OBS の録画を停止します。
 | `PORT` | `8000` | RESTサーバーのリスニングポート |
 | `VOICEVOX_HOST` | `voicevox` | VoiceVox Engine のホスト名 |
 | `OBS_HOST` | `obs-studio` | OBS WebSocket のホスト名 |
+| `YOUTUBE_API_KEY` | - | YouTube Data API v3 キー（コメント取得用） |
+| `YOUTUBE_CLIENT_SECRET_PATH` | `/secret/google_client_secret.json` | OAuth認証情報パス |
+| `YOUTUBE_TOKEN_PATH` | `/secret/yt_token.json` | OAuthトークンキャッシュパス |
+| `YOUTUBE_CLIENT_SECRET_JSON` | - | クライアントシークレットのJSON文字列（設定時はファイルに出力） |
+| `YOUTUBE_TOKEN_JSON` | - | トークンキャッシュのJSON文字列（設定時はファイルに出力） |
 
 ---
 
@@ -135,6 +170,14 @@ v1.2 では、長文の音声が途中で上書きされる問題を解決する
 ---
 
 ## 変更履歴
+
+### v1.3.0 (2026-02-02)
+- **YouTube Live配信機能の追加**: 
+  - YouTube Live API連携（OAuth認証、配信作成・停止）
+  - リアルタイムチャット取得（サブプロセス方式）
+  - OBS配信制御（ストリーム開始・停止）
+  - 新規エンドポイント: `/api/streaming/start`, `/api/streaming/stop`, `/api/streaming/comments`
+- **依存パッケージの追加**: `google-api-python-client`, `google-auth-oauthlib`, `google-auth-httplib2`
 
 ### v1.2.2 (2026-02-02)
 - **命名規則の統一**: `audio_share` -> `voice_share` および `/app/shared/audio` -> `/app/shared/voice` への移行。

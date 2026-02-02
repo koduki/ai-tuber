@@ -34,6 +34,7 @@ graph TD
   subgraph ExternalServices ["外部サービス"]
     OBS["OBS Studio"]
     VoiceVox["VoiceVox Engine"]
+    YouTube["YouTube Live API"]
   end
 
   Persona -- "Instruction" --> Agent
@@ -48,6 +49,7 @@ graph TD
   
   ServerStreamer -- "HTTP API" --> VoiceVox
   ServerStreamer -- "WebSocket" --> OBS
+  ServerStreamer -- "OAuth + REST API" --> YouTube
   Assets -- "Build時コピー" --> OBS
 ```
 
@@ -64,8 +66,9 @@ graph TD
 以前の MCP サーバー構成から、より確実で低レイテンシな **REST API** 構成へ移行しました。
 
 #### 2.1 Body Streamer (本番用)
-*   **役割:** ストリーミング制御ハブ。音声合成、OBS制御（表情・録画）、YouTube連携。
-*   **技術スタック:** Starlette (REST API), VoiceVox API, OBS WebSocket
+*   **役割:** ストリーミング制御ハブ。音声合成、OBS制御（表情・録画・配信）、YouTube Live連携。
+*   **技術スタック:** Starlette (REST API), VoiceVox API, OBS WebSocket, YouTube Data API v3
+*   **新機能:** YouTube Live配信の作成・停止、リアルタイムチャット取得、OAuth認証管理
 *   **仕様書:** [docs/specs/body-streamer-architecture.md](./specs/body-streamer-architecture.md)
 *   **コード:** `src/body/streamer/`
 
@@ -108,7 +111,9 @@ AI が自力で解決できない情報（天気など）を取得するため�
 2.  **感情・発話の抽出**: `Parser` が `[emotion: happy] 挨拶なのじゃ！` から感情 (`happy`) と本文を分離。
 3.  **身体操作 (REST)**: `saint-graph` → HTTP/JSON → `body-streamer` → VoiceVox/OBS。
 4.  **情報取得 (MCP)**: AI が天気を知りたい場合、`saint-graph` → MCP → `tools-weather`。
-5.  **配信監視**: ブラウザ → VNC (8080) → OBS GUI。
+5.  **YouTube Live配信** (オプション): `body-streamer` → YouTube Data API v3 → 配信作成/停止、コメント取得。
+6.  **自動起動フロー**: `STREAMING_MODE=true` の場合、`saint-graph` は起動時に自動的に YouTube Live 配信開始 API を呼び出し、ブロードキャスト作成から OBS ストリーム開始までを一括で実行します。
+7.  **配信監視**: ブラウザ → VNC (8080) → OBS GUI。
 
 ---
 
