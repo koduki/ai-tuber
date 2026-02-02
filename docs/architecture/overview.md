@@ -50,37 +50,53 @@ Google ADK をベースにした意思決定エンジン。システムの思考
 | `obs-studio` | 配信・映像合成 | 8080, 4455 | VNC / WebSocket |
 | `voicevox` | 音声合成エンジン | 50021 | HTTP API |
 
-### アーキテクチャ図
+### システムマップ
 
-```
-┌─────────────────────────────────────────────────────────┐
-│                   Saint Graph (魂)                       │
-│  ┌─────────────────────────────────────────────────┐   │
-│  │  Google ADK Agent (Gemini)                       │   │
-│  │  - ニュース配信フロー制御                          │   │
-│  │  - ターン処理・感情パース                          │   │
-│  └─────────────────────────────────────────────────┘   │
-│       │ REST Client          │ MCP Client              │
-└───────┼──────────────────────┼─────────────────────────┘
-        │                      │
-        ▼                      ▼
-┌─────────────────┐    ┌──────────────────┐
-│  Body (肉体)     │    │ Tools (環境)      │
-│  REST API Server │    │ MCP Server       │
-├─────────────────┤    ├──────────────────┤
-│ - VoiceVox      │    │ - Weather        │
-│ - OBS Studio    │    └──────────────────┘
-│ - YouTube Live  │
-└─────────────────┘
+```mermaid
+graph TD
+  subgraph Mind ["Mind (精神)"]
+    Persona["data/mind/{name}/persona.md"]
+    MindJson["data/mind/{name}/mind.json"]
+    Assets["data/mind/{name}/assets/"]
+  end
 
-        ┌──────────────────────┐
-        │   Mind (精神)         │
-        │  data/mind/{name}/   │
-        ├──────────────────────┤
-        │ - persona.md         │
-        │ - mind.json          │
-        │ - assets/            │
-        └──────────────────────┘
+  subgraph SaintGraph ["Saint Graph (魂)"]
+    Agent["ADK Agent"]
+    Runner["InMemoryRunner"]
+    Parser["Output Parser ([emotion: type])"]
+    BodyClient["REST BodyClient"]
+    Toolset["McpToolset"]
+  end
+
+  subgraph BodyServices ["Body (肉体 / REST API)"]
+    ServerStreamer["body-streamer (REST)"]
+    ServerCLI["body-cli (REST)"]
+  end
+
+  subgraph Tools ["External Tools (MCP)"]
+    ServerWeather["tools-weather (MCP Server)"]
+  end
+  
+  subgraph ExternalServices ["外部サービス"]
+    OBS["OBS Studio"]
+    VoiceVox["VoiceVox Engine"]
+    YouTube["YouTube Live API"]
+  end
+
+  Persona -- "Instruction" --> Agent
+  MindJson -- "Settings" --> Agent
+  Assets -- "Resources" --> Agent
+  Agent -- "Text Output" --> Parser
+  Parser -- "REST (HTTP)" --> BodyClient
+  BodyClient -- "REST (HTTP)" --> ServerStreamer
+  BodyClient -- "REST (HTTP)" --> ServerCLI
+  
+  Agent -- "Autonomous Tool Call" --> Toolset
+  Toolset -- "MCP (SSE)" --> ServerWeather
+  
+  ServerStreamer -- "HTTP API" --> VoiceVox
+  ServerStreamer -- "WebSocket" --> OBS
+  ServerStreamer -- "OAuth + REST API" --> YouTube
 ```
 
 ---
@@ -154,6 +170,49 @@ Mind (精神)
 4. **終了**: クロージング挨拶
 
 詳細は [data-flow.md](./data-flow.md) を参照してください。
+
+---
+
+---
+
+## テスト
+
+本システムは、ユニットテスト、統合テスト、および E2E テストによってカバーされています。
+
+### テスト構成
+
+```
+tests/
+├── unit/              # ユニットテスト
+│   ├── test_prompt_loader.py      # mind.json 読み込み
+│   ├── test_saint_graph.py        # AI 応答パース・感情制御
+│   ├── test_obs_recording.py      # OBS 録画制御
+│   └── test_weather_tools.py      # 天気ツール
+├── integration/       # 統合テスト
+│   ├── test_speaker_id_integration.py  # speaker_id 伝播検証
+│   ├── test_rest_body_cli.py           # Body CLI API
+│   ├── test_newscaster_logic_v2.py     # ニュース配信フロー
+│   ├── test_newscaster_flow.py         # ニュース読み上げ
+│   ├── test_mind_prompts.py            # プロンプト読み込み
+│   ├── test_youtube_oauth.py           # YouTube OAuth 認証
+│   ├── test_youtube_comment_adapter.py  # YouTube コメント取得
+│   └── test_agent_scenarios.py         # 天気+発話シナリオ
+└── e2e/               # E2E テスト
+    └── test_system_smoke.py        # システム全体動作確認
+```
+
+### テスト実行
+
+```bash
+# 全テスト実行
+pytest
+
+# カテゴリ別
+pytest tests/unit/
+pytest tests/integration/
+```
+
+詳細は [README.md](../../README.md#テストの実行) を参照してください。
 
 ---
 
