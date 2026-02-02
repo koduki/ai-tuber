@@ -12,7 +12,7 @@ URL (Streamer): `http://body-streamer:8000`
     ```json
     {
       "text": "発話させるテキスト内容",
-      "style": "発話スタイル（感情やトーンの指定）。省略可能。"
+      "style": "発話スタイル（例: neutral, joyful, fun, angry, sad）。デフォルトは neutral。"
     }
     ```
 *   **Response:** `{"status": "ok", "result": "..."}`
@@ -22,10 +22,11 @@ URL (Streamer): `http://body-streamer:8000`
 *   **Request Body:**
     ```json
     {
-      "emotion": "変更したい感情（例: joyful, fun, angry, sad, neutral）"
+      "emotion": "変更したい感情（例: neutral, joyful, fun, angry, sad）"
     }
     ```
 *   **Response:** `{"status": "ok", "result": "..."}`
+*   **注意**: 内部的に OBS のソース名（`normal` など）にマッピングされます。API レベルでは `neutral` を使用してください。
 
 ### 3. `POST /api/play_audio_file` (v1.2 新規)
 事前生成された音声ファイルを再生し、完了まで待機する。センテンス毎の順次再生で使用。

@@ -28,12 +28,12 @@ async def speak_api(request: Request) -> JSONResponse:
     """
     発話API
     POST /api/speak
-    Body: {"text": "発話内容", "style": "normal"}
+    Body: {"text": "発話内容", "style": "neutral"}
     """
     try:
         body = await request.json()
         text = body.get("text", "")
-        style = body.get("style", "normal")
+        style = body.get("style", "neutral")
         result = await speak(text, style)
         return JSONResponse({"status": "ok", "result": result})
     except Exception as e:

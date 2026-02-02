@@ -180,7 +180,7 @@ class SaintGraph:
             [(emotion, sentence), ...] のリスト
         """
         result = []
-        current_emotion = "normal"  # デフォルト感情
+        current_emotion = "neutral"  # デフォルト感情
         
         # 感情タグとテキストを分割
         parts = re.split(r'(\[emotion:\s*\w+\])', full_text)
@@ -216,7 +216,7 @@ class SaintGraph:
         
         # 結果が空の場合はデフォルトを返す
         if not result:
-            result = [("normal", full_text.strip())]
+            result = [("neutral", full_text.strip())]
         
         return result
     

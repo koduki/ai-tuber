@@ -69,7 +69,7 @@ async def test_process_turn_parses_emotion_tag(mock_adk):
     
     # Verify
     sg.body.change_emotion.assert_called_once_with("joyful")
-    sg.body.speak.assert_called_once_with("Hello World")
+    sg.body.speak.assert_called_once_with("Hello World", style="joyful")
 
 @pytest.mark.asyncio
 async def test_process_turn_defaults_to_neutral(mock_adk):
@@ -95,4 +95,4 @@ async def test_process_turn_defaults_to_neutral(mock_adk):
     
     # Verify
     sg.body.change_emotion.assert_called_once_with("neutral")
-    sg.body.speak.assert_called_once_with("No tag here")
+    sg.body.speak.assert_called_once_with("No tag here", style="neutral")

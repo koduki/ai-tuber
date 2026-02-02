@@ -17,6 +17,7 @@ VOICE_DIR.mkdir(parents=True, exist_ok=True)
 
 # Speaker ID mapping (style -> speaker_id)
 SPEAKER_MAP = {
+    "neutral": 1,
     "normal": 1,
     "happy": 2,
     "sad": 9,
@@ -108,7 +109,7 @@ async def generate_and_save(text: str, style: str = "normal") -> tuple[str, floa
     
     Args:
         text: 発話テキスト
-        style: 発話スタイル (normal, happy, sad, angry)
+        style: 発話スタイル (neutral, happy, sad, angry)
         
     Returns:
         (file_path, duration) のタプル

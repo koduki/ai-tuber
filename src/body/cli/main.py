@@ -26,7 +26,7 @@ async def speak_api(request: Request) -> JSONResponse:
     """
     発話API
     POST /api/speak
-    Body: {"text": "発話内容", "style": "normal"}
+    Body: {"text": "発話内容", "style": "neutral"}
     """
     try:
         body = await request.json()

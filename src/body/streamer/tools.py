@@ -32,14 +32,14 @@ async def play_audio_file(file_path: str, duration: float) -> str:
         return f"再生エラー: {str(e)}"
 
 
-async def speak(text: str, style: str = "normal") -> str:
+async def speak(text: str, style: str = "neutral") -> str:
     """
     視聴者に対してテキストを発話します。
     音声生成と再生を行い、完了まで待機します。
     
     Args:
         text: 発話するテキスト
-        style: 発話スタイル (normal, happy, sad, angry)
+        style: 発話スタイル (neutral, happy, sad, angry)
         
     Returns:
         実行結果メッセージ
