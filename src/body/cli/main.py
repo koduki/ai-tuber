@@ -31,8 +31,9 @@ async def speak_api(request: Request) -> JSONResponse:
     try:
         body = await request.json()
         text = body.get("text", "")
-        style = body.get("style")
-        result = await speak(text, style)
+        style = body.get("style", "neutral")
+        speaker_id = body.get("speaker_id")
+        result = await speak(text, style, speaker_id=speaker_id)
         return JSONResponse({"status": "ok", "result": result})
     except Exception as e:
         logger.error(f"Error in speak API: {e}")

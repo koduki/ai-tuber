@@ -1,4 +1,5 @@
 """MCP tools for body-streamer service"""
+from typing import Optional
 import logging
 import json
 import asyncio
@@ -32,7 +33,7 @@ async def play_audio_file(file_path: str, duration: float) -> str:
         return f"再生エラー: {str(e)}"
 
 
-async def speak(text: str, style: str = "neutral") -> str:
+async def speak(text: str, style: str = "neutral", speaker_id: Optional[int] = None) -> str:
     """
     視聴者に対してテキストを発話します。
     音声生成と再生を行い、完了まで待機します。
@@ -40,18 +41,19 @@ async def speak(text: str, style: str = "neutral") -> str:
     Args:
         text: 発話するテキスト
         style: 発話スタイル (neutral, happy, sad, angry)
+        speaker_id: 話者ID (指定された場合はstyleより優先)
         
     Returns:
         実行結果メッセージ
     """
     try:
-        # 音声を生成して共有ボリュームに保存
-        file_path, duration = await voice.generate_and_save(text, style)
+        # 音声生成
+        file_path, duration = await voice.generate_and_save(text, style, speaker_id)
         
-        # 再生して完了まで待機
+        # 音声再生 (完了まで待機)
         result = await play_audio_file(file_path, duration)
         
-        logger.info(f"[speak] '{text[:30]}...' (style: {style}, {duration:.1f}s)")
+        logger.info(f"[speak] '{text[:30]}...' (style: {style}, speaker_id: {speaker_id}, {duration:.1f}s)")
         return result
     except Exception as e:
         logger.error(f"Error in speak tool: {e}")

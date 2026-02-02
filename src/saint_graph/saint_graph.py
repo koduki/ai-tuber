@@ -21,7 +21,7 @@ class SaintGraph:
     外部ツール（天気など）や明示的な制御（録画など）はMCPまたはローカルツールで呼び出されます。
     """
 
-    def __init__(self, body_url: str, mcp_urls: List[str], system_instruction: str, tools: List[Any] = None):
+    def __init__(self, body_url: str, mcp_urls: List[str], system_instruction: str, mind_config: Optional[dict] = None, tools: List[Any] = None):
         """
         SaintGraphを初期化します。
         
@@ -29,9 +29,12 @@ class SaintGraph:
             body_url: Body REST APIのベースURL (例: http://body-cli:8000)
             mcp_urls: MCPツール用のURL（天気APIなど）
             system_instruction: システム指示文
+            mind_config: キャラクター設定辞書 (speaker_id など)
             tools: 追加のカスタムツール（モック等）
         """
         self.system_instruction = system_instruction
+        self.mind_config = mind_config or {}
+        self.speaker_id = self.mind_config.get("speaker_id")
         
         # Body REST APIクライアントの初期化
         self.body = BodyClient(base_url=body_url)
@@ -68,6 +71,10 @@ class SaintGraph:
         for ts in self.toolsets:
             if hasattr(ts, 'close'):
                 await ts.close()
+
+    def _get_tools(self) -> List[Any]:
+        """ADKエージェントに渡すツールリストを生成します。"""
+        return self.local_tools + self.toolsets
 
     # --- 録画制御ツール (AIが呼べる) ---
 
@@ -114,25 +121,6 @@ class SaintGraph:
                 sentences = self._parse_response(full_text)
                 logger.info(f"Parsed {len(sentences)} sentences from AI response")
                 
-                # 全音声を並列に生成
-                async def generate_one(emotion: str, text: str) -> tuple[str, str, str, float]:
-                    """1つの音声を生成"""
-                    try:
-                        # voice.generate_and_save を直接呼び出す（REST経由ではなく）
-                        from .body_client import httpx
-                        async with httpx.AsyncClient(timeout=30.0) as client:
-                            response = await client.post(
-                                f"{self.body.base_url}/api/speak",
-                                json={"text": text, "style": emotion},
-                                timeout=30.0
-                            )
-                            # speakは実際には生成だけして返すように変更が必要
-                            # 今は既存のspeakを使うため、file_pathとdurationを別途取得するロジックが必要
-                            # 簡易実装: speakは生成+再生するので、ここでは順次実行する
-                            return (emotion, text, "", 0.0)
-                    except Exception as e:
-                        logger.error(f"Error generating audio: {e}")
-                        return (emotion, text, "", 0.0)
                 
                 # シンプルな実装: 順次生成+再生（並列生成は次フェーズで実装）
                 current_emotion = None
@@ -143,7 +131,12 @@ class SaintGraph:
                         current_emotion = emotion
                     
                     # 発話（生成+再生+完了待機）
-                    await self.body.speak(text, style=emotion)
+                    # 音声ファイル生成
+                    logger.debug(f"Generating audio for sentence: {text} (Emotion: {emotion})")
+                    # generate_and_save_audio はまだ存在しないため、speakを直接呼び出す
+                    # file_path, duration = await self.body.generate_and_save_audio(text, style=emotion, speaker_id=self.speaker_id)
+                    # audio_tasks.append((file_path, duration, emotion)) # audio_tasks は未定義
+                    await self.body.speak(text, style=emotion, speaker_id=self.speaker_id)
                 
                 logger.info(f"Turn completed. {len(sentences)} sentences spoken")
             else:

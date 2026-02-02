@@ -19,7 +19,7 @@ def test_speak_api():
         assert response.status_code == 200
         assert response.json()["status"] == "ok"
         assert response.json()["result"] == "Speaking completed"
-        mock_speak.assert_called_once_with("Hello Test", "happy")
+        mock_speak.assert_called_once_with("Hello Test", "happy", speaker_id=None)
 
 def test_change_emotion_api():
     with patch("body.cli.main.change_emotion") as mock_change:

@@ -34,13 +34,14 @@ class BodyClient:
         
         logger.info(f"BodyClient initialized with base_url: {self.base_url}")
     
-    async def speak(self, text: str, style: Optional[str] = None) -> str:
+    async def speak(self, text: str, style: Optional[str] = None, speaker_id: Optional[int] = None) -> str:
         """
         Call the speak API.
         
         Args:
             text: Text to speak
             style: Optional speaking style
+            speaker_id: Optional local speaker_id override
             
         Returns:
             Result message from the API
@@ -50,6 +51,8 @@ class BodyClient:
                 payload = {"text": text}
                 if style:
                     payload["style"] = style
+                if speaker_id is not None:
+                    payload["speaker_id"] = speaker_id
                 
                 response = await client.post(
                     f"{self.base_url}/api/speak",
