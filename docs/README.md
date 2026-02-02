@@ -6,7 +6,7 @@ AI Tuber は、**魂（Saint Graph）**、**肉体（Body）**、**精神（Mind
 
 ## クイックスタート
 
-初めての方は [セットアップガイド](./guides/setup.md) から始めてください。
+初めての方は [セットアップガイド](./knowledge/setup.md) から始めてください。
 
 ---
 
@@ -64,10 +64,10 @@ AI Tuber は、**魂（Saint Graph）**、**肉体（Body）**、**精神（Mind
 
 利用方法と参考資料:
 
-- [セットアップ](./guides/setup.md) *(作成予定)*
-- [YouTube 配信セットアップ](./guides/youtube-setup.md) *(作成予定)*
-- [開発者ガイド](./guides/development.md) *(作成予定)*
-- [トラブルシューティング](./guides/troubleshooting.md) *(作成予定)*
+- [セットアップ](./knowledge/setup.md) - 環境構築と起動方法
+- [YouTube 配信セットアップ](./knowledge/youtube-setup.md) - OAuth 認証と配信設定
+- [開発者ガイド](./knowledge/development.md) - 開発環境とテスト実行
+- [トラブルシューティング](./knowledge/troubleshooting.md) - よくある問題と解決方法
 
 ---
 
@@ -82,8 +82,8 @@ AI Tuber は、**魂（Saint Graph）**、**肉体（Body）**、**精神（Mind
 - `body/` - 肉体（入出力制御）
 - `mind/` - 精神（キャラクター定義）
 
-### `/guides/` - 利用ガイド
-セットアップ、開発、トラブルシューティング
+### `/knowledge/` - ナレッジベース
+セットアップ、開発、トラブルシューティング、過去の知見
 
 ---
 
