@@ -8,6 +8,7 @@ from google.adk.runners import InMemoryRunner
 from google.adk.models import Gemini
 from google.adk.tools import McpToolset, FunctionTool
 from google.adk.tools.mcp_tool.mcp_toolset import SseConnectionParams
+from google.adk.events.event import Event
 
 from google.genai import types
 from .config import logger, MODEL_NAME
@@ -21,13 +22,13 @@ class SaintGraph:
     外部ツール（天気など）や明示的な制御（録画など）はMCPまたはローカルツールで呼び出されます。
     """
 
-    def __init__(self, body_url: str, mcp_urls: List[str], system_instruction: str, mind_config: Optional[dict] = None, tools: List[Any] = None):
+    def __init__(self, body_url: str, mcp_url: str, system_instruction: str, mind_config: Optional[dict] = None, tools: List[Any] = None):
         """
         SaintGraphを初期化します。
         
         Args:
             body_url: Body REST APIのベースURL (例: http://body-cli:8000)
-            mcp_urls: MCPツール用のURL（天気APIなど）
+            mcp_url: MCPツール用のURL（天気APIなど）
             system_instruction: システム指示文
             mind_config: キャラクター設定辞書 (speaker_id など)
             tools: 追加のカスタムツール（モック等）
@@ -41,8 +42,8 @@ class SaintGraph:
         
         # MCP ツールセットの初期化（天気などの外部ツール用）
         self.toolsets = []
-        for url in mcp_urls:
-            connection_params = SseConnectionParams(url=url)
+        if mcp_url:
+            connection_params = SseConnectionParams(url=mcp_url)
             toolset = McpToolset(connection_params=connection_params)
             self.toolsets.append(toolset)
         
@@ -143,18 +144,14 @@ class SaintGraph:
 
     def _extract_text_from_event(self, event) -> Optional[str]:
         """ADKイベントからテキストを抽出します。"""
-        try:
-            from google.adk.events.event import Event
-            if isinstance(event, Event):
-                if hasattr(event, 'content') and event.content:
-                    parts = getattr(event.content, 'parts', [])
-                    text_parts = []
-                    for p in parts:
-                        if hasattr(p, 'text') and p.text:
-                            text_parts.append(p.text)
-                    return "".join(text_parts)
-        except:
-            pass
+        if isinstance(event, Event):
+            if hasattr(event, 'content') and event.content:
+                parts = getattr(event.content, 'parts', [])
+                text_parts = []
+                for p in parts:
+                    if hasattr(p, 'text') and p.text:
+                        text_parts.append(p.text)
+                return "".join(text_parts)
         return None
 
     def _parse_response(self, full_text: str) -> list[tuple[str, str]]:

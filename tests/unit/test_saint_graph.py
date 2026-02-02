@@ -20,7 +20,7 @@ def mock_adk():
          patch("saint_graph.saint_graph.InMemoryRunner", spec=InMemoryRunner) as mock_runner, \
          patch("saint_graph.saint_graph.McpToolset") as mock_toolset, \
          patch("saint_graph.saint_graph.BodyClient") as mock_body_client, \
-         patch("google.adk.events.event.Event", MockEvent):
+         patch("saint_graph.saint_graph.Event", MockEvent):
         yield {
             "Agent": mock_agent,
             "InMemoryRunner": mock_runner,
@@ -32,11 +32,11 @@ def mock_adk():
 async def test_saint_graph_initialization(mock_adk):
     # Setup
     body_url = "http://body-cli:8000"
-    mcp_urls = ["http://weather:8001/sse"]
+    mcp_url = "http://weather:8001/sse"
     system_instruction = "Test instruction"
     
     # Execute
-    sg = SaintGraph(body_url, mcp_urls, system_instruction)
+    sg = SaintGraph(body_url, mcp_url, system_instruction)
     
     # Verify
     assert sg.system_instruction == system_instruction
@@ -49,7 +49,7 @@ async def test_saint_graph_initialization(mock_adk):
 async def test_process_turn_parses_emotion_tag(mock_adk):
     # Setup
     body_url = "http://body-cli:8000"
-    sg = SaintGraph(body_url, [], "Instruction")
+    sg = SaintGraph(body_url, "", "Instruction")
     sg.body.change_emotion = AsyncMock()
     sg.body.speak = AsyncMock()
     
@@ -75,7 +75,7 @@ async def test_process_turn_parses_emotion_tag(mock_adk):
 async def test_process_turn_defaults_to_neutral(mock_adk):
     # Setup
     body_url = "http://body-cli:8000"
-    sg = SaintGraph(body_url, [], "Instruction")
+    sg = SaintGraph(body_url, "", "Instruction")
     sg.body.change_emotion = AsyncMock()
     sg.body.speak = AsyncMock()
     

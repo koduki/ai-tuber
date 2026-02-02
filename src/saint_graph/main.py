@@ -2,7 +2,7 @@ import asyncio
 import sys
 import os
 
-from .config import logger, BODY_URL, MCP_URLS, POLL_INTERVAL, MAX_WAIT_CYCLES, NEWS_DIR
+from .config import logger, BODY_URL, MCP_URL, POLL_INTERVAL, MAX_WAIT_CYCLES, NEWS_DIR
 from .saint_graph import SaintGraph
 from .telemetry import setup_telemetry
 from .prompt_loader import PromptLoader
@@ -42,7 +42,7 @@ async def main():
     # SaintGraph (ADK + REST Body) の初期化
     saint_graph = SaintGraph(
         body_url=BODY_URL,
-        mcp_urls=MCP_URLS, 
+        mcp_url=MCP_URL,
         system_instruction=system_instruction,
         mind_config=mind_config
     )
@@ -77,6 +77,8 @@ async def _run_newscaster_loop(saint_graph: SaintGraph, news_service: NewsServic
         else:
             res = await saint_graph.body.start_recording()
             logger.info(f"Automatic Recording Start result: {res}")
+            # OBS録画開始後の安定化待機
+            await asyncio.sleep(3)
     except Exception as e:
         logger.warning(f"Could not automatically start: {e}")
 

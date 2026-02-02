@@ -6,7 +6,7 @@ import httpx
 import logging
 from typing import Optional, List, Dict, Any
 
-from .config import MCP_URLS
+from .config import MCP_URL
 
 logger = logging.getLogger(__name__)
 
@@ -29,7 +29,7 @@ class BodyClient:
             self.base_url = base_url.rstrip("/")
         else:
             # Convert MCP URL (http://body-cli:8000/sse) to REST base URL
-            mcp_url = MCP_URLS[0] if MCP_URLS else "http://body-cli:8000/sse"
+            mcp_url = MCP_URL if MCP_URL else "http://body-cli:8000/sse"
             self.base_url = mcp_url.replace("/sse", "")
         
         logger.info(f"BodyClient initialized with base_url: {self.base_url}")
