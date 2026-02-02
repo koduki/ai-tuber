@@ -144,8 +144,24 @@ if __name__ == "__main__":
     
     # OBS初期化用のダミーファイル作成
     try:
-        os.makedirs("/app/shared/audio", exist_ok=True)
-        dummy_file = os.path.join("/app/shared/audio", "speech_0000.wav")
+        audio_dir = "/app/shared/audio"
+        os.makedirs(audio_dir, exist_ok=True)
+        
+        # 起動時に古い音声ファイルをクリーンアップ
+        logger.info("Cleaning up old audio files...")
+        audio_files_deleted = 0
+        for filename in os.listdir(audio_dir):
+            if filename.startswith("speech_") and filename.endswith(".wav") and filename != "speech_0000.wav":
+                try:
+                    file_path = os.path.join(audio_dir, filename)
+                    os.remove(file_path)
+                    audio_files_deleted += 1
+                except Exception as e:
+                    logger.warning(f"Failed to delete {filename}: {e}")
+        logger.info(f"Cleaned up {audio_files_deleted} old audio files")
+        
+        # ダミーファイル作成
+        dummy_file = os.path.join(audio_dir, "speech_0000.wav")
         if not os.path.exists(dummy_file) or os.path.getsize(dummy_file) == 0:
             # 最小限の無音WAVヘッダ (1秒, モノラル, 44100Hz, 16bit)
             silent_wav = (
