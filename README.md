@@ -7,7 +7,7 @@ Google Agent Development Kit (ADK) と Model Context Protocol (MCP) に加え、
 *   **ハイブリッド構成**: 
     *   **REST API**: 発話、表情、録画・配信制御など、絶対に失敗したくない「身体操作」に使用。
     *   **MCP**: 天気予報や知識検索など、AI が自律的に判断して使う「外部ツール」に使用。
-*   **YouTube Live配信**: OAuth認証によるライブ配信作成・管理、リアルタイムチャット取得に対応。
+*   **YouTube Live配信**: OAuth認証によるライブ配信作成・管理、**リアルタイムコメント取得**に完全対応。
 *   **感情パース**: AI の生成テキストから `[emotion: happy]` のようなタグを自動でパースし、リアルタイムにアバターの表情を切り替えます。
 *   **モジュール化**: 魂 (Logic)、精神 (Persona/Character)、身体 (IO/Control) が完全に分離されており、新しいキャラクターの追加が容易です。
 
@@ -101,4 +101,5 @@ pytest tests/integration/
 *   [Saint Graph 仕様](docs/specs/saint-graph.md)
 *   [Body Streamer 仕様](docs/specs/body-streamer-architecture.md)
 *   [YouTube Live 配信仕様](docs/specs/youtube-live-streaming.md)
+*   [YouTube OAuth 統一レポート](docs/specs/youtube-oauth-final-success-report.md)
 *   [キャラクター定義ガイド](docs/specs/character-package-specification.md)
