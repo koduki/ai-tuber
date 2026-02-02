@@ -18,21 +18,20 @@ services:
     # 開発中は明示的に起動する必要がある
     profiles:
       - manual
-    volumes:
-      - .:/app
-
   body-cli:
     # 開発中は明示的に起動する必要がある
     profiles:
       - manual
-    # 開発中はローカルのソースコードをマウントして変更を即座に反映させる
-    volumes:
-      - ./src/body/cli:/app
-
   tools-weather:
     # 開発中は明示的に起動する必要がある
     profiles:
       - manual
-    # 開発中はローカルのソースコードをマウントして変更を即座に反映させる
-    volumes:
-      - ./src/tools/weather:/app
+  body-streamer:
+    profiles:
+      - manual
+  voicevox:
+    profiles:
+      - manual
+  obs-studio:
+    profiles:
+      - manual
