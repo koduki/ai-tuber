@@ -6,110 +6,193 @@
 
 ---
 
-## 概要
+## 1. 概要
 
-`obs-studio` コンテナは、VNC経由でアクセス可能なOBS Studioの実行環境を提供します。
-WebSocket APIを通じて `body-streamer` から制御され、映像合成と配信エンコードを担当します。
+OBS Studio をヘッドレス環境(Docker コンテナ内)で実行し、WebSocket 経由で制御するための設定と構成です。本仕様は **dev/ren2 ブランチから実績のある設定をバックポート**し、NVIDIA NVENC ハードウェアエンコーダーによる安定配信を実現しています。
+
+**重要**: OBS 30.x系では設定ファイルの完全性チェックが厳格化されており、不完全な設定ファイルは自動構成ウィザードを強制的に表示します。本仕様書の設定はウィザード回避に必要な全項目を含んでいます。
 
 ---
 
-## コンテナ構成
+## 2. Docker環境構成
 
-### ベースイメージ
+### 2.1 ベースイメージとGPUサポート
 
 ```dockerfile
-FROM ubuntu:22.04
+FROM nvidia/cuda:11.8.0-runtime-ubuntu22.04
+
+ENV NVIDIA_VISIBLE_DEVICES=all
+ENV NVIDIA_DRIVER_CAPABILITIES=all,graphics,utility,video,display
+ENV LIBGL_ALWAYS_SOFTWARE=1  # Xvfb互換性
 ```
 
-### インストールパッケージ
+### 2.2 主要パッケージ
 
 | パッケージ | 用途 |
 |-----------|------|
-| `obs-studio` | 配信ソフトウェア本体 |
-| `xvfb` | 仮想ディスプレイサーバー |
+| `obs-studio` | 配信ソフトウェア本体（PPAから最新版） |
+| `xvfb` | 仮想ディスプレイサーバー（`:99`） |
 | `fluxbox` | 軽量ウィンドウマネージャー |
-| `x11vnc` | VNCサーバー |
-| `novnc` | WebベースVNCクライアント |
+| `x11vnc` | VNCサーバー（ポート5900） |
+| `novnc` | WebベースVNCクライアント（ポート8080） |
 | `supervisor` | プロセス管理 |
 | `pulseaudio` | 音声サブシステム |
+| `libegl1-mesa`, `libgl1-mesa-glx` | OpenGL/EGLライブラリ |
+| `pciutils`, `mesa-utils` | GPU診断ツール |
 
-### ポート公開
+### 2.3 ポート公開
 
-- `8080`: noVNC (HTTP) - ブラウザからGUIアクセス
+- `8080`: noVNC (HTTP) - ブラウザからGUI確認
 - `4455`: OBS WebSocket - プログラムからの制御
 
 ---
 
-## プロセス管理
+## 3. OBS設定ファイル構成
 
-### Supervisord 設定
+### 3.1 global.ini（グローバル設定）
 
-起動順序:
-1. Xvfb (仮想ディスプレイ)
-2. Fluxbox (ウィンドウマネージャー)
-3. x11vnc (VNCサーバー)
-4. noVNC (Webクライアント)
-5. OBS Studio
+**場所**: `/root/.config/obs-studio/global.ini`
 
-### OBS起動スクリプト (`start_obs.sh`)
+**目的**: ウィザード抑制と基本UI設定
 
-```bash
-#!/bin/bash
-# ロックファイルのクリーンアップ
-rm -f /root/.config/obs-studio/basic/scenes/*.lock
-rm -f /root/.config/obs-studio/basic/profiles/*/*.lock
-rm -f /root/.config/obs-studio/global.ini.lock
-rm -f /root/.config/obs-studio/plugin_config/obs-websocket/.obs_websocket_lock
-
-# OBS起動（Safe Mode無効化、詳細ログ有効）
-exec obs --disable-shutdown-check --verbose
-```
-
-**重要なフラグ**:
-- `--disable-shutdown-check`: Safe Modeダイアログを回避
-- `--verbose`: 詳細ログ出力
-
----
-
-## OBS設定ファイル
-
-### ディレクトリ構造
-
-```
-/root/.config/obs-studio/
-├── global.ini                    # グローバル設定
-├── basic/
-│   ├── profiles/
-│   │   └── Untitled/
-│   │       └── basic.ini         # プロファイル設定
-│   └── scenes/
-│       └── Untitled.json         # シーンコレクション
-└── plugin_config/
-    └── obs-websocket/
-        └── config.json           # WebSocket設定
-```
-
-### global.ini
+**重要項目**:
 
 ```ini
 [General]
-FirstRun=true       # 初回起動扱いにする（ウィザード表示を防ぐ）
+FirstRun=true                    # 初回実行完了フラグ
+ShowConfigWizard=false           # ウィザード強制非表示
+OBSVersion=30.2.3                # バージョン情報
+Pre19Defaults=false              # 過去バージョン設定フラグ
+Pre21Defaults=false
+Pre23Defaults=false
+Pre24.1Defaults=false
+MaxLogs=10
+ProcessPriority=Normal
+HotkeyFocusType=NeverDisableHotkeys
+YtDockCleanupDone=true
 
 [Basic]
-Profile=Untitled
+Profile=Untitled                 # 使用プロファイル名
 ProfileDir=Untitled
-SceneCollection=Untitled
+SceneCollection=Untitled         # 使用シーンコレクション
 SceneCollectionFile=Untitled
+ConfigOnNewProfile=true
 
-[OBSWebSocket]
-FirstLoad=false
-ServerEnabled=true
-ServerPort=4455
-AlertsEnabled=false
-AuthRequired=false  # 認証無効（内部ネットワークのみ）
+[BasicWindow]
+PreviewDisabled=true             # ヘッドレス用（プレビュー無効）
+geometry=AdnQywAAAAAAAAAAAAAAAAAAB38AAAQM
+PreviewEnabled=true
+PreviewProgramMode=false
+# ... 約30項目のUI設定が必要
+
+[Video]
+Renderer=OpenGL                  # レンダラー指定
+
+[Accessibility]
+# カラー設定（必須）
+SelectRed=255
+SelectGreen=65280
+# ...
 ```
 
-### WebSocket設定 (`plugin_config/obs-websocket/config.json`)
+**注意**: `[BasicWindow]` セクションに多数のUI設定項目（`SceneDuplicationMode`, `SwapScenesMode`, `SnappingEnabled` など）が必要です。これらが欠けているとウィザードが表示されます。
+
+---
+
+### 3.2 basic.ini（プロファイル設定）
+
+**場所**: `/root/.config/obs-studio/basic/profiles/Untitled/basic.ini`
+
+**目的**: エンコーダーと出力設定
+
+**必須セクションリスト**:
+1. `[General]` - プロファイル名
+2. `[Video]` - 解像度・FPS設定
+3. `[Output]` - 出力モード
+4. `[SimpleOutput]` - エンコーダー設定
+5. `[Stream1]` - ストリーム詳細（**これが無いとウィザードが出る**）
+6. `[AdvOut]` - 高度な出力設定（**必須**）
+7. `[Audio]` - オーディオ設定
+8. `[Panels]` - パネル設定
+
+#### 映像設定（垂直配信用）
+
+```ini
+[Video]
+BaseCX=720
+BaseCY=1280
+OutputCX=720
+OutputCY=1280
+FPSCommon=30
+FPSNum=30
+FPSDen=1
+ColorFormat=NV12        # NVENC推奨フォーマット
+ColorSpace=709
+ColorRange=Partial
+SdrWhiteLevel=300
+HdrNominalPeakLevel=1000
+```
+
+#### エンコーダー設定（NVENC）
+
+```ini
+[SimpleOutput]
+FilePath=/tmp
+RecFormat=mkv
+StreamEncoder=nvenc            # OBS 30.x系では 'nvenc' を使用
+RecEncoder=nvenc               # 'ffmpeg_nvenc' ではない
+VBitrate=2500
+ABitrate=160
+Preset=p4                      # 配信用プリセット（品質バランス）
+NVENCPreset2=p2                # 録画用プリセット（より高品質）
+StreamAudioEncoder=aac
+RecAudioEncoder=aac
+RecTracks=1
+```
+
+**エンコーダー名の注意**:
+- OBS 30.x系: `nvenc`（短縮形）
+- OBS 29.x以前: `ffmpeg_nvenc`（フル名）
+
+#### ストリーム設定（必須）
+
+```ini
+[Stream1]
+IgnoreRecommended=false
+EnableMultitrackVideo=false
+MultitrackVideoMaximumAggregateBitrateAuto=true
+MultitrackVideoMaximumVideoTracksAuto=true
+```
+
+このセクションが無いと、OBSは「ストリーム設定が未完了」と判断してウィザードを表示します。
+
+---
+
+### 3.3 Untitled.json（シーン構成）
+
+**場所**: `/root/.config/obs-studio/basic/scenes/Untitled.json`
+
+**シーン構成** (`s001`):
+- **BGM**: ffmpeg_source（`/app/assets/bgm.mp3`、ループ再生、音量2.3%）
+- **voice**: ffmpeg_source（`/app/shared/voice/*.wav`、自動再起動）
+- **normal**: image_source（`/app/assets/ai_normal.png`）
+- **joyful**: image_source（`/app/assets/ai_joyful.png`）
+- **fun**: image_source（`/app/assets/ai_fun.png`）
+- **sad**: image_source（`/app/assets/ai_sad.png`）
+- **angry**: image_source（`/app/assets/ai_angry.png`）
+
+---
+
+## 4. OBS WebSocket設定
+
+**プロトコルバージョン**: v5（obs-websocket 5.x）
+
+**接続情報**:
+- ホスト: `obs-studio` (Dockerネットワーク内)
+- ポート: `4455`
+- 認証: 無効（`AuthRequired=false`）
+
+**設定ファイル**: `/root/.config/obs-studio/plugin_config/obs-websocket/config.json`
 
 ```json
 {
@@ -118,7 +201,6 @@ AuthRequired=false  # 認証無効（内部ネットワークのみ）
   "enabled": true,
   "authentication_enabled": false,
   "server_enabled": true,
-  "server_port": 4455,
   "auth_required": false,
   "first_load": false
 }
@@ -126,284 +208,184 @@ AuthRequired=false  # 認証無効（内部ネットワークのみ）
 
 ---
 
-## シーンコレクション仕様
+## 5. プロセス管理
 
-### Scene: s001 (メインシーン)
+### 5.1 Supervisord構成
 
-#### ソース一覧
+**設定ファイル**: `/etc/supervisor/conf.d/supervisord.conf`
 
-| ソース名 | タイプ | ファイルパス | 初期状態 | 用途 |
-|---------|--------|------------|---------|------|
-| `normal` | Image | `/app/assets/ai_normal.png` | 👁️ 表示 | 通常表情 |
-| `joyful` | Image | `/app/assets/ai_joyful.png` | 👻 非表示 | 喜び表情 |
-| `fun` | Image | `/app/assets/ai_fun.png` | 👻 非表示 | 楽しい表情 |
-| `angry` | Image | `/app/assets/ai_angry.png` | 👻 非表示 | 怒り表情 |
-| `BGM` | Media | `/app/assets/bgm.mp3` | 👁️ 表示 | BGM再生 (Monitor and Output) |
-| `voice` | Media | `/app/shared/audio/speech_0000.wav` | 👁️ 表示 | AIの音声再生 (Monitor and Output) |
+起動順序（priority順）:
+1. `pulseaudio` (priority=5)
+2. `xvfb` (priority=10) - 仮想ディスプレイ `:99`
+3. `fluxbox` (priority=20) - ウィンドウマネージャー
+4. `x11vnc` (priority=30) - VNCサーバー（ポート5900）
+5. `novnc` (priority=40) - Web VNC（ポート8080）
+6. `obs` (priority=50) - OBS Studio本体
 
-**重要な設定修正**: 
-- `close_when_inactive`: **OFF** (以前はONでしたが、再生開始の不整合を防ぐため現在はOFFに設定されています)
-- `restart_on_activate`: **ON**
+### 5.2 OBS起動スクリプト
 
+**場所**: `/usr/local/bin/start_obs.sh`
 
-**注意**: `voice` メディアソースは `body-streamer` からの自動再生指令（Restart）によって制御されます。
-
----
-
-## アセットファイル仕様
-
-### 配置場所
-
-コンテナ内: `/app/assets/`  
-ホスト: `data/mind/ren/assets/`
-
-### ファイル一覧
-
-| ファイル名 | サイズ | 用途 |
-|-----------|--------|------|
-| `ai_normal.png` | 1.7MB | 通常表情 |
-| `ai_joyful.png` | 1.8MB | 喜び表情 |
-| `ai_fun.png` | 1.9MB | 楽しい表情 |
-| `ai_angry.png` | 1.8MB | 怒り表情 |
-| `ai_sad.png` | 2.1MB | 悲しい表情 |
-| `bgm.mp3` | - | BGM |
-
-### ビルド時のコピー
-
-```dockerfile
-COPY data/mind/ren/assets /app/assets
-```
-
-**重要**: アセットはビルド時にイメージに含まれます。変更時は再ビルドが必要です。
-
----
-
-## WebSocket API使用例
-
-### 接続
-
-```python
-from obswebsocket import obsws, requests as obs_requests
-
-ws = obsws("obs-studio", 4455, "")
-ws.connect()
-```
-
-### ソースの表示/非表示切り替え
-
-```python
-# すべてのアバターを非表示
-for source in ["normal", "joyful", "fun", "angry"]:
-    ws.call(obs_requests.SetSceneItemEnabled(
-        sceneName="s001",
-        sceneItemId=get_item_id(source),
-        sceneItemEnabled=False
-    ))
-
-# 指定されたソースのみ表示
-ws.call(obs_requests.SetSceneItemEnabled(
-    sceneName="s001",
-    sceneItemId=get_item_id("joyful"),
-    sceneItemEnabled=True
-))
-```
-
-### メディアソースのリフレッシュ
-
-```python
-ws.call(obs_requests.SetInputSettings(
-    inputName="voice",
-    inputSettings={
-        "local_file": "/app/shared/audio/speech_1234.wav",
-        "restart_on_activate": True
-    }
-))
-
-# 安定性のための追加ステップ (WebSocket v5)
-ws.call(obs_requests.SetInputVolume(inputName="voice", inputVolumeMul=1.0))
-ws.call(obs_requests.SetInputMute(inputName="voice", inputMuted=False))
-
-# 設定反映のための短い待機 (0.1s)
-import time
-time.sleep(0.1)
-
-# 再生を強制リスタート
-ws.call(obs_requests.TriggerMediaInputAction(
-    inputName="voice",
-    mediaAction="OBS_WEBSOCKET_MEDIA_INPUT_ACTION_RESTART"
-))
-```
-
----
-
-## 録画機能
-
-### 録画設定
-
-- **フォーマット**: MKV (デフォルト)
-- **出力パス**: `/config/recordings/` (コンテナ内)
-- **エンコーダ**: x264
-
-### 制御 API (WebSocket)
-
-`body-desktop` から以下のリクエストを使用して録画を制御します。
-
-- `StartRecord`: 録画開始
-- `StopRecord`: 録画停止
-- `GetRecordStatus`: 録画ステータス（実行中かどうか）の取得
-
----
-
-## VNCアクセス
-
-### 接続方法
-
-ブラウザで以下のURLにアクセス:
-```
-http://localhost:8080/vnc.html
-```
-
-### 初回セットアップ手順
-
-1. VNCでOBS画面にアクセス
-2. Missing Filesダイアログが表示される
-3. 「Search Directory...」ボタンをクリック
-4. `/app/assets/` ディレクトリを選択
-5. 「Apply」をクリック
-6. すべてのファイルが自動的にマッピングされる
-
-### 手動でのソース追加
-
-#### 音声ソースの追加 (voice)
-
-1. Sources パネルで「+」をクリック
-2. 「Media Source」を選択
-3. 名前: `voice`
-4. 設定:
-   - Local File: `/app/shared/audio/speech_0000.wav`
-   - Restart playback when source becomes active: ✅ ON
-   - Close file when inactive: ❌ OFF (重要: 再生不具合防止のため)
-5. オーディオの詳細プロパティ:
-   - 音声モニタリング: 「モニターと出力」に設定
-
----
-
-## トラブルシューティング
-
-### OBSがクラッシュする (SIGABRT)
-
-**症状**:
-```
-obs-studio-1 | INFO exited: obs (terminated by SIGABRT; not expected)
-```
-
-**原因**: 
-- 不正なシーンコレクションJSON
-- 存在しないファイルパスを参照
-- システムトレイ関連のフラグ使用
-
-**対処法**:
-1. ロックファイルを削除（`start_obs.sh`で自動実行）
-2. `--minimize-to-tray` フラグを削除
-3. シーンコレクションJSONを検証
-
-### WebSocketに接続できない
-
-**症状**:
-```
-ERROR - Failed to connect to OBS: [Errno 111] Connection refused
-```
-
-**原因**: OBS WebSocketサーバーが起動していない
-
-**対処法**:
-1. OBSが完全に起動するまで待機（約5秒）
-2. WebSocket設定を確認: `/root/.config/obs-studio/plugin_config/obs-websocket/config.json`
-3. OBSログを確認: `docker compose logs obs-studio | grep websocket`
-
-### アセットファイルが見つからない
-
-**症状**: Missing Filesダイアログが表示され続ける
-
-**原因**: ファイルパスが間違っている
-
-**対処法**:
-1. コンテナ内でファイルを確認: `docker compose exec obs-studio ls -la /app/assets/`
-2. パスが正しいことを確認
-3. VNCで手動マッピング
-
----
-
-## パフォーマンス設定
-
-### 推奨設定
-
-- **Output Mode**: Simple
-- **Video Bitrate**: 2500 Kbps
-- **Encoder**: Software (x264)
-- **Audio Bitrate**: 160 Kbps
-- **Resolution**: 1280x720 @ 30fps
-
-### リソース使用量
-
-| リソース | 使用量 |
-|---------|--------|
-| CPU | 10-30% (1コア) |
-| Memory | 500MB-1GB |
-| Disk | 100MB (イメージ含まず) |
-
----
-
-## セキュリティ設定
-
-### WebSocket認証
-
-本番環境では認証を有効化することを推奨:
-
-```json
-{
-  "authentication_enabled": true,
-  "auth_required": true
-}
-```
-
-環境変数でパスワードを設定:
 ```bash
-OBS_PASSWORD=your_secure_password
+#!/bin/bash
+# ロックファイルのクリーンアップ
+rm -f /root/.config/obs-studio/basic/scenes/*.lock
+rm -f /root/.config/obs-studio/basic/profiles/*/*.lock
+rm -f /root/.config/obs-studio/global.ini.lock
+
+# ヘッドレス用環境変数
+export QT_QPA_PLATFORM=xcb
+
+# global.ini を起動時に強制再生成（設定の確実な適用）
+cat > /root/.config/obs-studio/global.ini << 'EOF'
+[General]
+FirstRun=true
+ShowConfigWizard=false
+# ... (完全な設定)
+EOF
+
+# OBS起動（ウィザード・アップデート抑制フラグ付き）
+exec obs --disable-shutdown-check \
+         --disable-updater \
+         --disable-missing-files-check \
+         --verbose 2>&1
 ```
 
-### ネットワーク分離
-
-- WebSocketは内部ネットワーク（Docker network）のみでアクセス可能
-- VNCは開発環境のみで公開（本番では無効化推奨）
+**重要**: `start_obs.sh` 内で `global.ini` を動的生成することで、ビルドキャッシュの影響を受けにくくしています。
 
 ---
 
-## 今後の改善予定
+## 6. 接続リトライロジック
 
-### Short-term
+**実装**: `src/body/streamer/obs.py`
 
-- [ ] 自動シーン設定スクリプト
-- [ ] アセット更新の簡素化（ホットリロード）
-- [ ] 配信プリセットの追加
+OBS WebSocket への接続は、コンテナ起動直後には失敗する可能性があるため、指数バックオフによるリトライを実装しています。
 
-### Mid-term
+```python
+async def connect(retries: int = 5, delay: float = 2.0) -> bool:
+    for i in range(retries):
+        try:
+            ws_client = obsws(OBS_HOST, OBS_PORT, OBS_PASSWORD)
+            ws_client.connect()
+            return True
+        except Exception as e:
+            if i < retries - 1:
+                await asyncio.sleep(delay)
+    return False
+```
 
-- [ ] 複数シーン対応
-- [ ] トランジション設定
-- [ ] カスタムフィルター対応
-
-### Long-term
-
-- [ ] NDI出力対応
-- [ ] バーチャルカメラ出力
-- [ ] クラウドストレージ連携
+**パラメータ**:
+- 最大リトライ回数: 5回
+- 初回待機時間: 2秒
+- バックオフ方式: 指数（2秒 → 4秒 → 8秒...）
 
 ---
 
-## 参考資料
+## 7. 配信開始手順
 
-- [OBS Studio Documentation](https://obsproject.com/wiki/)
-- [OBS WebSocket Protocol v5](https://github.com/obsproject/obs-websocket/blob/master/docs/generated/protocol.md)
-- [Fluxbox Configuration](http://fluxbox.org/help/)
-- [noVNC Documentation](https://novnc.com/info.html)
+### 7.1 ストリーム設定の適用
+
+```python
+custom_settings = {
+    "server": "rtmp://a.rtmp.youtube.com/live2",
+    "key": stream_key,
+    "use_auth": False
+}
+
+ws_client.call(obs_requests.SetStreamServiceSettings(
+    streamServiceType="rtmp_custom",
+    streamServiceSettings=custom_settings
+))
+```
+
+### 7.2 開始コマンドと検証
+
+```python
+# 設定適用後1秒待機
+await asyncio.sleep(1.0)
+
+# 配信開始
+ws_client.call(obs_requests.StartStream())
+
+# 2秒後に状態確認
+await asyncio.sleep(2.0)
+status = ws_client.call(obs_requests.GetStreamStatus())
+if status.outputActive or status.streamActive:
+    logger.info("Verified: OBS is streaming")
+```
+
+---
+
+## 8. トラブルシューティング
+
+### 8.1 ウィザードが表示される場合
+
+**原因**: 設定ファイルの不完全性
+
+**確認項目**:
+1. `global.ini` に `[BasicWindow]` セクションの全項目が存在するか
+2. `basic.ini` に `[Stream1]` セクションが存在するか
+3. `basic.ini` に `[AdvOut]` セクションが存在するか
+4. `basic.ini` に `[Panels]` セクションが存在するか
+
+**解決策**: dev/ren2ブランチの完全な設定をコピー
+
+### 8.2 NVENC エンコーダーが認識されない
+
+**確認コマンド**:
+```bash
+docker compose exec obs-studio nvidia-smi
+docker compose exec obs-studio glxinfo | grep -i nvidia
+```
+
+**確認項目**:
+- `StreamEncoder=nvenc` になっているか（`ffmpeg_nvenc` ではない）
+- `ColorFormat=NV12` になっているか（NVENCはI420非推奨）
+- Dockerfileに `ENV NVIDIA_VISIBLE_DEVICES=all` があるか
+- docker-compose.ymlに `devices: nvidia` の設定があるか
+
+### 8.3 配信が開始されない
+
+**確認項目**:
+1. OBS WebSocketに接続できているか（`obs.py` ログ確認）
+2. `StartStream()` 後の検証ログで `outputActive=true` になっているか
+3. YouTube ストリームキーが正しく設定されているか
+
+**ログ確認**:
+```bash
+docker compose logs obs-studio | grep -i "stream"
+docker compose logs body-streamer | grep "Verified"
+```
+
+---
+
+## 9. 設定ファイルの完全性チェックリスト
+
+ウィザード回避に必要な設定項目:
+
+### global.ini
+- [ ] `[General]` セクション（20項目以上）
+- [ ] `[Basic]` セクション（4項目）
+- [ ] `[BasicWindow]` セクション（30項目以上）
+- [ ] `[Audio]` セクション
+- [ ] `[Video]` セクション
+- [ ] `[Accessibility]` セクション
+
+### basic.ini
+- [ ] `[General]` セクション
+- [ ] `[Video]` セクション（10項目以上）
+- [ ] `[Output]` セクション（10項目以上）
+- [ ] `[SimpleOutput]` セクション（15項目以上）
+- [ ] `[Stream1]` セクション（**必須**）
+- [ ] `[AdvOut]` セクション（**必須**、40項目以上）
+- [ ] `[Audio]` セクション（5項目以上）
+- [ ] `[Panels]` セクション
+
+---
+
+## 10. 参考リンク
+
+- [OBS Studio公式ドキュメント](https://obsproject.com/)
+- [obs-websocket プロトコル仕様](https://github.com/obsproject/obs-websocket/blob/master/docs/generated/protocol.md)
+- [NVIDIA NVENC サポート](https://developer.nvidia.com/nvidia-video-codec-sdk)
+- [実績のある設定（dev/ren2ブランチ）](https://github.com/koduki/ai-tuber/tree/dev/ren2/src/body/streamer/obs/config)
