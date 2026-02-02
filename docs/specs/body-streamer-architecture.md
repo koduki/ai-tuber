@@ -3,7 +3,7 @@
 **サービス名**: body-streamer  
 **役割**: ストリーミング制御ハブ（身体）  
 **バージョン**: 1.1.0  
-**最終更新**: 2026-01-26
+**最終更新**: 2026-02-02
 
 ---
 
@@ -100,7 +100,9 @@ OBS の録画を停止します。
 1. **音声合成**: `VoiceVox API (/audio_query, /synthesis)` を叩き、WAV バイナリを取得。
 2. **永続化**: `/app/shared/audio/speech_{id}.wav` として保存。
 3. **OBS 通知**: `SetInputSettings` でメディアソースを新ファイルに更新。
-4. **再生開始**: `TriggerMediaInputAction (RESTART)` を送信。
+4. **状態確保**: `SetInputMute(False)` および `SetInputVolume(1.0)` を送信し、確実に聞こえるようにする。
+5. **同期待機**: 設定が OBS 内部で反映されるよう 0.1秒待機。
+6. **再生開始**: `TriggerMediaInputAction (RESTART)` を送信。
 
 ---
 

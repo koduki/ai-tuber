@@ -2,7 +2,7 @@
 
 **対象サービス**: obs-studio  
 **バージョン**: OBS 30.2.3  
-**最終更新**: 2026-01-21
+**最終更新**: 2026-02-02
 
 ---
 
@@ -141,6 +141,11 @@ AuthRequired=false  # 認証無効（内部ネットワークのみ）
 | `BGM` | Media | `/app/assets/bgm.mp3` | 👁️ 表示 | BGM再生 (Monitor and Output) |
 | `voice` | Media | `/app/shared/audio/speech_0000.wav` | 👁️ 表示 | AIの音声再生 (Monitor and Output) |
 
+**重要な設定修正**: 
+- `close_when_inactive`: **OFF** (以前はONでしたが、再生開始の不整合を防ぐため現在はOFFに設定されています)
+- `restart_on_activate`: **ON**
+
+
 **注意**: `voice` メディアソースは `body-streamer` からの自動再生指令（Restart）によって制御されます。
 
 ---
@@ -214,7 +219,15 @@ ws.call(obs_requests.SetInputSettings(
     }
 ))
 
-# 再生を強制リスタート (WebSocket v5)
+# 安定性のための追加ステップ (WebSocket v5)
+ws.call(obs_requests.SetInputVolume(inputName="voice", inputVolumeMul=1.0))
+ws.call(obs_requests.SetInputMute(inputName="voice", inputMuted=False))
+
+# 設定反映のための短い待機 (0.1s)
+import time
+time.sleep(0.1)
+
+# 再生を強制リスタート
 ws.call(obs_requests.TriggerMediaInputAction(
     inputName="voice",
     mediaAction="OBS_WEBSOCKET_MEDIA_INPUT_ACTION_RESTART"
@@ -269,7 +282,7 @@ http://localhost:8080/vnc.html
 4. 設定:
    - Local File: `/app/shared/audio/speech_0000.wav`
    - Restart playback when source becomes active: ✅ ON
-   - Close file when inactive: ✅ ON
+   - Close file when inactive: ❌ OFF (重要: 再生不具合防止のため)
 5. オーディオの詳細プロパティ:
    - 音声モニタリング: 「モニターと出力」に設定
 
