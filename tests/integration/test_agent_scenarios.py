@@ -27,9 +27,17 @@ async def test_weather_scenario():
     weather_calls = []
     emotion_calls = []
 
-    def get_weather(location: str, date: str = None) -> str:
-        """Retrieve weather information for a specified location and date."""
-        print(f"\n[Mock Tool] get_weather called for {location}")
+    def get_weather(location: str, date: str = "today") -> str:
+        """Retrieve weather information for a specified location and date.
+        
+        Args:
+            location: The location to get weather for (e.g., "福岡", "Tokyo")
+            date: The date to get weather for. Defaults to "today" if not specified.
+        
+        Returns:
+            Weather information as a string.
+        """
+        print(f"\n[Mock Tool] get_weather called for {location}, date={date}")
         weather_calls.append({"location": location, "date": date})
         return f"{location}の天気は晴れです。気温は20度です。"
 
@@ -69,7 +77,7 @@ async def test_weather_scenario():
     
     try:
         # 3. Execute Turn
-        user_input = "福岡の天気を検索して、その結果を教えて。"
+        user_input = "福岡の今日の天気を教えて。"
         print(f"\n[User]: {user_input}")
         
         await sg.process_turn(user_input)

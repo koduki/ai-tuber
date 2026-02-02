@@ -1,7 +1,37 @@
+# Environment variables (contains secrets)
 .env
+.env.local
+.env.*.local
+
+# Python cache
 __pycache__/
 *.py[cod]
 *$py.class
 .pytest_cache/
+
+# IDE
 .vscode/
+.idea/
+
+# OS
 .DS_Store
+Thumbs.db
+
+# Secrets and credentials
+/secret/
+*.pem
+*.key
+google_client_secret.json
+yt_token.json
+
+# OBS temp files
+*.lock
+
+# Shared runtime data (may contain sensitive info)
+/shared/voice/*.wav
+/shared/recordings/*.mp4
+/shared/recordings/*.mkv
+
+# Logs (may contain sensitive info)
+*.log
+logs/
