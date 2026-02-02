@@ -51,8 +51,8 @@
             "id": "ffmpeg_source",
             "versioned_id": "ffmpeg_source",
             "settings": {
-                "close_when_inactive": true,
-                "local_file": "/app/shared/audio/speech_3367.wav",
+                "close_when_inactive": false,
+                "local_file": "/app/shared/audio/speech_0000.wav",
                 "restart_on_activate": true
             },
             "mixers": 255,

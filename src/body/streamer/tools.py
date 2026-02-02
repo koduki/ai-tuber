@@ -22,6 +22,7 @@ async def speak(text: str, style: str = "normal") -> str:
         file_path = await voice.generate_and_save(text, style)
         
         # OBS経由で音声を再生
+        await obs.set_source_visibility("voice", True)
         await obs.refresh_media_source("voice", file_path)
         
         logger.info(f"[speak] '{text}' (style: {style})")

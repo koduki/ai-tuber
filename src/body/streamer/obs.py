@@ -188,12 +188,18 @@ async def refresh_media_source(source_name: str, file_path: str) -> bool:
             overlay=True
         ))
         
-        # 2. ソースを確実に表示状態にする（非表示だと再生されない場合があるため）
-        # シーンアイテムIDではなく名前で指定する場合、SetSceneItemEnabledの代わりに
-        # 他の手段が必要な場合もありますが、まずは再生命令を優先
+        # 2. 音量をリセットし、ミュートを解除 (v5 API)
+        try:
+            ws_client.call(obs_requests.SetInputVolume(inputName=source_name, inputVolumeMul=1.0))
+            ws_client.call(obs_requests.SetInputMute(inputName=source_name, inputMuted=False))
+            logger.info(f"Ensured volume 1.0 and unmuted for '{source_name}'")
+        except Exception as e:
+            logger.warning(f"Failed to set volume/mute via v5 API (might be v4): {e}")
+
+        # 3. OBSが設定を反映するのをわずかに待つ
+        await asyncio.sleep(0.1)
         
-        # 3. 再生を最初から開始 (Restart)
-        # OBS WebSocket v5 API: TriggerMediaInputAction
+        # 4. 再生を最初から開始 (Restart)
         try:
             ws_client.call(obs_requests.TriggerMediaInputAction(
                 inputName=source_name,
@@ -202,7 +208,6 @@ async def refresh_media_source(source_name: str, file_path: str) -> bool:
             logger.info(f"Triggered restart for media source '{source_name}'")
         except Exception as e:
             logger.warning(f"Failed to trigger media restart (might be v4 protocol): {e}")
-            # v4互換のためのフォールバック (RestartMedia)
             try:
                 ws_client.call(obs_requests.RestartMedia(sourceName=source_name))
             except:
