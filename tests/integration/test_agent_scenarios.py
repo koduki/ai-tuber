@@ -33,9 +33,9 @@ async def test_weather_scenario():
         weather_calls.append({"location": location, "date": date})
         return f"{location}の天気は晴れです。気温は20度です。"
 
-    def speak(text: str, style: str = None) -> str:
+    def speak(text: str, style: str = None, **kwargs) -> str:
         """Speak text to the audience."""
-        print(f"\n[Mock Tool] speak called: {text} (style={style})")
+        print(f"\n[Mock Tool] speak called: {text} (style={style}, kwargs={kwargs})")
         speak_calls.append({"text": text, "style": style})
         return "Speaking completed"
 

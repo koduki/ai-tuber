@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 from .config import logger
 
@@ -23,6 +24,7 @@ class PromptLoader:
         self._saint_graph_prompts_dir = APP_ROOT / "saint_graph" / "system_prompts"
         self._mind_prompts_dir = DATA_ROOT / "mind" / character_name / "system_prompts"
         self._persona_path = DATA_ROOT / "mind" / character_name / "persona.md"
+        self._mind_config_path = DATA_ROOT / "mind" / character_name / "mind.json"
 
     def load_system_instruction(self) -> str:
         """
@@ -41,7 +43,7 @@ class PromptLoader:
 
     def load_templates(self, names: list[str]) -> dict[str, str]:
         """
-        指定された名前のテンプレートをMind配下から読み込みます。
+        指定された名前のテンプレートをsaint_graph配下から読み込みます。
         
         Args:
             names: 読み込むテンプレート名のリスト（拡張子なし）
@@ -51,7 +53,7 @@ class PromptLoader:
         """
         templates = {}
         for name in names:
-            path = self._mind_prompts_dir / f"{name}.md"
+            path = self._saint_graph_prompts_dir / f"{name}.md"
             with open(path, "r", encoding="utf-8") as f:
                 templates[name] = f.read()
         return templates
@@ -61,3 +63,17 @@ class PromptLoader:
         テンプレート辞書から再指示（retry_*）用のものだけを抽出します。
         """
         return {k: v for k, v in templates.items() if k.startswith("retry_")}
+
+    def load_mind_config(self) -> dict:
+        """
+        mind.json からキャラクター設定を読み込みます。
+        """
+        if not self._mind_config_path.exists():
+            return {}
+        
+        try:
+            with open(self._mind_config_path, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except Exception as e:
+            logger.error(f"Error loading mind.json for {self.character_name}: {e}")
+            return {}

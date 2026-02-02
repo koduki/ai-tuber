@@ -35,11 +35,16 @@ async def main():
     except Exception as e:
         logger.error(f"Failed to load news: {e}")
 
+    # キャラクター設定のロード
+    mind_config = loader.load_mind_config()
+    logger.info(f"Loaded mind config: {mind_config}")
+
     # SaintGraph (ADK + REST Body) の初期化
     saint_graph = SaintGraph(
         body_url=BODY_URL,
         mcp_urls=MCP_URLS, 
-        system_instruction=system_instruction
+        system_instruction=system_instruction,
+        mind_config=mind_config
     )
 
     # メインループ

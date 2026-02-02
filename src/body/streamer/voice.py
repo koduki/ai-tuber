@@ -1,6 +1,7 @@
 """VoiceVox adapter for speech synthesis"""
 import os
 import logging
+from typing import Optional
 from pathlib import Path
 import httpx
 
@@ -17,6 +18,7 @@ VOICE_DIR.mkdir(parents=True, exist_ok=True)
 
 # Speaker ID mapping (style -> speaker_id)
 SPEAKER_MAP = {
+    "neutral": 1,
     "normal": 1,
     "happy": 2,
     "sad": 9,
@@ -102,18 +104,21 @@ async def save_to_shared_volume(audio_data: bytes, filename: str) -> str:
     return str(file_path)
 
 
-async def generate_and_save(text: str, style: str = "normal") -> tuple[str, float]:
+async def generate_and_save(text: str, style: str = "neutral", speaker_id: Optional[int] = None) -> tuple[str, float]:
     """
     音声を生成して共有ボリュームに保存します。
     
     Args:
         text: 発話テキスト
-        style: 発話スタイル (normal, happy, sad, angry)
+        style: 発話スタイル (neutral, happy, sad, angry)
+        speaker_id: 話者ID (指定された場合はstyleより優先)
         
     Returns:
         (file_path, duration) のタプル
     """
-    speaker_id = SPEAKER_MAP.get(style, 1)
+    if speaker_id is None:
+        speaker_id = SPEAKER_MAP.get(style, 1)
+    
     logger.info(f"Generating speech: '{text}' with style '{style}' (speaker {speaker_id})")
     
     try:
