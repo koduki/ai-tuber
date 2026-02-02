@@ -1,105 +1,157 @@
-# AI Tuber (Hybrid REST/MCP Architecture)
+# AI Tuber
 
-Google Agent Development Kit (ADK) と Model Context Protocol (MCP) に加え、確実な身体操作のための REST API を組み合わせた、次世代 AITuber 構築プロジェクトです。
+**魂（Saint Graph）、肉体（Body）、精神（Mind）** の三位一体で構成される AITuber システムです。
+
+AIニュースキャスターとしてコアロジックの魂が構成されており、CLIとOBSベースのYoutube配信を肉体として持ちます。精神はキャラクターの特徴や立ち絵、声などを表していて、これをプラガブルに組み舞えることで、全体の構成を変えずに任意のキャラクターのAITuberを作成できます。
+Saint GraphはMCPによる拡張可能もです。
 
 ## 特徴
 
-*   **ハイブリッド構成**: 
-    *   **REST API**: 発話、表情、録画・配信制御など、絶対に失敗したくない「身体操作」に使用。
-    *   **MCP**: 天気予報や知識検索など、AI が自律的に判断して使う「外部ツール」に使用。
-*   **YouTube Live配信**: OAuth認証によるライブ配信作成・管理、**リアルタイムコメント取得**に完全対応。
-*   **感情パース**: AI の生成テキストから `[emotion: happy]` のようなタグを自動でパースし、リアルタイムにアバターの表情を切り替えます。
-*   **モジュール化**: 魂 (Logic)、精神 (Persona/Character)、身体 (IO/Control) が完全に分離されており、新しいキャラクターの追加が容易です。
-
-## アーキテクチャ
-
-*   **Saint Graph (魂)**: Google ADK をベースにした意思決定エンジン。
-*   **Mind (精神)**: `data/mind/` 以下に配置される、ペルソナ、プロンプト、アセットのパッケージ。
-*   **Body (肉体)**: OBS 制御、音声合成、YouTube Live 配信・連携を担う REST API サービス。
-
-### システム構成
-
-| サービス | 役割 | ポート | 通信方式 |
-|---------|------|--------|---------|
-| `saint-graph` | 思考・対話エンジン | - | REST Client / MCP Client |
-| `body-streamer` | ストリーミング制御ハブ | 8002 | REST API |
-| `body-cli` | 開発用 CLI 入出力 | 8000 | REST API |
-| `tools-weather` | 天気情報取得ツール | 8001 | MCP (SSE) |
-| `obs-studio` | 配信・映像合成 | 8080, 4455 | VNC / WebSocket |
-| `voicevox` | 音声合成エンジン | 50021 | HTTP API |
-
-詳細は [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) を参照してください。
+- **3層アーキテクチャ**: 魂・肉体・精神が分離された設計
+- **ハイブリッド通信**: REST（身体操作）+ MCP（外部ツール）
+- **YouTube Live 対応**: OAuth 認証、配信作成、リアルタイムコメント取得
+- **感情制御**: AI 生成テキストから感情タグを自動パース
+- **センテンス順次再生**: 音声の重複を防ぐインテリジェントな再生システム
+- **プラグイン型キャラクター**: 新キャラクターの追加が容易
 
 ## Quick Start
 
-### 1. 設定
+### 1. 動作モードの選択
 
-`.env` ファイルを作成し、Gemini API キーを設定してください:
+本システムは環境変数 `STREAMING_MODE` で動作を切り替えられます。
+
+- **録画モード** (`STREAMING_MODE=false`): OBS での録画のみ。
+- **配信モード** (`STREAMING_MODE=true`): YouTube Live での配信とコメント取得。
+
+### 2. 環境変数の設定
+
+`.env` ファイルを作成し、必要な情報を設定してください：
 
 ```bash
-GOOGLE_API_KEY="your_api_key_here"
-OBS_PASSWORD="" # オプション
+# 必須
+GOOGLE_API_KEY="your_gemini_api_key"
+STREAMING_MODE=false # false=録画, true=配信
+
+# 配信設定 (STREAMING_MODE=true の場合のみ必須)
+YOUTUBE_CLIENT_SECRET_JSON='{"installed":{...}}'
+YOUTUBE_TOKEN_JSON='{"token":"...","refresh_token":"..."}'
+STREAM_TITLE="本日のライブ配信"
 ```
 
-全サービス（本番ストリーミング構成）を起動します:
+### 3. 起動
 
 ```bash
+# 本番配信・録画モード（Streamer）
 docker compose up --build
+
+# または開発モード（CLI）
+docker compose up body-cli saint-graph
 ```
 
-> [!NOTE]
-> `STREAMING_MODE=true` が設定されている場合、`saint-graph` の起動時に自動的に YouTube Live 配信が開始されます。詳細は [YouTube Live 配信仕様](docs/specs/youtube-live-streaming.md) を参照してください。
+### 4. アクセス
 
-### 3. OBS 設定 (初回のみ)
+- **OBS Studio**: http://localhost:8080/vnc.html (VNC)
+- **Body API**: http://localhost:8002 (Streamer) / 8000 (CLI)
+- **CLI 対話**: `docker attach app-body-cli-1`
 
-1. ブラウザで `http://localhost:8080/vnc.html` にアクセス。
-2. OBS で「Missing Files」警告が出た場合、「Search Directory...」をクリック。
-3. `/app/assets/` ディレクトリを選択して適用。
+## アーキテクチャ
 
-## 開発とテスト
+### 三位一体構造
 
-### 開発用 CLI モード
+| コンポーネント | 役割 | 技術 |
+|--------------|------|------|
+| **Saint Graph（魂）** | 意思決定・対話 | Google Gemini ADK, MCP Client |
+| **Body（肉体）** | 入出力・制御 | VoiceVox, OBS, YouTube API |
+| **Mind（精神）** | キャラクター定義 | Markdown, JSON, アセット |
 
-`docker attach` を使用して、AI と直接テキストで対話できます。
+### マイクロサービス
+
+| サービス | ポート | 説明 |
+|---------|--------|------|
+| `saint-graph` | - | 思考エンジン（魂） |
+| `body-streamer` | 8002 | 本番配信用（肉体） |
+| `body-cli` | 8000 | 開発用 CLI（肉体） |
+| `tools-weather` | 8001 | 天気ツール（MCP） |
+| `obs-studio` | 8080, 4455 | 映像合成 |
+| `voicevox` | 50021 | 音声合成 |
+
+詳細: [システム概要](docs/architecture/overview.md)
+
+## 開発
+
+### CLI モードでの対話
 
 ```bash
 docker attach app-body-cli-1
+# 入力: こんにちは
+# 出力: [AI (joyful)]: 面を上げよ！わらわこそが紅月れんじゃ！
 ```
-> **入力例**: `こんにちは`  
-> **出力例**: `[AI (joyful)]: 面を上げよ！わらわこそが紅月れんじゃ！`
 
-### テストの実行
+### テスト実行
 
 ```bash
-# 全テスト実行
+# 全テスト
 pytest
 
-# ユニットテストのみ
+# ユニット/統合テストのみ
 pytest tests/unit/
-
-# インテグレーションテストのみ
 pytest tests/integration/
 ```
 
-**テストカバレッジ**: 28テスト（ユニット: 11、統合: 15、E2E: 2スキップ）
+**テストカバレッジ**: 28テスト（ユニット: 11、統合: 15、E2E: 2）
 
-主要なテスト:
-- `test_prompt_loader.py`: `mind.json` 読み込み機能
-- `test_speaker_id_integration.py`: `speaker_id` の伝播検証
-- `test_saint_graph.py`: AI応答パース・感情制御
-- `test_rest_body_cli.py`: Body CLI REST API
-- `test_newscaster_logic_v2.py`: ニュース配信フロー
+主要テスト:
+- `test_saint_graph.py` - AI応答パース・感情制御
+- `test_speaker_id_integration.py` - VoiceVox speaker_id 伝播
+- `test_youtube_oauth.py` - YouTube OAuth 認証
+- `test_youtube_comment_adapter.py` - コメント取得
 
-## キャラクターの追加
+## キャラクター追加
 
-`data/mind/{character_name}/` ディレクトリを作成し、必要な Markdown ファイルと画像を配置するだけで、新しいキャラクターを構築できます。
-詳細は [キャラクターパッケージ仕様書](docs/specs/character-package-specification.md) を参照してください。
+```bash
+data/mind/{character_name}/
+├── mind.json          # 技術設定（speaker_id など）
+├── persona.md         # 性格・口調
+└── assets/            # 画像・音声
+    ├── ai_neutral.png
+    ├── ai_joyful.png
+    └── ...
+```
+
+詳細: [キャラクター作成ガイド](docs/components/mind/character-creation-guide.md)
+
+## 主な環境変数
+
+### Saint Graph（魂）
+
+| 変数 | デフォルト | 説明 |
+|------|-----------|------|
+| `GOOGLE_API_KEY` | (必須) | Gemini API キー |
+| `STREAMING_MODE` | `false` | `true` で YouTube 配信, `false` で録画 |
+| `RUN_MODE` | `cli` | `cli` または `streamer` |
+| `MODEL_NAME` | `gemini-2.5-flash-lite` | 使用モデル |
+| `STREAM_TITLE` | - | 配信タイトル |
+| `STREAM_PRIVACY` | `private` | 配信公開設定 (`public`, `unlisted`, `private`) |
+| `CHARACTER_NAME` | `ren` | キャラクター名 |
+| `NEWS_DIR` | `/app/data/news` | ニュース原稿ディレクトリ |
+
+### Body（肉体）
+
+| 変数 | デフォルト | 説明 |
+|------|-----------|------|
+| `VOICEVOX_HOST` | `voicevox` | VoiceVox ホスト |
+| `OBS_HOST` | `obs-studio` | OBS WebSocket ホスト |
+| `YOUTUBE_CLIENT_SECRET_JSON` | - | OAuth 認証情報 |
+| `YOUTUBE_TOKEN_JSON` | - | OAuth トークン |
+
+詳細: [通信プロトコル](docs/architecture/communication.md)
 
 ## ドキュメント
 
-*   [詳細アーキテクチャ](docs/ARCHITECTURE.md)
-*   [Saint Graph 仕様](docs/specs/saint-graph.md)
-*   [Body Streamer 仕様](docs/specs/body-streamer-architecture.md)
-*   [YouTube Live 配信仕様](docs/specs/youtube-live-streaming.md)
-*   [YouTube OAuth 統一レポート](docs/specs/youtube-oauth-final-success-report.md)
-*   [キャラクター定義ガイド](docs/specs/character-package-specification.md)
+| カテゴリ | ドキュメント |
+|---------|-------------|
+| **全体** | [ドキュメント一覧](docs/README.md) |
+| **アーキテクチャ** | [システム概要](docs/architecture/overview.md), [通信プロトコル](docs/architecture/communication.md), [データフロー](docs/architecture/data-flow.md) |
+| **Saint Graph（魂）** | [README](docs/components/saint-graph/README.md), [コアロジック](docs/components/saint-graph/core-logic.md), [プロンプト設計](docs/components/saint-graph/prompts.md) |
+| **Body（肉体）** | [README](docs/components/body/README.md) |
+| **Mind（精神）** | キャラクター作成ガイド（作成予定） |
