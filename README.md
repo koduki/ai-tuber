@@ -79,6 +79,15 @@ pytest tests/unit/
 pytest tests/integration/
 ```
 
+**テストカバレッジ**: 28テスト（ユニット: 11、統合: 15、E2E: 2スキップ）
+
+主要なテスト:
+- `test_prompt_loader.py`: `mind.json` 読み込み機能
+- `test_speaker_id_integration.py`: `speaker_id` の伝播検証
+- `test_saint_graph.py`: AI応答パース・感情制御
+- `test_rest_body_cli.py`: Body CLI REST API
+- `test_newscaster_logic_v2.py`: ニュース配信フロー
+
 ## キャラクターの追加
 
 `data/mind/{character_name}/` ディレクトリを作成し、必要な Markdown ファイルと画像を配置するだけで、新しいキャラクターを構築できます。

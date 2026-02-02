@@ -63,6 +63,9 @@ AIはテキスト出力の際に、以下のいずれかのタグを付与しま
 ## 新しいキャラクターの追加手順
 
 1. `data/mind/{new_character}/` ディレクトリを作成。
-2. 上記構造に従って `persona.md` 等の Markdown ファイルを作成。
+2. 上記構造に従って `mind.json` と `persona.md` を作成。
 3. `assets/` に立ち絵画像を配置。
 4. `docker-compose.yml` または 環境変数 `CHARACTER_NAME` を指定して再起動。
+
+> [!TIP]
+> キャラクター設定の読み込みは `test_mind_prompts.py` と `test_prompt_loader.py` でテストされています。新しいキャラクターを追加した後、これらのテストを実行して正しく読み込まれることを確認できます。
