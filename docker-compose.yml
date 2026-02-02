@@ -126,3 +126,11 @@ services:
       - voice_share:/app/shared/voice
     environment:
       - DISPLAY=:99
+    shm_size: '2gb'
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu, video, graphics, utility, display]

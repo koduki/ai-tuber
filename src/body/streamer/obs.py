@@ -294,18 +294,18 @@ async def start_streaming(stream_key: str) -> bool:
         return False
     
     try:
-        # Get current stream service settings
-        settings_response = ws_client.call(obs_requests.GetStreamServiceSettings())
-        settings = settings_response.getStreamServiceSettings()
+        # Use custom RTMP for better reliability
+        custom_settings = {
+            "server": "rtmp://a.rtmp.youtube.com/live2",
+            "key": stream_key,
+            "use_auth": False
+        }
         
-        # Update stream key
-        settings['key'] = stream_key
-        
-        # Set stream service settings
         ws_client.call(obs_requests.SetStreamServiceSettings(
-            streamServiceType="rtmp_common",
-            streamServiceSettings=settings
+            streamServiceType="rtmp_custom",
+            streamServiceSettings=custom_settings
         ))
+        logger.info(f"Updated OBS stream settings with Custom RTMP and key")
         logger.info(f"Updated OBS stream settings with new key")
         
         # Start streaming
