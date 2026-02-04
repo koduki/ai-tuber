@@ -65,7 +65,10 @@ async def run_agent(themes: list[str], target_date: str):
 
 サブカルチャー関連（アニメ・VTuber等）の話題については、以下の点に注意してください：
 - ジャンプ系（週刊少年ジャンプ、少年ジャンプ＋等）の話題、およびその連載作品（例：銀魂、呪術廻戦、ONE PIECE、僕のヒーローアカデミア、チェンソーマン等）は一切含めないでください。
-- 内容は非常に簡潔に、1〜3項目程度（全体のボリュームの1/3以下）に抑えてください。
+- 内容は非常に簡潔に、**1〜3項目厳守**（全体のボリュームの1/3以下）に抑えててください。
+
+「国内の政治経済ニュース」については、以下の点に注意してください：
+- 他のセクションよりも重点的に、少し多めのボリューム（**3〜5項目程度**）で、日本国内の話題を中心に記述してください。
 
 事実のみをニュース原稿として自然に記述してください。
 「...でしたが、代わりに...」といったつなぎ文句も避け、あたかもその情報が今日（または対象日）のニュースであるかのように構成してください。
@@ -153,6 +156,17 @@ async def run_agent(themes: list[str], target_date: str):
     if cleaned_response.endswith("```"):
         cleaned_response = cleaned_response[:-3]
 
+    cleaned_response = cleaned_response.strip()
+
+    # 重複出力対策：最初の "# News Script" から開始し、もし2つ目があればそれ以降を削除
+    if "# News Script" in cleaned_response:
+        parts = cleaned_response.split("# News Script")
+        # parts[1] に最初の内容が入る (parts[0] はそれ以前)
+        if len(parts) > 2:
+            cleaned_response = "# News Script" + parts[1]
+        else:
+            cleaned_response = "# News Script" + "".join(parts[1:])
+    
     cleaned_response = cleaned_response.strip()
 
     # 「見つかりませんでした」系のフレーズをプログラムレベルで削除
