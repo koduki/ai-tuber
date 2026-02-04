@@ -12,8 +12,7 @@ else:
     BODY_URL = os.getenv("BODY_URL", "http://body-streamer:8000")
 
 # 外部ツール (MCP) のURL
-WEATHER_MCP_URL = os.getenv("WEATHER_MCP_URL", "http://tools-weather:8001/sse")
-MCP_URLS = [url for url in [WEATHER_MCP_URL] if url]
+MCP_URL = os.getenv("MCP_URL", "http://tools-weather:8001/sse")
 
 # AI設定
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")

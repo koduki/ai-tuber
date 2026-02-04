@@ -18,7 +18,7 @@ class MockEvent:
 
 
 @pytest.mark.asyncio
-@patch("google.adk.events.event.Event", MockEvent)
+@patch("saint_graph.saint_graph.Event", MockEvent)
 async def test_speaker_id_passed_to_body_client():
     """mind_configのspeaker_idがBodyClient.speak()に渡される"""
     mind_config = {"speaker_id": 58}
@@ -30,7 +30,7 @@ async def test_speaker_id_passed_to_body_client():
         
         sg = SaintGraph(
             body_url="http://test",
-            mcp_urls=[],
+            mcp_url="",
             system_instruction="Test instruction",
             mind_config=mind_config
         )
@@ -59,7 +59,7 @@ async def test_speaker_id_passed_to_body_client():
 
 
 @pytest.mark.asyncio
-@patch("google.adk.events.event.Event", MockEvent)
+@patch("saint_graph.saint_graph.Event", MockEvent)
 async def test_no_speaker_id_defaults_to_none():
     """mind_configがない場合、speaker_id=Noneが渡される"""
     with patch("saint_graph.saint_graph.BodyClient") as mock_body_class:
@@ -70,7 +70,7 @@ async def test_no_speaker_id_defaults_to_none():
         # mind_configなしでSaintGraphを初期化
         sg = SaintGraph(
             body_url="http://test",
-            mcp_urls=[],
+            mcp_url="",
             system_instruction="Test instruction"
         )
         
@@ -96,7 +96,7 @@ async def test_no_speaker_id_defaults_to_none():
 
 
 @pytest.mark.asyncio
-@patch("google.adk.events.event.Event", MockEvent)
+@patch("saint_graph.saint_graph.Event", MockEvent)
 async def test_speaker_id_zero_is_valid():
     """speaker_id=0も有効な値として扱われる"""
     mind_config = {"speaker_id": 0}
@@ -108,7 +108,7 @@ async def test_speaker_id_zero_is_valid():
         
         sg = SaintGraph(
             body_url="http://test",
-            mcp_urls=[],
+            mcp_url="",
             system_instruction="Test instruction",
             mind_config=mind_config
         )
@@ -135,7 +135,7 @@ async def test_speaker_id_zero_is_valid():
 
 
 @pytest.mark.asyncio
-@patch("google.adk.events.event.Event", MockEvent)
+@patch("saint_graph.saint_graph.Event", MockEvent)
 async def test_multiple_sentences_use_same_speaker_id():
     """複数のセンテンスで同じspeaker_idが使われる"""
     mind_config = {"speaker_id": 42}
@@ -147,7 +147,7 @@ async def test_multiple_sentences_use_same_speaker_id():
         
         sg = SaintGraph(
             body_url="http://test",
-            mcp_urls=[],
+            mcp_url="",
             system_instruction="Test instruction",
             mind_config=mind_config
         )

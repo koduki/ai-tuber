@@ -17,7 +17,7 @@ from google.adk.tools import McpToolset
 client = Client(api_key=config.GOOGLE_API_KEY)
 
 # MCP ツールセットの作成
-tools = McpToolset(server_urls=[config.WEATHER_MCP_URL])
+tools = McpToolset(server_urls=[config.MCP_URL])
 
 # Agent の作成
 agent = Agent(
