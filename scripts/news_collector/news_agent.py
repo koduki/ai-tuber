@@ -157,7 +157,8 @@ async def run_agent(themes: list[str], target_date: str):
 
 def main():
     parser = argparse.ArgumentParser(description="ニュース収集エージェント")
-    parser.add_argument("--themes", type=str, default="全国の天気予報,本日の経済指標,国内ニュース,最新テックニュース", help="カンマ区切りのテーマ")
+    default_themes = "全国の天気予報,本日の経済指標(S&P500, 日経平均, 為替ドル円, ビットコイン, 金),経済関連ニュース,国内の政治経済ニュース,最新テックニュース"
+    parser.add_argument("--themes", type=str, default=default_themes, help="カンマ区切りのテーマ")
     parser.add_argument("--date", type=str, default=None, help="対象日 (YYYY-MM-DD)。デフォルトは今日。")
 
     args = parser.parse_args()
