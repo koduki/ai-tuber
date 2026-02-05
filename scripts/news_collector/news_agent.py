@@ -34,6 +34,66 @@ logging.basicConfig(
 )
 logger = logging.getLogger("news_agent")
 
+def clean_news_script(text: str) -> str:
+    """
+    ニュース原稿のポストプロセス：
+    - Markdownコードブロックの除去
+    - 重複出力の防止
+    - 「見つかりませんでした」等の言い訳フレーズの除去
+    """
+    cleaned = text.strip()
+    
+    # markdownコードブロックがある場合は削除
+    if cleaned.startswith("```markdown"):
+        cleaned = cleaned[11:]
+    elif cleaned.startswith("```"):
+        cleaned = cleaned[3:]
+
+    if cleaned.endswith("```"):
+        cleaned = cleaned[:-3]
+
+    cleaned = cleaned.strip()
+
+    # 重複出力対策：最初の "# News Script" から開始し、もし2つ目があればそれ以降を削除
+    if "# News Script" in cleaned:
+        parts = cleaned.split("# News Script")
+        if len(parts) > 2:
+            cleaned = "# News Script" + parts[1]
+        else:
+            cleaned = "# News Script" + "".join(parts[1:])
+    
+    cleaned = cleaned.strip()
+
+    # 「見つかりませんでした」系のフレーズをプログラムレベルで削除
+    ignore_patterns = [
+        r"^.*見つかりませんでした。?.*$",
+        r"^.*は見つかりませんでしたが、?.*$",
+        r"^.*に関するデータはありません。?.*$",
+        r"^.*具体的な.*は見つかりませんでした。?.*$",
+    ]
+    lines = cleaned.split("\n")
+    processed_lines = []
+    for line in lines:
+        is_ignored = False
+        for pattern in ignore_patterns:
+            if re.search(pattern, line):
+                if "。しかし、" in line or "が、" in line:
+                    parts = re.split(r"。しかし、|が、", line, maxsplit=1)
+                    if len(parts) > 1:
+                        line = parts[1].strip()
+                        if not line:
+                            is_ignored = True
+                    else:
+                        is_ignored = True
+                else:
+                    is_ignored = True
+                break
+        if not is_ignored and line.strip():
+            processed_lines.append(line)
+    
+    result = "\n".join(processed_lines)
+    return result.strip()
+
 async def run_agent(themes: list[str], target_date: str):
     logger.info(f"エージェントを初期化中: 日付={target_date}")
 
@@ -145,65 +205,8 @@ async def run_agent(themes: list[str], target_date: str):
                 if hasattr(p, 'text') and p.text:
                     full_response += p.text
 
-    # レスポンスの整形
-    cleaned_response = full_response.strip()
-    # markdownコードブロックがある場合は削除
-    if cleaned_response.startswith("```markdown"):
-        cleaned_response = cleaned_response[11:]
-    elif cleaned_response.startswith("```"):
-        cleaned_response = cleaned_response[3:]
-
-    if cleaned_response.endswith("```"):
-        cleaned_response = cleaned_response[:-3]
-
-    cleaned_response = cleaned_response.strip()
-
-    # 重複出力対策：最初の "# News Script" から開始し、もし2つ目があればそれ以降を削除
-    if "# News Script" in cleaned_response:
-        parts = cleaned_response.split("# News Script")
-        # parts[1] に最初の内容が入る (parts[0] はそれ以前)
-        if len(parts) > 2:
-            cleaned_response = "# News Script" + parts[1]
-        else:
-            cleaned_response = "# News Script" + "".join(parts[1:])
+    cleaned_response = clean_news_script(full_response)
     
-    cleaned_response = cleaned_response.strip()
-
-    # 「見つかりませんでした」系のフレーズをプログラムレベルで削除
-    ignore_patterns = [
-        r"^.*見つかりませんでした。?.*$",
-        r"^.*は見つかりませんでしたが、?.*$",
-        r"^.*に関するデータはありません。?.*$",
-        r"^.*具体的な.*は見つかりませんでした。?.*$",
-    ]
-    lines = cleaned_response.split("\n")
-    processed_lines = []
-    for line in lines:
-        is_ignored = False
-        # 行自体が「見つかりませんでした」で構成されている、またはそのフレーズで始まっている場合はスキップ
-        for pattern in ignore_patterns:
-            if re.search(pattern, line):
-                # ただし、「しかし、...」と続く場合は、その後の部分だけ残したいかもしれないが、
-                # ユーザーの要望は「言い訳は不要」なので、まずは行ごと消すか、
-                # 否定的な文脈（...が、...）を削除して後ろだけ残す
-                if "。しかし、" in line or "が、" in line:
-                    parts = re.split(r"。しかし、|が、", line, maxsplit=1)
-                    if len(parts) > 1:
-                        line = parts[1].strip()
-                        # 文頭の大文字化（日本語なので不要）
-                        if not line:
-                            is_ignored = True
-                    else:
-                        is_ignored = True
-                else:
-                    is_ignored = True
-                break
-        if not is_ignored and line.strip():
-            processed_lines.append(line)
-    
-    cleaned_response = "\n".join(processed_lines)
-    cleaned_response = cleaned_response.strip()
-
     # ファイルに保存
     output_path = os.path.join(project_root, "data/news/news_script.md")
     os.makedirs(os.path.dirname(output_path), exist_ok=True)

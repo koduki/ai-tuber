@@ -1,45 +1,47 @@
 import pytest
-from unittest.mock import MagicMock, patch
-from scripts.news_collector.tools import search_web
+import sys
+import os
 
-def test_search_web_success():
+# プロジェクトルートをsys.pathに追加
+current_dir = os.path.dirname(os.path.abspath(__file__))
+project_root = os.path.dirname(current_dir)
+if project_root not in sys.path:
+    sys.path.insert(0, project_root)
+
+from scripts.news_collector.news_agent import clean_news_script
+
+def test_clean_news_script_basic():
     """
-    search_webが正常に結果をフォーマットして返すかテスト
+    基本的なクリーンアップ（Markdownコードブロックの除去）をテスト
     """
-    mock_results = [
-        {'title': 'Test Title 1', 'href': 'http://example.com/1', 'body': 'Test Snippet 1'},
-        {'title': 'Test Title 2', 'href': 'http://example.com/2', 'body': 'Test Snippet 2'}
-    ]
+    text = "```markdown\n# News Script\n## Topic\nContent\n```"
+    result = clean_news_script(text)
+    assert result == "# News Script\n## Topic\nContent"
 
-    with patch('scripts.news_collector.tools.DDGS') as MockDDGS:
-        mock_instance = MockDDGS.return_value
-        mock_instance.text.return_value = mock_results
-
-        result = search_web("test query")
-
-        assert "Test Title 1" in result
-        assert "http://example.com/1" in result
-        assert "Test Snippet 1" in result
-        assert "Test Title 2" in result
-
-def test_search_web_no_results():
+def test_clean_news_script_deduplication():
     """
-    結果が空の場合の挙動をテスト
+    重複出力の防止をテスト
     """
-    with patch('scripts.news_collector.tools.DDGS') as MockDDGS:
-        mock_instance = MockDDGS.return_value
-        mock_instance.text.return_value = []
+    text = "# News Script\nContent 1\n# News Script\nContent 2"
+    result = clean_news_script(text)
+    assert result == "# News Script\nContent 1"
 
-        result = search_web("unknown query")
-        assert "結果が見つかりませんでした" in result
-
-def test_search_web_exception():
+def test_clean_news_script_ignore_phrases():
     """
-    例外発生時のハンドリングをテスト
+    「見つかりませんでした」系のフレーズ除去をテスト
     """
-    with patch('scripts.news_collector.tools.DDGS') as MockDDGS:
-        mock_instance = MockDDGS.return_value
-        mock_instance.text.side_effect = Exception("API Error")
+    text = "# News Script\n## Topic\nデータは見つかりませんでした。\n具体的な情報は見つかりませんでした。\n有効なニュースです。"
+    result = clean_news_script(text)
+    assert "Topic" in result
+    assert "見つかりませんでした" not in result
+    assert "有効なニュースです。" in result
 
-        result = search_web("error query")
-        assert "ウェブ検索エラー: API Error" in result
+def test_clean_news_script_but_handling():
+    """
+    「...が、...」などの接続詞を伴う場合の除去をテスト
+    """
+    text = "# News Script\n## Topic\n具体的なデータは見つかりませんでしたが、一般的な傾向をお伝えします。\nしかし、最新の状況は良好です。"
+    result = clean_news_script(text)
+    assert "一般的な傾向をお伝えします。" in result
+    assert "最新の状況は良好です。" in result
+    assert "具体的なデータは見つかりませんでした" not in result

@@ -58,6 +58,11 @@ graph TD
     Persona["data/mind/{name}/persona.md"]
     MindJson["data/mind/{name}/mind.json"]
     Assets["data/mind/{name}/assets/"]
+    NewsScript["data/news/news_script.md"]
+  end
+
+  subgraph Tools ["Tools / Scripts"]
+    NewsCollector["scripts/news_collector/news_agent.py"]
   end
 
   subgraph SaintGraph ["Saint Graph (魂)"]
@@ -81,7 +86,11 @@ graph TD
     OBS["OBS Studio"]
     VoiceVox["VoiceVox Engine"]
     YouTube["YouTube Live API"]
+    GoogleSearch["Google Search API"]
   end
+
+  NewsCollector -- "Google Search" --> GoogleSearch
+  NewsCollector -- "Write Markdown" --> NewsScript
 
   Persona -- "Instruction" --> Agent
   MindJson -- "Settings" --> Agent
@@ -187,7 +196,8 @@ tests/
 │   ├── test_prompt_loader.py      # mind.json 読み込み
 │   ├── test_saint_graph.py        # AI 応答パース・感情制御
 │   ├── test_obs_recording.py      # OBS 録画制御
-│   └── test_weather_tools.py      # 天気ツール
+│   ├── test_weather_tools.py      # 天気ツール
+│   └── test_news_collector.py     # ニュース収集エージェント
 ├── integration/       # 統合テスト
 │   ├── test_speaker_id_integration.py  # speaker_id 伝播検証
 │   ├── test_rest_body_cli.py           # Body CLI API
