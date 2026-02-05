@@ -146,6 +146,29 @@ data/mind/{character_name}/
 
 詳細: [通信プロトコル](docs/architecture/communication.md)
 
+## デプロイ
+
+### ローカル開発
+
+上記の Quick Start を参照してください。
+
+### GCP (本番環境)
+
+クラウド上で自動運用するための完全なガイドを用意しています：
+
+- **Cloud Run**: Saint Graph, Tools Weather (ステートレスなロジック層)
+- **Cloud Run Jobs**: News Collector (毎朝のバッチ処理)
+- **Compute Engine + GPU**: Body (OBS + VoiceVox + Streamer)
+- **Cloud Scheduler**: 毎朝の自動実行
+
+詳細: **[GCP デプロイガイド](docs/deployment/gcp.md)**
+
+主な特徴:
+- ✅ **自動化**: 毎朝決まった時間に自動でニュース収集・配信
+- ✅ **コスト最適化**: Spot インスタンス使用で 60-90% コスト削減
+- ✅ **スケール to Zero**: 使用していない時間は課金なし
+- ✅ **Infrastructure as Code**: Terraform で完全に管理
+
 ## ドキュメント
 
 | カテゴリ | ドキュメント |

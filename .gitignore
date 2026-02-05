@@ -35,3 +35,11 @@ yt_token.json
 # Logs (may contain sensitive info)
 *.log
 logs/
+
+# Terraform
+terraform/.terraform/
+terraform/.terraform.lock.hcl
+terraform/terraform.tfstate
+terraform/terraform.tfstate.backup
+terraform/terraform.tfvars
+terraform/*.tfplan

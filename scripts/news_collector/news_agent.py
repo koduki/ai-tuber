@@ -216,6 +216,37 @@ async def run_agent(themes: list[str], target_date: str):
 
     logger.info(f"ニュース原稿を保存しました: {output_path}")
     print(f"更新完了。確認してください: {output_path}")
+    
+    # GCSへのアップロード（オプション）
+    gcs_bucket = os.getenv("GCS_BUCKET_NAME")
+    if gcs_bucket:
+        try:
+            upload_to_gcs(output_path, gcs_bucket, "news/news_script.md")
+            logger.info(f"GCS バケット '{gcs_bucket}' にアップロードしました")
+            print(f"GCS アップロード完了: gs://{gcs_bucket}/news/news_script.md")
+        except Exception as e:
+            logger.error(f"GCS アップロードエラー: {e}")
+            print(f"警告: GCS アップロードに失敗しましたが、ローカルファイルは保存されています")
+
+
+def upload_to_gcs(local_file_path: str, bucket_name: str, destination_blob_name: str):
+    """
+    ファイルをGoogle Cloud Storageにアップロードします。
+    
+    Args:
+        local_file_path: アップロードするローカルファイルのパス
+        bucket_name: GCSバケット名
+        destination_blob_name: GCS内の保存先パス
+    """
+    from google.cloud import storage
+    
+    storage_client = storage.Client()
+    bucket = storage_client.bucket(bucket_name)
+    blob = bucket.blob(destination_blob_name)
+    
+    blob.upload_from_filename(local_file_path)
+    logger.info(f"File {local_file_path} uploaded to gs://{bucket_name}/{destination_blob_name}")
+
 
 def main():
     parser = argparse.ArgumentParser(description="ニュース収集エージェント")
