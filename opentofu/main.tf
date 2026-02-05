@@ -31,15 +31,23 @@ variable "bucket_name" {
   type        = string
 }
 
-variable "service_account_email" {
-  description = "Service account email for compute instances"
-  type        = string
-}
 
 variable "enable_spot_instance" {
   description = "Whether to use Spot instance for cost savings (risk of preemption during stream)"
   type        = bool
   default     = true
+}
+
+variable "repository_name" {
+  description = "Artifact Registry repository name"
+  type        = string
+  default     = "ai-tuber"
+}
+
+variable "admin_ip_ranges" {
+  description = "List of IP ranges allowed to access administrative ports (e.g. VNC)"
+  type        = list(string)
+  default     = ["0.0.0.0/0"] # Default to open, but should be overridden in terraform.tfvars
 }
 
 provider "google" {

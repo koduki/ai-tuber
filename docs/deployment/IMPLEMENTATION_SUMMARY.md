@@ -24,9 +24,9 @@
 
 ---
 
-### 2. Infrastructure as Code (Terraform) ✅
+### 2. Infrastructure as Code (OpenTofu) ✅
 
-`terraform/` ディレクトリに以下のファイルを作成：
+`opentofu/` ディレクトリに以下のファイルを作成：
 
 **コア設定**
 - `main.tf`: プロバイダーと変数定義
@@ -46,7 +46,7 @@
 
 **ドキュメント**
 - `terraform.tfvars.example`: 変数のサンプル
-- `terraform/README.md`: Terraform 使用方法
+- `opentofu/README.md`: OpenTofu 使用方法
 
 ---
 
@@ -70,16 +70,12 @@
 ## ドキュメント更新 ✅
 
 **新規作成**
-- `docs/deployment/gcp.md`: 完全なデプロイガイド
-  - 前提条件
-  - ステップバイステップの手順
-  - トラブルシューティング
-  - 運用ガイド
+- `opentofu/README.md`: 完全なデプロイガイド（Artifact Registry, Secret Manager, OpenTofu 手順を統合）
 
 **既存ドキュメントの更新**
 - `README.md`: デプロイセクションを追加、GCP デプロイガイドへのリンク
 - `docs/architecture/overview.md`: デプロイ環境セクションを追加
-- `.gitignore`: Terraform 関連ファイルを除外
+- `.gitignore`: OpenTofu 関連ファイルを除外
 
 ---
 
@@ -126,28 +122,23 @@
    gcloud config set project YOUR_PROJECT_ID
    ```
 
-2. **サービスアカウントの作成**
+2. **準備 (Artifact Registry & Secrets)**
    ```bash
-   # docs/deployment/gcp.md の手順1を参照
+   # opentofu/README.md の手順1および3を参照
    ```
 
 3. **Docker イメージのビルド & プッシュ**
    ```bash
-   # docs/deployment/gcp.md の手順2を参照
+   # opentofu/README.md の手順2を参照
    ```
 
-4. **Secrets の設定**
+5. **OpenTofu でデプロイ**
    ```bash
-   echo -n "YOUR_API_KEY" | gcloud secrets create google-api-key --data-file=-
-   ```
-
-5. **Terraform でデプロイ**
-   ```bash
-   cd terraform
+   cd opentofu
    cp terraform.tfvars.example terraform.tfvars
    # terraform.tfvars を編集
-   terraform init
-   terraform apply
+   tofu init
+   tofu apply
    ```
 
 6. **動作確認**
@@ -156,7 +147,7 @@
    gcloud run jobs execute ai-tuber-news-collector --region=asia-northeast1
    ```
 
-詳細な手順は **[docs/deployment/gcp.md](docs/deployment/gcp.md)** を参照してください。
+詳細な手順は **[opentofu/README.md](../../opentofu/README.md)** を参照してください。
 
 ---
 
@@ -176,7 +167,7 @@
 
 ## トラブルシューティング
 
-詳細は `docs/deployment/gcp.md` の「トラブルシューティング」セクションを参照してください。
+詳細は `opentofu/README.md` を参照してください。
 
 よくある問題:
 - GPU クォータ不足 → GCP コンソールでクォータ増加申請

@@ -161,13 +161,13 @@ data/mind/{character_name}/
 - **Compute Engine + GPU**: Body (OBS + VoiceVox + Streamer)
 - **Cloud Scheduler**: 毎朝の自動実行
 
-詳細: **[GCP デプロイガイド](docs/deployment/gcp.md)**
+詳細: **[GCP デプロイガイド](opentofu/README.md)**
 
 主な特徴:
 - ✅ **自動化**: 毎朝決まった時間に自動でニュース収集・配信
 - ✅ **コスト最適化**: Spot インスタンス使用で 60-90% コスト削減
 - ✅ **スケール to Zero**: 使用していない時間は課金なし
-- ✅ **Infrastructure as Code**: Terraform で完全に管理
+- ✅ **Infrastructure as Code**: OpenTofu で完全に管理
 
 ## ドキュメント
 

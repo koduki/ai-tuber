@@ -11,7 +11,7 @@ resource "google_cloud_scheduler_job" "news_collection" {
     uri         = "https://${var.region}-run.googleapis.com/apis/run.googleapis.com/v1/namespaces/${var.project_id}/jobs/${google_cloud_run_v2_job.news_collector.name}:run"
 
     oauth_token {
-      service_account_email = var.service_account_email
+      service_account_email = google_service_account.ai_tuber_sa.email
     }
   }
 }
@@ -29,7 +29,7 @@ resource "google_cloud_scheduler_job" "start_body_node" {
     uri         = "https://compute.googleapis.com/compute/v1/projects/${var.project_id}/zones/${var.zone}/instances/${google_compute_instance.body_node.name}/start"
 
     oauth_token {
-      service_account_email = var.service_account_email
+      service_account_email = google_service_account.ai_tuber_sa.email
     }
   }
 }
@@ -47,7 +47,7 @@ resource "google_cloud_scheduler_job" "stop_body_node" {
     uri         = "https://compute.googleapis.com/compute/v1/projects/${var.project_id}/zones/${var.zone}/instances/${google_compute_instance.body_node.name}/stop"
 
     oauth_token {
-      service_account_email = var.service_account_email
+      service_account_email = google_service_account.ai_tuber_sa.email
     }
   }
 }

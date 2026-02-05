@@ -11,7 +11,7 @@ resource "google_secret_manager_secret" "google_api_key" {
 resource "google_secret_manager_secret_iam_member" "google_api_key_accessor" {
   secret_id = google_secret_manager_secret.google_api_key.id
   role      = "roles/secretmanager.secretAccessor"
-  member    = "serviceAccount:${var.service_account_email}"
+  member    = "serviceAccount:${google_service_account.ai_tuber_sa.email}"
 }
 
 # Note: The actual secret value must be set manually:

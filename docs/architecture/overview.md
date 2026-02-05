@@ -139,7 +139,7 @@ graph TD
 - ✅ **スケール to Zero**: Cloud Run は未使用時に課金なし
 - ✅ **共有ストレージ**: Cloud Storage でニュース原稿を共有
 
-詳細: **[GCP デプロイガイド](../deployment/gcp.md)**
+詳細: **[GCP デプロイガイド](../../opentofu/README.md)**
 
 ---
 

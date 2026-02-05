@@ -1,7 +1,7 @@
 # Compute Engine instance for Body (OBS + VoiceVox + Streamer)
 resource "google_compute_instance" "body_node" {
   name         = "ai-tuber-body-node"
-  machine_type = "n1-standard-4"
+  machine_type = "g2-standard-4"
   zone         = var.zone
 
   tags = ["ai-tuber-body"]
@@ -38,12 +38,13 @@ resource "google_compute_instance" "body_node" {
 
   metadata = {
     enable-oslogin = "TRUE"
+    gcs_bucket     = var.bucket_name
   }
 
   metadata_startup_script = file("${path.module}/../scripts/gce/startup.sh")
 
   service_account {
-    email  = var.service_account_email
+    email  = google_service_account.ai_tuber_sa.email
     scopes = ["cloud-platform"]
   }
 

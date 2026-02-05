@@ -24,5 +24,5 @@ resource "google_storage_bucket" "ai_tuber_data" {
 resource "google_storage_bucket_iam_member" "ai_tuber_data_reader" {
   bucket = google_storage_bucket.ai_tuber_data.name
   role   = "roles/storage.objectUser"
-  member = "serviceAccount:${var.service_account_email}"
+  member = "serviceAccount:${google_service_account.ai_tuber_sa.email}"
 }

@@ -7,6 +7,28 @@ set -e
 echo "=== AI Tuber Body Node Startup Script ==="
 date
 
+# Install Ops Agent
+echo "Installing Ops Agent..."
+curl -sSO https://dl.google.com/cloudagents/add-google-cloud-ops-agent-repo.sh
+bash add-google-cloud-ops-agent-repo.sh --also-install
+
+# Configure Ops Agent for Docker logs
+echo "Configuring Ops Agent for Docker logs..."
+cat > /etc/google-cloud-ops-agent/config.yaml << EOF
+logging:
+  receivers:
+    docker_logs:
+      type: files
+      include_paths:
+        - /var/lib/docker/containers/*/*.log
+  service:
+    pipelines:
+      docker_pipeline:
+        receivers:
+          - docker_logs
+EOF
+systemctl restart google-cloud-ops-agent
+
 # Install Docker if not present
 if ! command -v docker &> /dev/null; then
     echo "Installing Docker..."

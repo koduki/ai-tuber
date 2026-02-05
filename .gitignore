@@ -36,10 +36,11 @@ yt_token.json
 *.log
 logs/
 
-# Terraform
-terraform/.terraform/
-terraform/.terraform.lock.hcl
-terraform/terraform.tfstate
-terraform/terraform.tfstate.backup
-terraform/terraform.tfvars
-terraform/*.tfplan
+# OpenTofu
+opentofu/.terraform/
+opentofu/.terraform.lock.hcl
+opentofu/terraform.tfstate
+opentofu/terraform.tfstate.backup
+opentofu/terraform.tfvars
+opentofu/*.tfplan
+opentofu/*.tofuplan

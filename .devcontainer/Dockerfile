@@ -13,6 +13,12 @@ RUN mkdir -p -m 755 /etc/apt/keyrings \
     && apt-get update \
     && apt-get install -y gh
 
+# Install OpenTofu
+RUN curl --proto '=https' --tlsv1.2 -fsSL https://get.opentofu.org/install-opentofu.sh -o install-opentofu.sh \
+    && chmod +x install-opentofu.sh \
+    && ./install-opentofu.sh --install-method deb \
+    && rm install-opentofu.sh
+
 # Install Python dependencies for both services to allow development in one container
 COPY src/saint_graph/requirements.txt /tmp/sg-req.txt
 COPY src/body/cli/requirements.txt /tmp/body-req.txt

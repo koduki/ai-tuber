@@ -3,9 +3,14 @@ resource "google_cloud_run_v2_service" "saint_graph" {
   name     = "ai-tuber-saint-graph"
   location = var.region
 
+  labels = {
+    managed-by = "opentofu"
+    app        = "ai-tuber"
+  }
+
   template {
     containers {
-      image = "gcr.io/${var.project_id}/saint-graph:latest"
+      image = "${var.region}-docker.pkg.dev/${var.project_id}/${var.repository_name}/saint-graph:latest"
 
       env {
         name  = "GOOGLE_API_KEY"
@@ -41,11 +46,14 @@ resource "google_cloud_run_v2_service" "saint_graph" {
     }
 
     vpc_access {
-      connector = google_vpc_access_connector.cloud_run_connector.id
-      egress    = "PRIVATE_RANGES_ONLY"
+      network_interfaces {
+        network    = google_compute_network.ai_tuber_network.name
+        subnetwork = google_compute_subnetwork.ai_tuber_subnet.name
+      }
+      egress = "PRIVATE_RANGES_ONLY"
     }
 
-    service_account = var.service_account_email
+    service_account = google_service_account.ai_tuber_sa.email
   }
 
   traffic {
@@ -59,9 +67,14 @@ resource "google_cloud_run_v2_service" "tools_weather" {
   name     = "ai-tuber-tools-weather"
   location = var.region
 
+  labels = {
+    managed-by = "opentofu"
+    app        = "ai-tuber"
+  }
+
   template {
     containers {
-      image = "gcr.io/${var.project_id}/tools-weather:latest"
+      image = "${var.region}-docker.pkg.dev/${var.project_id}/${var.repository_name}/tools-weather:latest"
 
       env {
         name  = "PORT"
@@ -76,7 +89,7 @@ resource "google_cloud_run_v2_service" "tools_weather" {
       }
     }
 
-    service_account = var.service_account_email
+    service_account = google_service_account.ai_tuber_sa.email
   }
 
   traffic {
@@ -90,10 +103,15 @@ resource "google_cloud_run_v2_job" "news_collector" {
   name     = "ai-tuber-news-collector"
   location = var.region
 
+  labels = {
+    managed-by = "opentofu"
+    app        = "ai-tuber"
+  }
+
   template {
     template {
       containers {
-        image = "gcr.io/${var.project_id}/news-collector:latest"
+        image = "${var.region}-docker.pkg.dev/${var.project_id}/${var.repository_name}/news-collector:latest"
 
         env {
           name  = "GOOGLE_API_KEY"
@@ -118,7 +136,7 @@ resource "google_cloud_run_v2_job" "news_collector" {
         }
       }
 
-      service_account = var.service_account_email
+      service_account = google_service_account.ai_tuber_sa.email
     }
   }
 }

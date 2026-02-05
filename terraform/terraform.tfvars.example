@@ -1,5 +1,0 @@
-project_id              = "your-gcp-project-id"
-region                  = "asia-northeast1"
-zone                    = "asia-northeast1-a"
-bucket_name             = "ai-tuber-data-YOUR_PROJECT_ID"
-service_account_email   = "ai-tuber-sa@your-gcp-project-id.iam.gserviceaccount.com"
