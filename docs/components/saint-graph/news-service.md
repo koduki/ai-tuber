@@ -6,7 +6,7 @@ Saint Graph のニュース原稿管理と配信制御について説明しま�
 
 ## 役割
 
-`news_service.py` は Markdown 形式のニュース原稿を読み込み、配信管理を行います。
+`news_service.py` は Markdown 形式のニュース原稿を読み込み、配信管理を行います。原稿の自動生成については [ニュース収集エージェント](./news-collector.md) を参照してください。
 
 ---
 
@@ -115,5 +115,6 @@ print("すべてのニュース配信が完了しました")
 ## 関連ドキュメント
 
 - [README](./README.md) - Saint Graph 概要
+- [ニュース収集](./news-collector.md) - ニュースエージェント
 - [コアロジック](./core-logic.md) - ターン処理
 - [データフロー](../../architecture/data-flow.md) - 配信フロー

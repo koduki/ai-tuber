@@ -29,6 +29,11 @@ pip install -r requirements.txt
 
 ```
 ai-tuber/
+├── scripts/
+│   └── news_collector/    # ニュース収集エージェント
+│       ├── news_agent.py  # 収集・要約・クリーンアップ
+│       ├── requirements.txt
+│       └── README.md
 ├── src/
 │   ├── saint_graph/       # Saint Graph (魂) - Google ADK Agent
 │   │   ├── main.py        # エントリポイント
@@ -164,6 +169,7 @@ open htmlcov/index.html
   - `test_saint_graph.py` - AI 応答パース・感情制御
   - `test_obs_recording.py` - OBS 録画制御
   - `test_weather_tools.py` - 天気ツール
+  - `test_news_collector.py` - ニュース収集エージェントのクリーンアップ
 
 - **統合テスト** (15)
   - `test_speaker_id_integration.py` - speaker_id 伝播検証

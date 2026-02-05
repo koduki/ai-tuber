@@ -48,16 +48,25 @@ Saint Graph は AI Tuber システムの「魂」であり、意思決定エン�
 - `NewsItem` オブジェクトへの変換
 - 配信状態の管理
 
-### 4. body_client.py
+### 4. news_agent.py
+**ニュース収集**: 最新ニュースの自動収集と原稿生成（`scripts/news_collector/`）
+
+機能:
+- Google Search を使用した自律的検索
+- Markdown 形式への構造化と要約
+- ポストプロセス（断り書きの除去等）
+- [詳細ドキュメント](./news-collector.md)
+
+### 5. body_client.py
 **Body REST クライアント**: Body への HTTP リクエスト送信
 
-メソッド:
+主要メソッド:
 - `speak(text, style)`: 発話
 - `change_emotion(emotion)`: 表情変更
 - `get_comments()`: コメント取得
 - `start_recording()` / `stop_recording()`: 録画制御
 
-### 5. prompt_loader.py
+### 6. prompt_loader.py
 **プロンプト管理**: システムプロンプトとキャラクタープロンプトの結合
 
 機能:
@@ -100,6 +109,7 @@ src/saint_graph/
 ## 関連ドキュメント
 
 - [コアロジック](./core-logic.md) - Agent とターン処理
+- [ニュース収集](./news-collector.md) - ニュースエージェント
 - [ニュース配信](./news-service.md) - ニュース管理
 - [Body クライアント](./body-client.md) - REST クライアント
 - [プロンプト設計](./prompts.md) - プロンプトシステム

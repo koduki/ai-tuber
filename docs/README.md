@@ -29,6 +29,7 @@ AI Tuber は、**魂（Saint Graph）**、**肉体（Body）**、**精神（Mind
 - [概要](./components/saint-graph/README.md)
 - [コアロジック](./components/saint-graph/core-logic.md) - Agent とターン処理
 - [ニュース配信](./components/saint-graph/news-service.md) - ニュース管理
+- [ニュース収集](./components/saint-graph/news-collector.md) - ニュースエージェント
 - [Body クライアント](./components/saint-graph/body-client.md) - REST クライアント
 - [プロンプト設計](./components/saint-graph/prompts.md) - プロンプトシステム
 
