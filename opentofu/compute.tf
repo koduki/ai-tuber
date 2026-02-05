@@ -16,7 +16,7 @@ resource "google_compute_instance" "body_node" {
 
   # GPU attachment
   guest_accelerator {
-    type  = "nvidia-tesla-l4"
+    type  = "nvidia-l4"
     count = 1
   }
 

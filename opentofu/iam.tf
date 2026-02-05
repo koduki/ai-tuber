@@ -25,5 +25,12 @@ resource "google_project_iam_member" "log_writer" {
   member  = "serviceAccount:${google_service_account.ai_tuber_sa.email}"
 }
 
+# Allow reading from Artifact Registry (for GCE to pull Docker images)
+resource "google_project_iam_member" "artifact_registry_reader" {
+  project = var.project_id
+  role    = "roles/artifactregistry.reader"
+  member  = "serviceAccount:${google_service_account.ai_tuber_sa.email}"
+}
+
 # Note: Storage permissions are handled at the bucket level in storage.tf
 # No project-wide storage.objectUser role is needed here, following least privilege.

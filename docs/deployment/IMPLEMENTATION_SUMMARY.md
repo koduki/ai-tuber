@@ -1,76 +1,140 @@
 # GCP デプロイ実装サマリー
 
-## 実装内容
-
-以下の3つのタスクを完了しました：
-
-### 1. GCS 連携の実装 ✅
-
-**News Collector (アップロード側)**
-- `scripts/news_collector/news_agent.py`: GCS アップロード機能を追加
-- `scripts/news_collector/requirements.txt`: `google-cloud-storage` 依存関係を追加
-- `scripts/news_collector/Dockerfile`: Cloud Run Job 用の Dockerfile を作成
-
-**Saint Graph (ダウンロード側)**
-- `src/saint_graph/news_service.py`: GCS からのダウンロード機能を追加（フォールバック付き）
-- `src/saint_graph/requirements.txt`: `google-cloud-storage` 依存関係を追加
-
-**環境変数**
-- `.env.example`: `GCS_BUCKET_NAME` 環境変数を追加
-
-**動作**:
-1. News Collector がニュースを収集し、ローカルファイルと GCS の両方に保存
-2. Saint Graph は GCS から優先的にダウンロード、失敗時はローカルにフォールバック
+このドキュメントは、GCP デプロイ機能の実装変更履歴を記録しています。詳細な仕様やアーキテクチャについては、各コンポーネントのドキュメントを参照してください。
 
 ---
 
-### 2. Infrastructure as Code (OpenTofu) ✅
+## 実装変更履歴
 
+### 2026-02-05: NVIDIA GPU ドライバーインストール方法の改善
+
+**変更内容**:
+- GCE スタートアップスクリプトのNVIDIA ドライバーインストール方法を変更
+- CUDA リポジトリからの直接インストール → **GCP 公式GPU ドライバーインストーラーに変更**
+
+**理由**:
+- GCP の Ubuntu カーネル (6.8.0-*-gcp) と CUDA ドライバー 550 の DKMS ビルドの互換性問題を解決
+- GCP 公式インストーラーはカーネル互換性を自動的に処理
+
+**変更ファイル**:
+- `scripts/gce/startup.sh`
+
+**詳細**: [opentofu/README.md - トラブルシューティング](../../opentofu/README.md#トラブルシューティング)
+
+---
+
+### 2026-02-05: ドキュメント整理とコード整合性確認
+
+**変更内容**:
+- スタートアップスクリプトの重複した Artifact Registry 認証設定を削除
+- README の処理フロー記述を実際のスクリプトに合わせて更新（8ステップ）
+- Secret 作成コマンドを `gcloud secrets create` に修正（以前は `versions add`）
+
+**変更ファイル**:
+- `scripts/gce/startup.sh`
+- `opentofu/README.md`
+- `README.md`（誤字修正）
+
+---
+
+### 2026-02-04: GCS 連携の実装 ✅
+
+**変更内容**:
+News Collector と Saint Graph に Cloud Storage 連携機能を追加しました。
+
+**主な変更**:
+- News Collector: GCS へのアップロード機能を追加
+- Saint Graph: GCS からのダウンロード機能を追加（ローカルファイルへのフォールバック付き）
+- 環境変数 `GCS_BUCKET_NAME` の追加
+
+**変更ファイル**:
+- `scripts/news_collector/news_agent.py`
+- `scripts/news_collector/requirements.txt`
+- `scripts/news_collector/Dockerfile`
+- `src/saint_graph/news_service.py`
+- `src/saint_graph/requirements.txt`
+- `.env.example`
+
+**詳細ドキュメント**:
+- [News Collector - GCS連携](../components/saint-graph/news-collector.md#gcs-連携とクラウドデプロイ)
+- [News Service - Cloud Storage連携](../components/saint-graph/news-service.md#cloud-storage-連携)
+
+---
+
+### 2026-02-04: Infrastructure as Code (OpenTofu) ✅
+
+**変更内容**:
+GCP リソースを OpenTofu で管理できるように IaC を実装しました。
+
+**作成ファイル**:
 `opentofu/` ディレクトリに以下のファイルを作成：
+- `main.tf`, `storage.tf`, `network.tf`, `secrets.tf`, `iam.tf`
+- `compute.tf`, `cloudrun.tf`, `scheduler.tf`
+- `terraform.tfvars.example`, `README.md`
 
-**コア設定**
-- `main.tf`: プロバイダーと変数定義
-- `storage.tf`: Cloud Storage バケット
-- `network.tf`: VPC、サブネット、ファイアウォールルール
-- `secrets.tf`: Secret Manager の設定
-
-**コンピュートリソース**
-- `compute.tf`: Compute Engine (Body Node) - GPU + Spot インスタンス
-- `cloudrun.tf`: Cloud Run サービス (Saint Graph, Tools Weather) と Cloud Run Job (News Collector)
-
-**自動化**
-- `scheduler.tf`: Cloud Scheduler ジョブ
-  - 07:00: News Collector 実行
-  - 07:15: Body Node 起動
-  - 08:35: Body Node 停止
-
-**ドキュメント**
-- `terraform.tfvars.example`: 変数のサンプル
-- `opentofu/README.md`: OpenTofu 使用方法
+**詳細**: [GCP デプロイガイド](../../opentofu/README.md)
 
 ---
 
-### 3. Startup/Shutdown Scripts ✅
+### 2026-02-04: Secret Manager 統合 ✅
 
-**GCE 用スクリプト**
-- `scripts/gce/startup.sh`: 
-  - Docker、Docker Compose、NVIDIA ランタイムのインストール
-  - リポジトリのクローンまたは更新
-  - Secret Manager から API キーを取得
-  - `docker-compose.gce.yml` でサービス起動
-  
-- `scripts/gce/shutdown.sh`:
-  - Docker Compose でサービスの安全な停止
+**変更内容**:
+API キーや YouTube 認証情報を Secret Manager で管理できるようにしました。
 
-**GCE 専用 Docker Compose**
-- `docker-compose.gce.yml`: Body サービスのみ (Streamer, VoiceVox, OBS)
+**主な変更**:
+- YouTube 用シークレット定義を追加（`youtube-client-secret`, `youtube-token`）
+- Cloud Run への環境変数注入設定
+
+**変更ファイル**:
+- `opentofu/secrets.tf`
+- `opentofu/cloudrun.tf`
+
+**詳細**: [opentofu/README.md - Secret Manager設定](../../opentofu/README.md#1-準備-artifact-registry--secret-manager)
 
 ---
+
+### 2026-02-04: GCE Startup Script の最適化 ✅
+
+**変更内容**:
+Git リポジトリのクローンを廃止し、Artifact Registry から直接イメージをプルする方式に変更しました。
+
+**メリット**:
+- SSH キーやトークンの設定が不要
+- デプロイが高速かつシンプル
+- セキュリティリスクが低減
+
+**変更ファイル**:
+- `scripts/gce/startup.sh`
+
+**詳細**: [アーキテクチャ概要 - GCP本番環境](../architecture/overview.md#gcp-本番環境-ハイブリッド構成)
+
+---
+
+### 2026-02-04: Saint Graph の Cloud Run Job 化 ✅
+
+**変更内容**:
+Saint Graph を Cloud Run Service から **Cloud Run Job** に変更しました。
+
+**理由**:
+- HTTP サーバーの実装が不要（コードがシンプル）
+- 長時間配信に対応（最大 24 時間まで可能）
+- バッチ処理（配信）としての実態に即している
+- ヘルスチェック不要で堅牢
+
+**変更ファイル**:
+- `opentofu/cloudrun.tf`
+- `src/saint_graph/main.py`
+
+**詳細**: [アーキテクチャ概要 - Saint Graph を Job として実装した理由](../architecture/overview.md#gcp-本番環境-ハイブリッド構成)
 
 ## ドキュメント更新 ✅
 
 **新規作成**
-- `opentofu/README.md`: 完全なデプロイガイド（Artifact Registry, Secret Manager, OpenTofu 手順を統合）
+- `opentofu/README.md`: 完全なデプロイガイド
+  - Artifact Registry、Secret Manager、OpenTofu 手順を統合
+  - YouTube 認証情報の設定方法を追加
+  - 手動での配信開始方法を記載
+  - PowerShell 対応のコマンド例も追加
 
 **既存ドキュメントの更新**
 - `README.md`: デプロイセクションを追加、GCP デプロイガイドへのリンク
