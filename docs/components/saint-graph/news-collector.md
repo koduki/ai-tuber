@@ -119,4 +119,4 @@ cd opentofu
 tofu apply
 ```
 
-詳細は [GCP デプロイガイド](../../deployment/IMPLEMENTATION_SUMMARY.md) および [opentofu/README.md](../../../opentofu/README.md) を参照してください。
+詳細は [GCP デプロイガイド](../../../opentofu/README.md) を参照してください。

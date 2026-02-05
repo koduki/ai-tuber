@@ -216,6 +216,31 @@ Saint Graph（配信ロジック）は Cloud Run **Job** として実装され�
 ### Secret Manager の活用
 API キーや YouTube 認証情報は Secret Manager で一元管理され、環境変数として各サービスに注入されます。ソースコードや設定ファイルに機密情報を含める必要がありません。
 
+## コスト見積もり
+
+毎日1時間の配信を行う場合の月額コスト（参考値）：
+
+| リソース | 使用量 | 月額費用 (USD) |
+|---------|--------|---------------|
+| **Compute Engine (L4 GPU, Spot)** | 1時間/日 × 30日 | $30-50 |
+| **Cloud Run (Saint Graph, Weather)** | 軽微な使用 | $5-10 |
+| **Cloud Run Jobs (News Collector)** | 1回/日 | $1-3 |
+| **Cloud Storage** | 数MB | $1以下 |
+| **ネットワーク (egress)** | YouTube 配信 | $5-10 |
+| **合計** | - | **$40-70/月** |
+
+**コスト最適化のポイント**:
+- ✅ **Spot インスタンス**: 通常料金の 60-90% 割引（本構成のデフォルト）
+- ✅ **使用時間の最小化**: 配信時のみ GCE を起動（Cloud Scheduler で自動化）
+- ✅ **Scale to Zero**: Cloud Run は未使用時に課金なし
+
+**注意**: 
+- 通常の（非 Spot）インスタンスを使用した場合、月額 $200-300 程度になります
+- 配信時間を増やすと、GCE の費用が比例して増加します
+- リージョンによって料金が異なる場合があります
+
+詳細な料金は [GCP Pricing Calculator](https://cloud.google.com/products/calculator) で試算できます。
+
 ## トラブルシューティング
 
 ### GCE Body Node でコンテナが起動しない
