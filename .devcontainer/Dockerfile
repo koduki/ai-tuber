@@ -19,9 +19,10 @@ RUN curl --proto '=https' --tlsv1.2 -fsSL https://get.opentofu.org/install-opent
     && ./install-opentofu.sh --install-method deb \
     && rm install-opentofu.sh
 
-# Install Google Cloud SDK (Standalone)
-RUN curl -sSL https://sdk.cloud.google.com | bash -s -- --disable-prompts --install-dir=/usr/local \
-    && ln -s /usr/local/google-cloud-sdk/bin/gcloud /usr/local/bin/gcloud
+# Install Google Cloud SDK (APT)
+RUN echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] https://packages.cloud.google.com/apt cloud-sdk main" | tee -a /etc/apt/sources.list.d/google-cloud-sdk.list \
+    && curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | gpg --dearmor -o /usr/share/keyrings/cloud.google.gpg \
+    && apt-get update && apt-get install -y google-cloud-cli
 
 # Install Python dependencies for both services to allow development in one container
 COPY src/saint_graph/requirements.txt /tmp/sg-req.txt
