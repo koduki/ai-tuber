@@ -70,4 +70,53 @@ pytest tests/test_news_collector.py
 `scripts/news_collector/requirements.txt` に記載されています。
 - `google-adk`
 - `google-genai`
+- `google-cloud-storage` - GCS への原稿アップロード用
 - `duckduckgo-search` (互換性のために残されていますが、現在は ADK Tool を推奨)
+
+---
+
+## GCS 連携とクラウドデプロイ
+
+### Cloud Storage への保存
+
+ニュース原稿は以下の2箇所に保存されます：
+1. **ローカルファイル**: `data/news/news_script.md`（従来通り）
+2. **Google Cloud Storage**: `gs://{BUCKET_NAME}/news_script.md`（クラウド環境用）
+
+GCS への保存は環境変数 `GCS_BUCKET_NAME` が設定されている場合に自動的に行われます。
+
+```python
+# news_agent.py の実装
+if bucket_name:
+    upload_to_gcs(markdown_output, bucket_name, blob_name)
+    print(f"Uploaded to GCS: gs://{bucket_name}/{blob_name}")
+```
+
+### Cloud Run Job としてのデプロイ
+
+News Collector は **Cloud Run Job** として GCP にデプロイされます。
+
+**特徴**:
+- 毎朝 07:00 JST に Cloud Scheduler によって自動実行
+- 収集したニュースを GCS に保存
+- Saint Graph が配信時に GCS から原稿を取得
+
+**環境変数**:
+```bash
+GCS_BUCKET_NAME=ai-tuber-news  # GCS バケット名
+GOOGLE_API_KEY=<secret>        # Secret Manager から注入
+```
+
+**デプロイ方法**:
+```bash
+# Docker イメージのビルドとプッシュ
+docker build -t asia-northeast1-docker.pkg.dev/PROJECT_ID/ai-tuber/news-collector:latest \
+  -f scripts/news_collector/Dockerfile .
+docker push asia-northeast1-docker.pkg.dev/PROJECT_ID/ai-tuber/news-collector:latest
+
+# OpenTofu でデプロイ
+cd opentofu
+tofu apply
+```
+
+詳細は [GCP デプロイガイド](../../../opentofu/README.md) を参照してください。

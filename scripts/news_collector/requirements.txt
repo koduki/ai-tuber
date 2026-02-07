@@ -1,3 +1,4 @@
 duckduckgo-search
 google-adk
 google-genai
+google-cloud-storage

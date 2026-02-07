@@ -1,7 +1,10 @@
 import json
 import os
+import re
+import tempfile
 from dataclasses import dataclass
 from typing import List, Optional
+from google.cloud import storage
 
 @dataclass
 class NewsItem:
@@ -19,13 +22,37 @@ class NewsService:
         self.current_index = 0
 
     def load_news(self):
-        """Markdownファイルからニュース項目をロードします。"""
-        import re
+        """Markdownファイルからニュース項目をロードします。GCSから取得可能な場合は優先的に使用します。"""
         from .config import logger
 
         self.items = []
+        
+        # GCSからのダウンロードを試行
+        gcs_bucket = os.getenv("GCS_BUCKET_NAME")
+        temp_path = None
+        
+        if gcs_bucket:
+            try:
+                # 一時ファイルにダウンロード
+                temp_fd, temp_path = tempfile.mkstemp(suffix=".md")
+                os.close(temp_fd)
+                
+                storage_client = storage.Client()
+                bucket = storage_client.bucket(gcs_bucket)
+                blob = bucket.blob("news/news_script.md")
+                blob.download_to_filename(temp_path)
+                
+                logger.info(f"GCS から news_script.md をダウンロードしました: gs://{gcs_bucket}/news/news_script.md")
+                file_to_read = temp_path
+            except Exception as e:
+                logger.warning(f"GCS からのダウンロードに失敗しました ({e})。ローカルファイルを使用します。")
+                temp_path = None
+                file_to_read = self.data_path
+        else:
+            file_to_read = self.data_path
+        
         try:
-            with open(self.data_path, 'r', encoding='utf-8') as f:
+            with open(file_to_read, 'r', encoding='utf-8') as f:
                 content = f.read()
             
             # 区切り文字（##）に基づいてセクションを分割。セクション冒頭はスキップ。
@@ -50,11 +77,19 @@ class NewsService:
                      ))
                      logger.debug(f"Loaded item '{title}' (Content length: {len(body)})")
             
-            logger.info(f"NewsService loaded {len(self.items)} items from {self.data_path}")
+            source = f"GCS (gs://{gcs_bucket}/news/news_script.md)" if temp_path else self.data_path
+            logger.info(f"NewsService loaded {len(self.items)} items from {source}")
 
         except Exception as e:
             logger.error(f"Error parsing news markdown: {e}")
             self.items = []
+        finally:
+            # 一時ファイルのクリーンアップ
+            if temp_path and os.path.exists(temp_path):
+                try:
+                    os.unlink(temp_path)
+                except:
+                    pass
         
         self.current_index = 0
 

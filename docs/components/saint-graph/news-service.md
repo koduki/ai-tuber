@@ -16,11 +16,39 @@ Saint Graph のニュース原稿管理と配信制御について説明しま�
 
 ```
 data/news/
-├── news_script.md     # ニュース原稿
+├── news_script.md     # ニュース原稿（ローカル）
 └── (その他のファイル)
 ```
 
 環境変数 `NEWS_DIR` でディレクトリを指定できます（デフォルト: `/app/data/news`）。
+
+### Cloud Storage 連携
+
+GCP 環境では、ニュース原稿を **Cloud Storage** から自動的にダウンロードします。
+
+**動作フロー**:
+1. 環境変数 `GCS_BUCKET_NAME` が設定されている場合、GCS からダウンロードを試みる
+2. ダウンロード成功 → ローカルの `news_script.md` を上書き
+3. ダウンロード失敗（バケットが空、ネットワークエラー等） → ローカルファイルを使用（フォールバック）
+
+**環境変数**:
+```bash
+GCS_BUCKET_NAME=ai-tuber-news  # GCS バケット名（任意）
+NEWS_DIR=/app/data/news         # ローカル保存先（デフォルト）
+```
+
+**実装例**:
+```python
+# news_service.py
+if bucket_name:
+    success = download_from_gcs(bucket_name, "news_script.md", local_path)
+    if success:
+        print(f"Downloaded news from GCS: {bucket_name}")
+    else:
+        print("GCS download failed, using local file")
+```
+
+この仕組みにより、News Collector（Cloud Run Job）で収集したニュースを、Saint Graph（配信ジョブ）が自動的に取得できます。
 
 ### Markdown フォーマット
 

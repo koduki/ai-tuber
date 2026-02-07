@@ -12,7 +12,8 @@
 				"ms-python.python",
 				"ms-python.vscode-pylance",
 				"ms-azuretools.vscode-docker",
-				"mhutchie.git-graph"
+				"mhutchie.git-graph",
+				"opentofu.vscode-opentofu"
 			],
 			"settings": {
 				"python.defaultInterpreterPath": "/usr/local/bin/python",

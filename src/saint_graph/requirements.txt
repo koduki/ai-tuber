@@ -2,3 +2,4 @@ google-genai
 httpx
 google-adk
 mcp
+google-cloud-storage
