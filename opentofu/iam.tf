@@ -32,5 +32,30 @@ resource "google_project_iam_member" "artifact_registry_reader" {
   member  = "serviceAccount:${google_service_account.ai_tuber_sa.email}"
 }
 
+# Allow Cloud Scheduler (via ai-tuber-sa) to start/stop the GCE instance
+resource "google_project_iam_member" "compute_instance_admin" {
+  project = var.project_id
+  role    = "roles/compute.instanceAdmin.v1"
+  member  = "serviceAccount:${google_service_account.ai_tuber_sa.email}"
+}
+
+# Allow ai-tuber-sa to execute News Collector Job
+resource "google_cloud_run_v2_job_iam_member" "invoke_news_collector" {
+  project  = var.project_id
+  location = var.region
+  name     = google_cloud_run_v2_job.news_collector.name
+  role     = "roles/run.invoker"
+  member   = "serviceAccount:${google_service_account.ai_tuber_sa.email}"
+}
+
+# Allow ai-tuber-sa to execute Saint Graph Job
+resource "google_cloud_run_v2_job_iam_member" "invoke_saint_graph" {
+  project  = var.project_id
+  location = var.region
+  name     = google_cloud_run_v2_job.saint_graph.name
+  role     = "roles/run.invoker"
+  member   = "serviceAccount:${google_service_account.ai_tuber_sa.email}"
+}
+
 # Note: Storage permissions are handled at the bucket level in storage.tf
 # No project-wide storage.objectUser role is needed here, following least privilege.

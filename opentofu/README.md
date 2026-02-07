@@ -303,7 +303,7 @@ Error: Permission 'artifactregistry.repositories.downloadArtifacts' denied
 
 ##### 2. Image not found
 ```
-Error: asia-northeast1-docker.pkg.dev/ren-studio-ai/ai-tuber/obs-studio:latest: not found
+Error: asia-northeast1-docker.pkg.dev/${PROJECT_ID}/ai-tuber/obs-studio:latest: not found
 ```
 
 **原因**: 必要なイメージが Artifact Registry にプッシュされていない  
