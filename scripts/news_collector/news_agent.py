@@ -5,6 +5,7 @@ import datetime
 import logging
 import asyncio
 import re
+from google.cloud import storage
 
 # プロジェクトルートをsys.pathに追加
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -238,7 +239,6 @@ def upload_to_gcs(local_file_path: str, bucket_name: str, destination_blob_name:
         bucket_name: GCSバケット名
         destination_blob_name: GCS内の保存先パス
     """
-    from google.cloud import storage
     
     storage_client = storage.Client()
     bucket = storage_client.bucket(bucket_name)

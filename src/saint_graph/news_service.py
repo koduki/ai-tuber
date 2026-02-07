@@ -1,7 +1,10 @@
 import json
 import os
+import re
+import tempfile
 from dataclasses import dataclass
 from typing import List, Optional
+from google.cloud import storage
 
 @dataclass
 class NewsItem:
@@ -20,7 +23,6 @@ class NewsService:
 
     def load_news(self):
         """Markdownファイルからニュース項目をロードします。GCSから取得可能な場合は優先的に使用します。"""
-        import re
         from .config import logger
 
         self.items = []
@@ -31,9 +33,6 @@ class NewsService:
         
         if gcs_bucket:
             try:
-                import tempfile
-                from google.cloud import storage
-                
                 # 一時ファイルにダウンロード
                 temp_fd, temp_path = tempfile.mkstemp(suffix=".md")
                 os.close(temp_fd)

@@ -32,8 +32,23 @@ systemctl restart google-cloud-ops-agent
 # Install Docker if not present
 if ! command -v docker &> /dev/null; then
     echo "Installing Docker..."
-    curl -fsSL https://get.docker.com -o get-docker.sh
-    sh get-docker.sh
+    # Add Docker's official GPG key:
+    apt-get update
+    apt-get install -y ca-certificates curl
+    install -m 0755 -d /etc/apt/keyrings
+    curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
+    chmod a+r /etc/apt/keyrings/docker.asc
+
+    # Add the repository to Apt sources:
+    echo \
+      "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu \
+      $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | \
+      tee /etc/apt/sources.list.d/docker.list > /dev/null
+    apt-get update
+
+    # Install the Docker packages.
+    apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+
     systemctl enable docker
     systemctl start docker
 fi
@@ -105,9 +120,9 @@ STREAM_DESCRIPTION="Google ADKとGeminiを使った次世代AITuber、紅月れ�
 STREAM_PRIVACY=private
 EOF
 
-# Create docker-compose.yml dynamically
-echo "Creating docker-compose.yml..."
-cat > docker-compose.yml << EOF
+# Create docker-compose.gce.yml dynamically
+echo "Creating docker-compose.gce.yml..."
+cat > docker-compose.gce.yml << EOF
 volumes:
   voice_share:
 
@@ -176,8 +191,8 @@ EOF
 
 # Pull images and start services
 echo "Starting AI Tuber services..."
-docker-compose pull
-docker-compose up -d
+docker-compose -f docker-compose.gce.yml pull
+docker-compose -f docker-compose.gce.yml up -d
 
 echo "=== AI Tuber Body Node started successfully ==="
 date

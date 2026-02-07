@@ -75,7 +75,7 @@ resource "google_cloud_run_v2_job" "saint_graph" {
 
         env {
           name  = "WEATHER_MCP_URL"
-          value = "https://ai-tuber-tools-weather-${data.google_project.project.number}-${var.region}.a.run.app/sse"
+          value = "${google_cloud_run_v2_service.tools_weather.uri}/sse"
         }
 
         resources {
