@@ -2,7 +2,7 @@
 resource "google_cloud_scheduler_job" "news_collection" {
   name             = "ai-tuber-news-collection"
   description      = "Daily news collection job"
-  schedule         = "0 7 * * *"  # 07:00 JST
+  schedule         = "45 7 * * *"  # 07:00 JST
   time_zone        = "Asia/Tokyo"
   attempt_deadline = "600s"
 
