@@ -469,13 +469,37 @@ NVIDIA GPU 以外（CPU のみ等）を使用する場合は、この値を `x26
 ### すべてのサービスのログ
 
 ```bash
-# リアルタイムでログを表示
+# リアルタイムでログを表示 (Local Docker)
 docker compose logs -f
 
 # 特定のサービスのみ
 docker compose logs -f saint-graph
 docker compose logs -f body-streamer
 docker compose logs -f obs-studio
+```
+
+### Cloud Run / Cloud Logging での確認方法
+
+GCP 環境で問題が発生した際は、Logs Explorer で以下のクエリを使用してエラーを確認してください。
+
+- **Saint Graph (Job) のエラー確認**:
+  ```text
+  resource.type="cloud_run_job" 
+  resource.labels.job_name="ai-tuber-saint-graph" 
+  severity>=ERROR
+```
+
+- **Tools Weather (Service) のエラー確認**:
+  ```text
+  resource.type="cloud_run_revision" 
+  resource.labels.service_name="ai-tuber-tools-weather" 
+  severity>=ERROR
+```
+
+- **子例外 (ExceptionGroup) の詳細確認**:
+  ```text
+  resource.type="cloud_run_job"
+  textPayload:"ExceptionGroup sub["
 ```
 
 ### ログレベルの調整

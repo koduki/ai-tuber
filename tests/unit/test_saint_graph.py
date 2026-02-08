@@ -96,3 +96,40 @@ async def test_process_turn_defaults_to_neutral(mock_adk):
     # Verify
     sg.body.change_emotion.assert_called_once_with("neutral")
     sg.body.speak.assert_called_once_with("No tag here", style="neutral", speaker_id=None)
+
+def test_config_priority(monkeypatch):
+    from saint_graph.config import Config
+    
+    # Test 1: Defaults
+    monkeypatch.delenv("WEATHER_MCP_URL", raising=False)
+    monkeypatch.delenv("MCP_URL", raising=False)
+    cfg = Config()
+    assert cfg.mcp_url == "http://tools-weather:8001/sse"
+    
+    # Test 2: MCP_URL (Legacy)
+    monkeypatch.setenv("MCP_URL", "http://legacy:8001/sse")
+    cfg = Config()
+    assert cfg.mcp_url == "http://legacy:8001/sse"
+    
+    # Test 3: WEATHER_MCP_URL (Priority)
+    monkeypatch.setenv("WEATHER_MCP_URL", "http://priority:8001/sse")
+    cfg = Config()
+    assert cfg.mcp_url == "http://priority:8001/sse"
+
+def test_config_cloud_run_fail_fast(monkeypatch):
+    from saint_graph.config import Config
+    import pytest
+    
+    # Simulate Cloud Run environment without required env
+    monkeypatch.setenv("K_SERVICE", "test-service")
+    monkeypatch.delenv("WEATHER_MCP_URL", raising=False)
+    
+    cfg = Config()
+    with pytest.raises(SystemExit) as e:
+        cfg.validate()
+    assert e.value.code == 1
+    
+    # Now set it
+    monkeypatch.setenv("WEATHER_MCP_URL", "http://ok/sse")
+    cfg = Config()
+    cfg.validate() # Should not raise

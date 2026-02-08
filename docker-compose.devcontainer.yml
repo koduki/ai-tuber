@@ -8,6 +8,8 @@ services:
       - .:/app
     # VS Code サーバーが起動するまで待機
     command: sleep infinity
+    # initプロセスを有効化して、シグナルハンドリングとゾンビプロセスのクリーンアップを行う
+    init: true
     # body-cli は profiles: manual で手動起動のため、depends_on は設定しない
     environment:
       - GOOGLE_API_KEY=${GOOGLE_API_KEY}

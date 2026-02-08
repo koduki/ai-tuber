@@ -1,7 +1,8 @@
 import asyncio
 import logging
 import re
-from typing import List, Optional, Any
+import traceback
+from typing import List, Optional, Any, Iterable
 
 from google.adk import Agent
 from google.adk.runners import InMemoryRunner
@@ -13,6 +14,14 @@ from google.adk.events.event import Event
 from google.genai import types
 from .config import logger, MODEL_NAME
 from .body_client import BodyClient
+
+
+def _iter_exception_group(e: BaseException) -> Iterable[BaseException]:
+    # Python 3.11 ExceptionGroup / BaseExceptionGroup 対応
+    if hasattr(e, "exceptions"):
+        for sub in getattr(e, "exceptions", []) or []:
+            yield sub
+            yield from _iter_exception_group(sub)
 
 
 class SaintGraph:
@@ -65,7 +74,7 @@ class SaintGraph:
         
         # ランナーの初期化
         self.runner = InMemoryRunner(agent=self.agent)
-        logger.info(f"SaintGraph initialized with model {MODEL_NAME}, body_url={body_url}")
+        logger.info(f"SaintGraph initialized with model {MODEL_NAME}, body_url={body_url}, mcp_url={mcp_url}")
 
     async def close(self):
         """ツールセットの接続を解除してクリーンアップします。"""
@@ -140,7 +149,15 @@ class SaintGraph:
                 logger.warning("No text output received from AI.")
 
         except Exception as e:
-            logger.error(f"Error in process_turn: {e}", exc_info=True)
+            # 追加: ExceptionGroup / TaskGroup の sub-exception を全部ログ出し
+            logger.error("process_turn failed: %r (%s)", e, type(e))
+            logger.error("process_turn traceback:\n%s", traceback.format_exc())
+            for i, sub in enumerate(_iter_exception_group(e)):
+                logger.error("ExceptionGroup sub[%d]: %r (%s)", i, sub, type(sub))
+                logger.error("ExceptionGroup sub[%d] traceback:\n%s", i, "".join(traceback.format_exception(sub)))
+
+            logger.exception("Error in process_turn: %s", e)
+            raise
 
     def _extract_text_from_event(self, event) -> Optional[str]:
         """ADKイベントからテキストを抽出します。"""

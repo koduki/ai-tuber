@@ -110,6 +110,51 @@ graph TD
 
 ---
 
+## デプロイ環境
+
+本システムは、異なる環境に応じて最適化された構成でデプロイできます。
+
+### ローカル開発環境 (Docker Compose)
+
+すべてのコンポーネントを単一のホスト上で実行します。
+
+- **構成**: `docker-compose.yml` を使用
+- **用途**: 開発、テスト、デバッグ
+- **特徴**: すべてのサービスが同じネットワーク上で通信
+
+### GCP 本番環境 (ハイブリッド構成)
+
+マイクロサービスを役割に応じて最適なGCPサービスに配置します。
+
+| サービス | GCP サービス | 理由 |
+|---------|-------------|------|
+| **Saint Graph** | **Cloud Run Job** | バッチ処理（配信）、最大24時間タイムアウト |
+| Tools Weather | Cloud Run Service | ステートレス、MCP Server |
+| News Collector | Cloud Run Job | 毎朝のバッチ処理（ニュース収集） |
+| Body (OBS + VoiceVox + Streamer) | **Compute Engine + GPU** | GPU共有、高速ファイルアクセス |
+
+**主な特徴**:
+- ✅ **自動化**: Cloud Scheduler による毎朝の自動実行
+  - 07:00: ニュース収集
+  - 07:55: GCE 起動（OBS & VoiceVox 準備）
+  - 08:00: **配信開始**（Saint Graph Job 実行）
+  - 08:40: GCE 停止（配信終了）
+- ✅ **コスト最適化**: Spot インスタンス使用で 60-90% コスト削減
+- ✅ **スケール to Zero**: Cloud Run は未使用時に課金なし
+- ✅ **共有ストレージ**: Cloud Storage でニュース原稿を共有
+- ✅ **Secret Manager 統合**: API キーや YouTube 認証情報を安全に管理
+- ✅ **Git 不要**: Artifact Registry から直接イメージをプル
+
+**Saint Graph を Job として実装した理由**:
+- HTTP サーバーの実装が不要（コードがシンプル）
+- タイムアウトが最大 24 時間（Cloud Run Service は 60 分まで）
+- バッチ処理（配信）としての実態に即している
+- ヘルスチェック不要で堅牢
+
+詳細: **[GCP デプロイガイド](../../opentofu/README.md)**
+
+---
+
 ## ハイブリッド REST/MCP アーキテクチャ
 
 システムは役割に応じて通信プロトコルを使い分けます。

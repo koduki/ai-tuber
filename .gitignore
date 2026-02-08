@@ -35,3 +35,12 @@ yt_token.json
 # Logs (may contain sensitive info)
 *.log
 logs/
+
+# OpenTofu
+opentofu/.terraform/
+opentofu/.terraform.lock.hcl
+opentofu/terraform.tfstate
+opentofu/terraform.tfstate.backup
+opentofu/terraform.tfvars
+opentofu/*.tfplan
+opentofu/*.tofuplan
