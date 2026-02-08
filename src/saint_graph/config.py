@@ -1,35 +1,79 @@
+from __future__ import annotations
+
 import os
 import logging
+import sys
+from dataclasses import dataclass, fields
 
-# 動作モード
-RUN_MODE = os.getenv("RUN_MODE", "cli")
-
-# Body (REST API) のベースURL
-# Docker環境でのデフォルトを設定
-if RUN_MODE == "cli":
-    BODY_URL = os.getenv("BODY_URL", "http://body-cli:8000")
-else:
-    BODY_URL = os.getenv("BODY_URL", "http://body-streamer:8000")
-
-# 外部ツール (MCP) のURL
-MCP_URL = os.getenv("MCP_URL", "http://tools-weather:8001/sse")
-
-# AI設定
-GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
-MODEL_NAME = os.getenv("MODEL_NAME", "gemini-2.5-flash-lite")
-ADK_TELEMETRY = os.getenv("ADK_TELEMETRY", "false").lower() == "true"
-
-# システム定数
-POLL_INTERVAL = 1.0        # コメント取得間隔
-NEWS_DIR = os.getenv("NEWS_DIR", "/app/data/news")
-MAX_WAIT_CYCLES = int(os.getenv("MAX_WAIT_CYCLES", "30")) # 終了までの沈黙カウント(秒)
-
-# ログ設定
+# ログ設定（初期化）
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger("saint-graph")
+
+@dataclass(frozen=True)
+class Config:
+    # 優先順位:
+    #   1) WEATHER_MCP_URL (推奨: Cloud Run)
+    #   2) MCP_URL (非推奨)
+    #   3) default (ローカル/dev)
+    mcp_url: str = os.getenv("WEATHER_MCP_URL") or os.getenv("MCP_URL") or "http://tools-weather:8001/sse"
+    body_url: str = os.getenv("BODY_URL") or "http://localhost:8000"
+    
+    # AI設定
+    google_api_key: str | None = os.getenv("GOOGLE_API_KEY")
+    model_name: str = os.getenv("MODEL_NAME", "gemini-2.5-flash-lite")
+    adk_telemetry: bool = os.getenv("ADK_TELEMETRY", "false").lower() == "true"
+    
+    # システム定数
+    poll_interval: float = 1.0
+    news_dir: str = os.getenv("NEWS_DIR", "/app/data/news")
+    max_wait_cycles: int = int(os.getenv("MAX_WAIT_CYCLES", "30"))
+    
+    # Cloud Run判定
+    is_cloud_run: bool = os.getenv("K_SERVICE") is not None or os.getenv("CLOUD_RUN_JOB") is not None
+
+    def validate(self):
+        """設定の妥当性を検証します。"""
+        # Cloud Run 環境での必須チェック
+        if self.is_cloud_run:
+            if not os.getenv("WEATHER_MCP_URL"):
+                logger.error("CRITICAL: WEATHER_MCP_URL is not set in Cloud Run environment!")
+                sys.exit(1)
+        
+        # 非推奨の環境変数警告
+        if os.getenv("MCP_URL") and not os.getenv("WEATHER_MCP_URL"):
+            logger.warning("DEPRECATED: MCP_URL is deprecated. Please use WEATHER_MCP_URL instead.")
+
+    def log_config(self):
+        """安全な範囲で設定をログ出力します。"""
+        logger.info("Initializing Saint Graph Config...")
+        mask_keys = {"google_api_key"}
+        for field in fields(self):
+            value = getattr(self, field.name)
+            if field.name in mask_keys:
+                log_value = "********" if value else "None"
+            else:
+                log_value = value
+            logger.info(f"Config: {field.name} = {log_value}")
+
+_config = Config()
+_config.validate()
+_config.log_config()
+
+# 既存コードとの互換性のための定数
+MCP_URL = _config.mcp_url
+BODY_URL = _config.body_url
+GOOGLE_API_KEY = _config.google_api_key
+MODEL_NAME = _config.model_name
+ADK_TELEMETRY = _config.adk_telemetry
+POLL_INTERVAL = _config.poll_interval
+NEWS_DIR = _config.news_dir
+MAX_WAIT_CYCLES = _config.max_wait_cycles
+
+# 動作モード
+RUN_MODE = os.getenv("RUN_MODE", "cli")
 
 # 外部ライブラリのログ抑制
 logging.getLogger("httpx").setLevel(logging.WARNING)
