@@ -47,6 +47,20 @@ async def main():
         mind_config=mind_config
     )
 
+    # MCP URL の疎通確認（デバッグ用）
+    if MCP_URL:
+        import httpx
+        logger.info(f"Checking connectivity to MCP_URL: {MCP_URL}")
+        try:
+            async with httpx.AsyncClient(timeout=5.0) as client:
+                # SSEなのでGETはぶら下がる可能性があるが、まずは疎通を見たいので5秒で切る前提
+                response = await client.get(MCP_URL)
+                logger.info(f"MCP_URL check response: {response.status_code}")
+        except asyncio.TimeoutError:
+            logger.info("MCP_URL check: connection timed out as expected (SSE)")
+        except Exception as e:
+            logger.warning(f"MCP_URL connectivity check failed: {e}")
+
     # メインループ
     await _run_newscaster_loop(saint_graph, news_service, templates)
 
