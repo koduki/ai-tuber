@@ -3,7 +3,7 @@ from __future__ import annotations
 import os
 import logging
 import sys
-from dataclasses import dataclass, fields
+from dataclasses import dataclass, fields, field
 
 # ログ設定（初期化）
 logging.basicConfig(
@@ -18,21 +18,21 @@ class Config:
     #   1) WEATHER_MCP_URL (推奨: Cloud Run)
     #   2) MCP_URL (非推奨)
     #   3) default (ローカル/dev)
-    mcp_url: str = os.getenv("WEATHER_MCP_URL") or os.getenv("MCP_URL") or "http://tools-weather:8001/sse"
-    body_url: str = os.getenv("BODY_URL") or "http://localhost:8000"
+    mcp_url: str = field(default_factory=lambda: os.getenv("WEATHER_MCP_URL") or os.getenv("MCP_URL") or "http://tools-weather:8001/sse")
+    body_url: str = field(default_factory=lambda: os.getenv("BODY_URL") or "http://localhost:8000")
     
     # AI設定
-    google_api_key: str | None = os.getenv("GOOGLE_API_KEY")
-    model_name: str = os.getenv("MODEL_NAME", "gemini-2.5-flash-lite")
-    adk_telemetry: bool = os.getenv("ADK_TELEMETRY", "false").lower() == "true"
+    google_api_key: str | None = field(default_factory=lambda: os.getenv("GOOGLE_API_KEY"))
+    model_name: str = field(default_factory=lambda: os.getenv("MODEL_NAME", "gemini-2.5-flash-lite"))
+    adk_telemetry: bool = field(default_factory=lambda: os.getenv("ADK_TELEMETRY", "false").lower() == "true")
     
     # システム定数
     poll_interval: float = 1.0
-    news_dir: str = os.getenv("NEWS_DIR", "/app/data/news")
-    max_wait_cycles: int = int(os.getenv("MAX_WAIT_CYCLES", "30"))
+    news_dir: str = field(default_factory=lambda: os.getenv("NEWS_DIR", "/app/data/news"))
+    max_wait_cycles: int = field(default_factory=lambda: int(os.getenv("MAX_WAIT_CYCLES", "30")))
     
     # Cloud Run判定
-    is_cloud_run: bool = os.getenv("K_SERVICE") is not None or os.getenv("CLOUD_RUN_JOB") is not None
+    is_cloud_run: bool = field(default_factory=lambda: os.getenv("K_SERVICE") is not None or os.getenv("CLOUD_RUN_JOB") is not None)
 
     def validate(self):
         """設定の妥当性を検証します。"""
