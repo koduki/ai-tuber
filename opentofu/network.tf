@@ -54,3 +54,33 @@ resource "google_compute_firewall" "allow_ssh_iap" {
   source_ranges = ["35.235.240.0/20"]
   target_tags   = ["ai-tuber-body"]
 }
+
+# NAT Gateway for outbound internet access
+resource "google_compute_address" "nat_ip" {
+  name   = "ai-tuber-nat-ip"
+  region = var.region
+}
+
+resource "google_compute_router" "router" {
+  name    = "ai-tuber-router"
+  region  = var.region
+  network = google_compute_network.ai_tuber_network.id
+}
+
+resource "google_compute_router_nat" "nat" {
+  name                               = "ai-tuber-nat"
+  router                             = google_compute_router.router.name
+  region                             = google_compute_router.router.region
+  nat_ip_allocate_option             = "MANUAL_ONLY"
+  nat_ips                            = [google_compute_address.nat_ip.self_link]
+  source_subnetwork_ip_ranges_to_nat = "LIST_OF_SUBNETWORKS"
+
+  subnetwork {
+    name                    = google_compute_subnetwork.ai_tuber_subnet.id
+    source_ip_ranges_to_nat = ["ALL_IP_RANGES"]
+  }
+}
+
+output "nat_ip_address" {
+  value = google_compute_address.nat_ip.address
+}

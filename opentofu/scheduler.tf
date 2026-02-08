@@ -2,7 +2,7 @@
 resource "google_cloud_scheduler_job" "news_collection" {
   name             = "ai-tuber-news-collection"
   description      = "Daily news collection job"
-  schedule         = "45 7 * * *"  # 07:00 JST
+  schedule         = "42 12 * * *"  # 07:00 JST
   time_zone        = "Asia/Tokyo"
   attempt_deadline = "600s"
 
@@ -20,7 +20,7 @@ resource "google_cloud_scheduler_job" "news_collection" {
 resource "google_cloud_scheduler_job" "start_body_node" {
   name             = "ai-tuber-start-body-node"
   description      = "Start Body Node for streaming"
-  schedule         = "55 7 * * *"  # 07:55 JST (5 mins before streaming)
+  schedule         = "36 16 * * *"  # 07:55 JST (5 mins before streaming)
   time_zone        = "Asia/Tokyo"
   attempt_deadline = "180s"
 
@@ -38,7 +38,7 @@ resource "google_cloud_scheduler_job" "start_body_node" {
 resource "google_cloud_scheduler_job" "start_streaming" {
   name             = "ai-tuber-start-streaming"
   description      = "Start Saint Graph streaming job"
-  schedule         = "0 8 * * *"  # 08:00 JST (Start of Broadcast)
+  schedule         = "40 16 * * *"  # 08:00 JST (Start of Broadcast)
   time_zone        = "Asia/Tokyo"
   attempt_deadline = "180s"
 
@@ -56,7 +56,7 @@ resource "google_cloud_scheduler_job" "start_streaming" {
 resource "google_cloud_scheduler_job" "stop_body_node" {
   name             = "ai-tuber-stop-body-node"
   description      = "Stop Body Node after streaming"
-  schedule         = "40 8 * * *"  # 08:40 JST (After broadcast)
+  schedule         = "00 13 * * *"  # 08:40 JST (After broadcast)
   time_zone        = "Asia/Tokyo"
   attempt_deadline = "180s"
 
