@@ -91,7 +91,7 @@ resource "google_cloud_run_v2_job" "saint_graph" {
           network    = google_compute_network.ai_tuber_network.name
           subnetwork = google_compute_subnetwork.ai_tuber_subnet.name
         }
-        egress = "PRIVATE_RANGES_ONLY"
+        egress = "ALL_TRAFFIC"
       }
 
       service_account = google_service_account.ai_tuber_sa.email
