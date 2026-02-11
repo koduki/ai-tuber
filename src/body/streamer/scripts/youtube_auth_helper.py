@@ -4,17 +4,8 @@ import sys
 import os
 
 from src.body.streamer.youtube_live_adapter import YoutubeLiveAdapter
+from src.body.streamer.utils import ensure_youtube_secrets
 
-def ensure_secrets():
-    """Ensure that secret files exist if provided via environment variables."""
-    # Matches the logic in main.py
-    secret_json = os.getenv("YOUTUBE_CLIENT_SECRET_JSON")
-    secret_path = os.getenv("YOUTUBE_CLIENT_SECRET_PATH", "/secret/google_client_secret.json")
-    if secret_json and not os.path.exists(secret_path):
-        os.makedirs(os.path.dirname(secret_path), exist_ok=True)
-        with open(secret_path, "w") as f:
-            f.write(secret_json)
-        print(f"Written YOUTUBE_CLIENT_SECRET_JSON to {secret_path}")
 
 def main():
     logging.basicConfig(
@@ -26,7 +17,7 @@ def main():
     logger.info("Starting YouTube Authentication Helper...")
     
     # Ensure secret files exist (e.g. from environment variables)
-    ensure_secrets()
+    ensure_youtube_secrets()
     
     try:
         adapter = YoutubeLiveAdapter()
