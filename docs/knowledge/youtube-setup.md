@@ -106,29 +106,27 @@ print(json.dumps({
 
 ### 2-2. より簡単な方法（推奨）
 
-認証用のヘルパースクリプトを用意しています：
+認証用のヘルパースクリプトを使用して、ブラウザ認証とトークンの取得を簡単に行えます。
 
 ```bash
-# body-streamer サービスを起動
-docker compose up -d body-streamer
-
-# 認証スクリプトを実行
-docker compose exec body-streamer python -m src.body.streamer.scripts.youtube_auth_helper
+# 認証スクリプトを実行（コンテナが停止していても実行可能）
+docker compose run --rm --build body-streamer python -m src.body.streamer.scripts.youtube_auth_helper
 ```
 
 このスクリプトは以下を行います：
 
-1. 認証 URL を表示
-2. ブラウザで認証
+1. `.env` の `YOUTUBE_CLIENT_SECRET_JSON` から一時的な秘密鍵ファイルを作成
+2. 認証用の URL を表示（ブラウザでアクセスして許可）
 3. 認証コードを入力
-4. トークン JSON を表示
+4. **新しいトークン JSON を表示**
 
 ### 2-3. トークンを環境変数に設定
 
-出力されたトークン JSON を `.env` ファイルに追加します：
+スクリプトが最後に出力した `NEW YOUTUBE_TOKEN_JSON` セクションの JSON 文字列（`{...}`）をコピーし、`.env` ファイルに追加します：
 
 ```bash
-YOUTUBE_TOKEN_JSON='{"token":"ya29.xxxxx","refresh_token":"1//xxxxx","token_uri":"https://oauth2.googleapis.com/token","client_id":"123456789.apps.googleusercontent.com","client_secret":"YOUR_CLIENT_SECRET","scopes":["https://www.googleapis.com/auth/youtube.force-ssl"]}'
+# 例: シングルクォートで囲んで1行で設定
+YOUTUBE_TOKEN_JSON='{"token":"ya29.xxxxx","refresh_token":"1//xxxxx", ...}'
 ```
 
 ---

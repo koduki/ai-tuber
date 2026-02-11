@@ -154,13 +154,18 @@ Warning: Scope mismatch during token refresh.
 
 **解決方法**:
 
-1. トークンを再取得してください：
+1. **システム挙動の理解**: 
+   現在のバージョンでは、配信開始時に `invalid_grant` 等のエラーを検知すると、中途半端な状態で動作し続けるのを防ぐため、**システムは即座に異常終了 (sys.exit(1))** します。ログに `CRITICAL - Streaming start failed` と出力されている場合は、必ず認証情報を確認してください。
+
+2. **トークンの再取得**:
+   認証ヘルパを使用してトークンを生成し、表示された JSON を `.env` に貼り付けてください：
    ```bash
-   # 認証ヘルパーを実行
-   docker compose exec body-streamer python -m src.body.streamer.scripts.youtube_auth_helper
+   # 認証ヘルパーを実行（ビルドを含めることで確実に最新のスクリプトを使用）
+   docker compose run --rm --build body-streamer python -m src.body.streamer.scripts.youtube_auth_helper
    ```
-2. スコープの一致を確認してください。現在の実装では、トークンに含まれるスコープを優先して使用するように統一されています。
-3. `.env` の `YOUTUBE_TOKEN_JSON` が正しい JSON 形式であることを確認してください。
+   表示された `NEW YOUTUBE_TOKEN_JSON` の内容をコピーし、`.env` の `YOUTUBE_TOKEN_JSON='...'` を更新してください。
+3. **スコープの確認**: 現在の実装では、トークンに含まれるスコープを優先して使用するように統一されています。
+4. **環境変数の再設定**: `.env` の `YOUTUBE_TOKEN_JSON` が正しい JSON 形式であることを確認してください。
 
 詳細は [YouTube 配信セットアップ](./youtube-setup.md) を参照してください。
 
