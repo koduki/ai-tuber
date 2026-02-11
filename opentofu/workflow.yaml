@@ -78,24 +78,9 @@ wait_for_ready:
                   auth:
                     type: OIDC
                 result: health_result
-            - parse_ready:
-                assign:
-                  - is_ready: false
-            - try_parse_body:
-                try:
-                  steps:
-                    - get_ready_field:
-                        assign:
-                          - is_ready: $${health_result.body.ready}
-                except:
-                  as: e
-                  steps:
-                    - set_false:
-                        assign:
-                          - is_ready: false
             - verify:
                 switch:
-                  - condition: $${not is_ready}
+                  - condition: $${not health_result.body.ready}
                     raise: "Service Not Ready"
         retry:
           predicate: $${always_retry}

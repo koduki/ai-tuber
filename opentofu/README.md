@@ -164,7 +164,7 @@ tofu apply
 ### 自動実行スケジュール
 Cloud Scheduler により、以下のスケジュールで毎日自動実行されます（Asia/Tokyo タイムゾーン）:
 
-- **07:00**: **Cloud Workflows パイプライン開始**
+- **08:00**: **Cloud Workflows パイプライン開始**
   1. **News Collector**: ニュース収集と保存。
   2. **Start GCE**: Body Node を起動。
   3. **Wait Ready**: Healthcheck Proxy を経由し、Voicevox(50021) と OBS(8080) が応答するまで最大20分間リトライ待機。
