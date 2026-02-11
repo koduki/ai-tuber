@@ -129,6 +129,18 @@ docker compose run --rm --build body-streamer python -m src.body.streamer.script
 YOUTUBE_TOKEN_JSON='{"token":"ya29.xxxxx","refresh_token":"1//xxxxx", ...}'
 ```
 
+### 2-4. GCP 環境への反映 (Cloud Run 使用時)
+
+GCP 環境（Cloud Run 等）で配信を行う場合は、取得したトークンを Google Cloud Secret Manager に登録する必要があります。
+
+```powershell
+# PowerShell での例
+$TOKEN_JSON = 'ここにコピーしたJSONを貼り付け'
+$TOKEN_JSON | gcloud secrets versions add youtube-token --data-file=-
+```
+
+これにより、次回のジョブ実行時から新しいトークンが使用されます。
+
 ---
 
 ## 手順 3: 配信設定
