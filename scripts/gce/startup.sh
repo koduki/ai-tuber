@@ -105,6 +105,7 @@ cd "$WORKDIR"
 PROJECT_ID=$(curl -s "http://metadata.google.internal/computeMetadata/v1/project/project-id" -H "Metadata-Flavor: Google")
 REGION=$(curl -s "http://metadata.google.internal/computeMetadata/v1/instance/zone" -H "Metadata-Flavor: Google" | cut -d/ -f4 | sed 's/-[a-z]$//')
 BUCKET_NAME=$(curl -s "http://metadata.google.internal/computeMetadata/v1/instance/attributes/gcs_bucket" -H "Metadata-Flavor: Google")
+CHARACTER_NAME=$(curl -s "http://metadata.google.internal/computeMetadata/v1/instance/attributes/character_name" -H "Metadata-Flavor: Google" || echo "ren")
 REGISTRY="${REGION}-docker.pkg.dev/${PROJECT_ID}/ai-tuber"
 
 # Create .env file for Docker Compose
@@ -114,10 +115,12 @@ GOOGLE_API_KEY=$(gcloud secrets versions access latest --secret="google-api-key"
 YOUTUBE_CLIENT_SECRET_JSON='$(gcloud secrets versions access latest --secret="youtube-client-secret")'
 YOUTUBE_TOKEN_JSON='$(gcloud secrets versions access latest --secret="youtube-token")'
 GCS_BUCKET_NAME=${BUCKET_NAME}
+CHARACTER_NAME=${CHARACTER_NAME}
 STREAMING_MODE=true
 STREAM_TITLE="紅月れんのAIニュース配信テスト"
 STREAM_DESCRIPTION="Google ADKとGeminiを使った次世代AITuber、紅月れんのニュース配信テストです。"
 STREAM_PRIVACY=private
+VOICEVOX_DATA_DIR=/opt/ai-tuber/data/mind/\${CHARACTER_NAME}
 EOF
 
 # Create docker-compose.gce.yml dynamically
@@ -157,6 +160,8 @@ services:
     image: voicevox/voicevox_engine:nvidia-ubuntu20.04-latest
     ports:
       - "50021:50021"
+    volumes:
+      - \${VOICEVOX_DATA_DIR:-/opt/ai-tuber/data/mind/\${CHARACTER_NAME}}:/home/user/.local/share/voicevox-engine-dev
     deploy:
       resources:
         reservations:

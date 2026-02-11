@@ -1,3 +1,4 @@
 {
-    "speaker_id": 58
+    "speaker_id": 58,
+    "voicevox_data_dir": "."
 }

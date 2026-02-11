@@ -2,6 +2,7 @@ volumes:
   voice_share:
   recordings:
 
+
 services:
   # --- Saint Graph (Spirit/Logic) ---
   saint-graph:
@@ -101,13 +102,15 @@ services:
     image: voicevox/voicevox_engine:nvidia-ubuntu20.04-latest
     ports:
       - "50021:50021"
+    volumes:
+      - ${VOICEVOX_DATA_DIR:-./data/mind/${CHARACTER_NAME:-ren}}:/home/user/.local/share/voicevox-engine-dev
     deploy:
       resources:
         reservations:
           devices:
             - driver: nvidia
               count: 1
-              capabilities: [gpu]
+              capabilities: [ gpu ]
     healthcheck:
       test: [ "CMD", "wget", "--no-verbose", "--tries=1", "--output-document=/dev/null", "http://localhost:50021/version" ]
       interval: 10s
@@ -120,8 +123,8 @@ services:
       context: .
       dockerfile: src/body/streamer/obs/Dockerfile
     ports:
-      - "8080:8080"  # noVNC web interface
-      - "4455:4455"  # OBS WebSocket
+      - "8080:8080" # noVNC web interface
+      - "4455:4455" # OBS WebSocket
     volumes:
       - voice_share:/app/shared/voice
     environment:
@@ -133,4 +136,4 @@ services:
           devices:
             - driver: nvidia
               count: 1
-              capabilities: [gpu, video, graphics, utility, display]
+              capabilities: [ gpu, video, graphics, utility, display ]
