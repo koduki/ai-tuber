@@ -4,13 +4,16 @@
 
 ## アーキテクチャ概要
 
-- **Cloud Run Service**: Tools Weather (MCP サーバー、ステートレス)
+- **Cloud Workflows**: 配信パイプライン全体のオーケストレーション（条件分岐・リトライ制御）
+- **Cloud Run Service**: 
+  - Tools Weather (MCP サーバー、ステートレス)
+  - Healthcheck Proxy (VPC内のサービス監視、OIDC認証付き)
 - **Cloud Run Jobs**: 
   - Saint Graph (配信ジョブ - 最大 1 時間)
   - News Collector (ニュース収集バッチ - 毎朝自動実行)
 - **Compute Engine (GCE) + GPU**: Body Node (OBS + VoiceVox + Streamer)
 - **Cloud Storage**: ニュース原稿とボイスファイルの共有ストレージ
-- **Cloud Scheduler**: 毎朝の自動実行フロー
+- **Cloud Scheduler**: ワークフローの定期実行
 - **Secret Manager**: API キーと YouTube 認証情報の安全な管理
 
 ## 前提条件
@@ -23,6 +26,9 @@
    - Secret Manager API
    - Cloud Storage API
    - Artifact Registry API
+   - Workflows API
+   - Workflow Executions API
+   - Serverless VPC Access API
 3. `gcloud` CLI がインストール・認証済み
 4. OpenTofu がインストール済み (>= 1.0)
 5. Docker がインストール済み
@@ -91,6 +97,9 @@ docker push ${REGISTRY}/body-streamer:latest
 
 docker build -t ${REGISTRY}/obs-studio:latest -f src/body/streamer/obs/Dockerfile .
 docker push ${REGISTRY}/obs-studio:latest
+
+docker build -t ${REGISTRY}/healthcheck-proxy:latest -f src/tools/health-proxy/Dockerfile src/tools/health-proxy
+docker push ${REGISTRY}/healthcheck-proxy:latest
 ```
 
 **PowerShell (Windows):**
@@ -109,7 +118,10 @@ docker push ${REGISTRY}/tools-weather:latest
 docker build -t ${REGISTRY}/news-collector:latest -f scripts/news_collector/Dockerfile .
 docker push ${REGISTRY}/news-collector:latest
 
-# GCE Body Node 用イメージ（必須！）
+docker build -t ${REGISTRY}/healthcheck-proxy:latest -f src/tools/health-proxy/Dockerfile src/tools/health-proxy
+docker push ${REGISTRY}/healthcheck-proxy:latest
+
+# GCE Body Node 用イメージ
 docker build -t ${REGISTRY}/body-streamer:latest -f src/body/streamer/Dockerfile .
 docker push ${REGISTRY}/body-streamer:latest
 
@@ -122,12 +134,13 @@ docker push ${REGISTRY}/obs-studio:latest
 # すべてのイメージがプッシュされたことを確認
 gcloud artifacts docker images list ${REGION}-docker.pkg.dev/${PROJECT_ID}/ai-tuber
 
-# 以下の5つのイメージが表示されることを確認してください：
+# 以下の6つのイメージが表示されることを確認してください：
 # - saint-graph
 # - tools-weather
 # - news-collector
 # - body-streamer
 # - obs-studio
+# - healthcheck-proxy
 ```
 
 ### 3. OpenTofu によるインフラのデプロイ
@@ -151,10 +164,12 @@ tofu apply
 ### 自動実行スケジュール
 Cloud Scheduler により、以下のスケジュールで毎日自動実行されます（Asia/Tokyo タイムゾーン）:
 
-- **07:00**: News Collector ジョブ実行（ニュース収集）
-- **07:55**: Body Node (GCE) 起動（OBS・VoiceVox 準備）
-- **08:00**: **Saint Graph ジョブ実行（配信開始）**
-- **08:40**: Body Node (GCE) 停止（配信終了後のクリーンアップ）
+- **08:00**: **Cloud Workflows パイプライン開始**
+  1. **News Collector**: ニュース収集と保存。
+  2. **Start GCE**: Body Node を起動。
+  3. **Wait Ready**: Healthcheck Proxy を経由し、Voicevox(50021) と OBS(8080) が応答するまで最大20分間リトライ待機。
+  4. **Start Streaming**: Saint Graph ジョブを実行し配信開始。
+  5. **Stop GCE**: 終了後に Body Node を自動停止。
 
 ### 手動での配信開始
 スケジュールを待たずに手動で配信を開始したい場合：
@@ -199,7 +214,13 @@ gcloud logging read "resource.type=cloud_run_job AND resource.labels.job_name=ai
 gcloud compute instances get-serial-port-output ai-tuber-body-node --zone=asia-northeast1-a
 ```
 
-## アーキテクチャの特徴
+### セキュリティアーキテクチャ (VPC & 認証)
+GCE (Body Node) のステータスを安全に監視するために、以下の多層防御を採用しています：
+
+- **VPC 隔離**: GCE のヘルスチェックポート (8000, 50021) はインターネット側には公開されていません。同一 VPC サブネットからの通信のみをファイアウォールで許可しています。
+- **Healthcheck Proxy**: Cloud Workflows から直接 GCE の内部 IP にはアクセスできないため、専用のプロキシを Cloud Run 上に配置しています。
+- **OIDC 認証**: プロキシ呼び出しには Google ID トークン (OIDC) が必要です。`ai-tuber-sa` サービスアカウントを持つ Workflows からの実行のみが承認されます。
+- **Direct VPC Egress**: プロキシからの通信は VPC コネクタを経由して内部ネットワークのみを通ります。
 
 ### Git 不要の GCE 起動
 以前は GCE 上で Git リポジトリをクローンしていましたが、現在は **Artifact Registry から直接イメージをプル** する方式に変更されています。これにより：

@@ -1,0 +1,121 @@
+main:
+  steps:
+    - init:
+        assign:
+          - project_id: "${project_id}"
+          - region: "${region}"
+          - zone: "${zone}"
+          - body_node_name: "${body_node_name}"
+          - news_collector_job: "${news_collector_job}"
+          - saint_graph_job: "${saint_graph_job}"
+          - proxy_url: "${healthcheck_proxy_url}/check"
+          - body_port: 8080
+          - voicevox_port: 50021
+
+    - news_collection:
+        call: googleapis.run.v1.namespaces.jobs.run
+        args:
+          name: $${"namespaces/" + project_id + "/jobs/" + news_collector_job}
+          location: $${region}
+        result: news_job_result
+
+    - start_body_node:
+        try:
+          call: googleapis.compute.v1.instances.start
+          args:
+            instance: $${body_node_name}
+            project: $${project_id}
+            zone: $${zone}
+        retry:
+          predicate: $${retry_on_stockout}
+          max_retries: 10
+          backoff:
+            initial_delay: 300
+            max_delay: 1800
+            multiplier: 1.5
+
+    - wait_for_voicevox_ready:
+        call: wait_for_ready
+        args:
+          proxy_url: $${proxy_url}
+          target_url: $${"http://" + body_node_name + "." + zone + ".c." + project_id + ".internal:" + string(voicevox_port) + "/version"}
+
+    - wait_for_body_ready:
+        call: wait_for_ready
+        args:
+          proxy_url: $${proxy_url}
+          target_url: $${"http://" + body_node_name + "." + zone + ".c." + project_id + ".internal:" + string(body_port) + "/vnc_lite.html"}
+
+    - start_streaming:
+        call: googleapis.run.v1.namespaces.jobs.run
+        args:
+          name: $${"namespaces/" + project_id + "/jobs/" + saint_graph_job}
+          location: $${region}
+        result: streaming_job_result
+
+    - stop_body_node:
+        call: googleapis.compute.v1.instances.stop
+        args:
+          instance: $${body_node_name}
+          project: $${project_id}
+          zone: $${zone}
+
+# --- サブワークフロー ---
+
+# サービスが Ready になるまで待機する共通関数
+wait_for_ready:
+  params: [proxy_url, target_url]
+  steps:
+    - try_wait:
+        try:
+          steps:
+            - check_health:
+                call: http.get
+                args:
+                  url: $${proxy_url}
+                  query:
+                    url: $${target_url}
+                  auth:
+                    type: OIDC
+                result: health_result
+            - verify:
+                switch:
+                  - condition: $${not health_result.body.ready}
+                    raise: "Service Not Ready"
+        retry:
+          predicate: $${always_retry}
+          max_retries: 40
+          backoff:
+            initial_delay: 15
+            max_delay: 30
+            multiplier: 1.2
+
+# どのようなエラーでも常にリトライする
+always_retry:
+  params: [e]
+  steps:
+    - do_retry:
+        return: true
+
+# 在庫不足や操作エラー時にリトライする
+retry_on_stockout:
+  params: [e]
+  steps:
+    - check_tags:
+        switch:
+          - condition: $${e.tags != null and "OperationError" in e.tags}
+            return: true
+    - check_code:
+        try:
+          steps:
+            - eval_code:
+                switch:
+                  - condition: $${e.code == 503 or e.code == 429 or e.code == 500}
+                    return: true
+        except:
+          as: err
+          steps:
+            - ignore_key_error:
+                return: false
+    - fallback:
+        return: false

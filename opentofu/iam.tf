@@ -57,5 +57,34 @@ resource "google_cloud_run_v2_job_iam_member" "invoke_saint_graph" {
   member   = "serviceAccount:${google_service_account.ai_tuber_sa.email}"
 }
 
+# Allow Workflow execution
+resource "google_project_iam_member" "workflows_editor" {
+  project = var.project_id
+  role    = "roles/workflows.editor"
+  member  = "serviceAccount:${google_service_account.ai_tuber_sa.email}"
+}
+
+# Allow Service Account to act as itself (Service Account User) for Workflows
+resource "google_service_account_iam_member" "sa_user_itself" {
+  service_account_id = google_service_account.ai_tuber_sa.name
+  role               = "roles/iam.serviceAccountUser"
+  member             = "serviceAccount:${google_service_account.ai_tuber_sa.email}"
+}
+
+# Allow ai-tuber-sa to read Cloud Run Jobs/Executions (needed for run.executions.get)
+resource "google_project_iam_member" "run_viewer" {
+  project = var.project_id
+  role    = "roles/run.viewer"
+  member  = "serviceAccount:${google_service_account.ai_tuber_sa.email}"
+}
+
+# Allow ai-tuber-sa to invoke the Health Check Proxy
+resource "google_cloud_run_v2_service_iam_member" "invoke_healthcheck_proxy" {
+  location = google_cloud_run_v2_service.healthcheck_proxy.location
+  name     = google_cloud_run_v2_service.healthcheck_proxy.name
+  role     = "roles/run.invoker"
+  member   = "serviceAccount:${google_service_account.ai_tuber_sa.email}"
+}
+
 # Note: Storage permissions are handled at the bucket level in storage.tf
 # No project-wide storage.objectUser role is needed here, following least privilege.
