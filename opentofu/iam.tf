@@ -78,5 +78,13 @@ resource "google_project_iam_member" "run_viewer" {
   member  = "serviceAccount:${google_service_account.ai_tuber_sa.email}"
 }
 
+# Allow ai-tuber-sa to invoke the Health Check Proxy
+resource "google_cloud_run_v2_service_iam_member" "invoke_healthcheck_proxy" {
+  location = google_cloud_run_v2_service.healthcheck_proxy.location
+  name     = google_cloud_run_v2_service.healthcheck_proxy.name
+  role     = "roles/run.invoker"
+  member   = "serviceAccount:${google_service_account.ai_tuber_sa.email}"
+}
+
 # Note: Storage permissions are handled at the bucket level in storage.tf
 # No project-wide storage.objectUser role is needed here, following least privilege.

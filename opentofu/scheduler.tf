@@ -8,9 +8,10 @@ resource "google_workflows_workflow" "streaming_pipeline" {
     project_id         = var.project_id
     region             = var.region
     zone               = var.zone
-    body_node_name     = google_compute_instance.body_node.name
-    news_collector_job = google_cloud_run_v2_job.news_collector.name
-    saint_graph_job    = google_cloud_run_v2_job.saint_graph.name
+    body_node_name         = google_compute_instance.body_node.name
+    news_collector_job     = google_cloud_run_v2_job.news_collector.name
+    saint_graph_job        = google_cloud_run_v2_job.saint_graph.name
+    healthcheck_proxy_url = google_cloud_run_v2_service.healthcheck_proxy.uri
   })
 
   labels = {

@@ -39,6 +39,21 @@ resource "google_compute_firewall" "allow_vnc" {
   target_tags   = ["ai-tuber-body"]
 }
 
+# Firewall: Allow HTTP health checks ONLY from the VPC subnet (Internal only)
+resource "google_compute_firewall" "allow_health_checks" {
+  name    = "ai-tuber-allow-health-checks"
+  network = google_compute_network.ai_tuber_network.name
+
+  allow {
+    protocol = "tcp"
+    ports    = ["8080", "50021"]
+  }
+
+  # Only allow traffic from the internal VPC subnet
+  source_ranges = [google_compute_subnetwork.ai_tuber_subnet.ip_cidr_range]
+  target_tags   = ["ai-tuber-body"]
+}
+
 # Firewall: Allow SSH only via IAP (Identity-Aware Proxy)
 # See: https://cloud.google.com/iap/docs/using-tcp-forwarding
 resource "google_compute_firewall" "allow_ssh_iap" {

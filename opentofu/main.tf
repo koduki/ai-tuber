@@ -65,3 +65,8 @@ resource "google_project_service" "workflowexecutions" {
   service            = "workflowexecutions.googleapis.com"
   disable_on_destroy = false
 }
+
+resource "google_project_service" "vpcaccess" {
+  service            = "vpcaccess.googleapis.com"
+  disable_on_destroy = false
+}
