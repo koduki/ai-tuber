@@ -1,0 +1,83 @@
+main:
+  steps:
+    - init:
+        assign:
+          - project_id: "${project_id}"
+          - region: "${region}"
+          - zone: "${zone}"
+          - body_node_name: "${body_node_name}"
+          - news_collector_job: "${news_collector_job}"
+          - saint_graph_job: "${saint_graph_job}"
+          - body_port: 8080
+          - voicevox_port: 50021
+
+    - news_collection:
+        call: googleapis.run.v1.namespaces.jobs.run
+        args:
+          name: $${"namespaces/" + project_id + "/jobs/" + news_collector_job}
+          location: $${region}
+        result: news_job_result
+
+    - start_body_node:
+        call: googleapis.compute.v1.instances.start
+        args:
+          instance: $${body_node_name}
+          project: $${project_id}
+          zone: $${zone}
+
+    - get_body_node_ip:
+        call: googleapis.compute.v1.instances.get
+        args:
+          instance: $${body_node_name}
+          project: $${project_id}
+          zone: $${zone}
+        result: body_node
+    - assign_ip:
+        assign:
+          - body_ip: $${body_node.networkInterfaces[0].networkIP}
+
+    - wait_for_body_ready:
+        try:
+          steps:
+            - check_body_health:
+                call: http.get
+                args:
+                  url: $${"http://" + body_ip + ":" + string(body_port) + "/health"}
+                result: body_health
+        retry:
+          predicate: $${http.default_retry_predicate}
+          max_retries: 20
+          backoff:
+            initial_delay: 10
+            max_delay: 60
+            multiplier: 1.5
+
+    - wait_for_voicevox_ready:
+        try:
+          steps:
+            - check_voicevox_health:
+                call: http.get
+                args:
+                  url: $${"http://" + body_ip + ":" + string(voicevox_port) + "/version"}
+                result: vv_version
+        retry:
+          predicate: $${http.default_retry_predicate}
+          max_retries: 20
+          backoff:
+            initial_delay: 10
+            max_delay: 60
+            multiplier: 1.5
+
+    - start_streaming:
+        call: googleapis.run.v1.namespaces.jobs.run
+        args:
+          name: $${"namespaces/" + project_id + "/jobs/" + saint_graph_job}
+          location: $${region}
+        result: streaming_job_result
+
+    - stop_body_node:
+        call: googleapis.compute.v1.instances.stop
+        args:
+          instance: $${body_node_name}
+          project: $${project_id}
+          zone: $${zone}
