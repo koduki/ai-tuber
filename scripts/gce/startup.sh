@@ -108,6 +108,11 @@ BUCKET_NAME=$(curl -s "http://metadata.google.internal/computeMetadata/v1/instan
 CHARACTER_NAME=$(curl -s "http://metadata.google.internal/computeMetadata/v1/instance/attributes/character_name" -H "Metadata-Flavor: Google" || echo "ren")
 REGISTRY="${REGION}-docker.pkg.dev/${PROJECT_ID}/ai-tuber"
 
+# Sync character dictionary from GCS
+echo "Syncing character dictionary from GCS..."
+mkdir -p "/opt/ai-tuber/data/mind/${CHARACTER_NAME}"
+gcloud storage cp "gs://${BUCKET_NAME}/mind/${CHARACTER_NAME}/user_dict.json" "/opt/ai-tuber/data/mind/${CHARACTER_NAME}/user_dict.json" || echo "No dictionary found in GCS for ${CHARACTER_NAME}"
+
 # Create .env file for Docker Compose
 echo "Creating .env file..."
 cat > .env << EOF
