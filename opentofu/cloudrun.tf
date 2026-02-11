@@ -14,7 +14,7 @@ resource "google_cloud_run_v2_job" "saint_graph" {
         image = "${var.region}-docker.pkg.dev/${var.project_id}/${var.repository_name}/saint-graph:latest"
 
         env {
-          name  = "GOOGLE_API_KEY"
+          name = "GOOGLE_API_KEY"
           value_source {
             secret_key_ref {
               secret  = google_secret_manager_secret.google_api_key.secret_id
@@ -24,7 +24,7 @@ resource "google_cloud_run_v2_job" "saint_graph" {
         }
 
         env {
-          name  = "YOUTUBE_CLIENT_SECRET_JSON"
+          name = "YOUTUBE_CLIENT_SECRET_JSON"
           value_source {
             secret_key_ref {
               secret  = google_secret_manager_secret.youtube_client_secret.secret_id
@@ -34,7 +34,7 @@ resource "google_cloud_run_v2_job" "saint_graph" {
         }
 
         env {
-          name  = "YOUTUBE_TOKEN_JSON"
+          name = "YOUTUBE_TOKEN_JSON"
           value_source {
             secret_key_ref {
               secret  = google_secret_manager_secret.youtube_token.secret_id
@@ -147,7 +147,7 @@ resource "google_cloud_run_v2_job" "news_collector" {
         image = "${var.region}-docker.pkg.dev/${var.project_id}/${var.repository_name}/news-collector:latest"
 
         env {
-          name  = "GOOGLE_API_KEY"
+          name = "GOOGLE_API_KEY"
           value_source {
             secret_key_ref {
               secret  = google_secret_manager_secret.google_api_key.secret_id

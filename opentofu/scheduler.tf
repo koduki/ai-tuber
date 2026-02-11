@@ -5,12 +5,12 @@ resource "google_workflows_workflow" "streaming_pipeline" {
   description     = "Orchestrates news collection, GCE startup, streaming, and GCE shutdown"
   service_account = google_service_account.ai_tuber_sa.email
   source_contents = templatefile("${path.module}/workflow.yaml", {
-    project_id          = var.project_id
-    region              = var.region
-    zone                = var.zone
-    body_node_name      = google_compute_instance.body_node.name
-    news_collector_job  = google_cloud_run_v2_job.news_collector.name
-    saint_graph_job     = google_cloud_run_v2_job.saint_graph.name
+    project_id         = var.project_id
+    region             = var.region
+    zone               = var.zone
+    body_node_name     = google_compute_instance.body_node.name
+    news_collector_job = google_cloud_run_v2_job.news_collector.name
+    saint_graph_job    = google_cloud_run_v2_job.saint_graph.name
   })
 
   labels = {

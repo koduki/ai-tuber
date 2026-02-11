@@ -71,5 +71,12 @@ resource "google_service_account_iam_member" "sa_user_itself" {
   member             = "serviceAccount:${google_service_account.ai_tuber_sa.email}"
 }
 
+# Allow ai-tuber-sa to read Cloud Run Jobs/Executions (needed for run.executions.get)
+resource "google_project_iam_member" "run_viewer" {
+  project = var.project_id
+  role    = "roles/run.viewer"
+  member  = "serviceAccount:${google_service_account.ai_tuber_sa.email}"
+}
+
 # Note: Storage permissions are handled at the bucket level in storage.tf
 # No project-wide storage.objectUser role is needed here, following least privilege.
