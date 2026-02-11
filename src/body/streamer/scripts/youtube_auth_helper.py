@@ -22,10 +22,7 @@ def main():
     try:
         adapter = YoutubeLiveAdapter()
         # This will trigger the OAuth flow if credentials are missing or expired
-        youtube_client = adapter.authenticate_youtube()
-        
-        # Access credentials from the build client
-        creds = youtube_client._http.credentials if hasattr(youtube_client, "_http") else None
+        youtube_client, creds = adapter.authenticate_youtube()
         
         if creds:
             print("\n" + "="*60)

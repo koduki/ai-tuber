@@ -69,7 +69,7 @@ class YoutubeLiveAdapter:
                 token.write(creds.to_json())
 
         youtube = build('youtube', 'v3', credentials=creds)
-        return youtube
+        return youtube, creds
 
     def create_live(self, youtube, title: str, description: str, scheduledStartTime: str, 
                    thumbnail_path: Optional[str] = None, privacy_status: str = "private") -> Dict:
