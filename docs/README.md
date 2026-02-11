@@ -58,6 +58,7 @@ AI Tuber は、**魂（Saint Graph）**、**肉体（Body）**、**精神（Mind
 - [キャラクターシステム](./components/mind/character-system.md) *(作成予定)*
 - [感情制御](./components/mind/emotion-control.md) *(作成予定)*
 - [キャラクター作成ガイド](./components/mind/character-creation-guide.md) *(作成予定)*
+- [VOICEVOX 辞書管理](./components/mind/voicevox-dictionary.md)
 
 ---
 

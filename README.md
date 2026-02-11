@@ -1,9 +1,8 @@
-# AI Tuber
+# Ren Studio
 
-**魂（Saint Graph）、肉体（Body）、精神（Mind）** の三位一体で構成される AITuber システムです。
+Ren Studioは「AITuber 紅月れん」を動かすためのシステムです。GCP上でOBSを使い自動でニュース配信をするロジックが組まれています。
 
-AIニュースキャスターとしてコアロジックの魂が構成されており、CLIとOBSベースのYoutube配信を肉体として持ちます。精神はキャラクターの特徴や立ち絵、声などを表していて、これをプラガブルに組み替えることで、全体の構成を変えずに任意のキャラクターのAITuberを作成できます。
-Saint GraphはMCPによる拡張可能です。
+ニュースキャスターとしての**魂（Saint Graph）**、GCPでのOBS配信などの**肉体（Body）**、キャラクターの性格や立ち絵といった**精神（Mind）**の三層レイヤーで構築されています。例えばMindを置き換えるだけで、全体の構成を変えずに任意のキャラクターのAITuberを作成できます。また、Saint Graphの機能強化はMCPにより拡張が可能です。現在は、天気予報を取得するMCPが実装されています。
 
 ## 特徴
 
@@ -225,4 +224,5 @@ data/mind/{character_name}/
 | **アーキテクチャ** | [システム概要](docs/architecture/overview.md), [通信プロトコル](docs/architecture/communication.md), [データフロー](docs/architecture/data-flow.md) |
 | **Saint Graph（魂）** | [README](docs/components/saint-graph/README.md), [コアロジック](docs/components/saint-graph/core-logic.md), [プロンプト設計](docs/components/saint-graph/prompts.md) |
 | **Body（肉体）** | [README](docs/components/body/README.md) |
+| **Mind（精神）** | [VOICEVOX 辞書管理](docs/components/mind/voicevox-dictionary.md) |
 | **運用・保守** | [トラブルシューティング](docs/knowledge/troubleshooting.md), [YouTube 配信セットアップ](docs/knowledge/youtube-setup.md) |

@@ -135,6 +135,31 @@ YOUTUBE_CLIENT_SECRET_JSON='{"installed":{...}}'
 
 ---
 
+### ユーザー辞書が反映されない
+
+**症状**:
+`user_dict.json` を配置したが、特定の単語（人名など）の読み方が改善されない。
+
+**原因**: 
+- ファイルの配置場所が間違っている。
+- コンテナ内のマウントパスが古い（以前は `/root/...` でしたが、現在は `/home/user/...` です）。
+- ユーザー辞書に1つも単語が登録されていない。
+
+**解決方法**:
+
+1. **配置の確認**:
+   `data/mind/{character_name}/user_dict.json` にファイルがあるか確認してください。
+2. **ログの確認**:
+   起動時に以下のメッセージが出ているか確認してください：
+   `docker compose logs voicevox | grep reading`
+   `reading ... user.dict_csv ... 79` （数字は登録単語数）
+3. **マウントパスの確認**:
+   `docker-compose.yml` でマウント先が `/home/user/.local/share/voicevox-engine-dev` になっているか確認してください。
+
+詳細は [VOICEVOX 辞書管理](../components/mind/voicevox-dictionary.md) を参照してください。
+
+---
+
 ## YouTube 配信の問題
 
 ### OAuth 認証エラー / トークン更新失敗
