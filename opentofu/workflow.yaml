@@ -35,82 +35,16 @@ main:
             multiplier: 1.5
 
     - wait_for_voicevox_ready:
-        try:
-          steps:
-            - check_voicevox_health:
-                call: http.get
-                args:
-                  url: $${proxy_url}
-                  query:
-                    url: $${"http://" + body_node_name + "." + zone + ".c." + project_id + ".internal:" + string(voicevox_port) + "/version"}
-                  auth:
-                    type: OIDC
-                result: vv_health
-            - init_vv_ready:
-                assign:
-                  - vv_ready: false
-            - try_parse_vv:
-                try:
-                  steps:
-                    - parse_vv:
-                        assign:
-                          - vv_ready: $${vv_health.body.ready}
-                except:
-                  as: e
-                  steps:
-                    - set_vv_not_ready:
-                        assign:
-                          - vv_ready: false
-            - verify_vv_ready:
-                switch:
-                  - condition: $${not vv_ready}
-                    raise: "Voicevox Service Not Ready"
-        retry:
-          predicate: $${always_retry}
-          max_retries: 25
-          backoff:
-            initial_delay: 15
-            max_delay: 30
-            multiplier: 1.2
+        call: wait_for_ready
+        args:
+          proxy_url: $${proxy_url}
+          target_url: $${"http://" + body_node_name + "." + zone + ".c." + project_id + ".internal:" + string(voicevox_port) + "/version"}
 
     - wait_for_body_ready:
-        try:
-          steps:
-            - check_body_health:
-                call: http.get
-                args:
-                  url: $${proxy_url}
-                  query:
-                    url: $${"http://" + body_node_name + "." + zone + ".c." + project_id + ".internal:" + string(body_port) + "/vnc_lite.html"}
-                  auth:
-                    type: OIDC
-                result: body_health
-            - init_body_ready:
-                assign:
-                  - body_ready: false
-            - try_parse_body:
-                try:
-                  steps:
-                    - parse_body:
-                        assign:
-                          - body_ready: $${body_health.body.ready}
-                except:
-                  as: e
-                  steps:
-                    - set_body_not_ready:
-                        assign:
-                          - body_ready: false
-            - verify_body_ready:
-                switch:
-                  - condition: $${not body_ready}
-                    raise: "Body Service Not Ready"
-        retry:
-          predicate: $${always_retry}
-          max_retries: 25
-          backoff:
-            initial_delay: 15
-            max_delay: 30
-            multiplier: 1.2
+        call: wait_for_ready
+        args:
+          proxy_url: $${proxy_url}
+          target_url: $${"http://" + body_node_name + "." + zone + ".c." + project_id + ".internal:" + string(body_port) + "/vnc_lite.html"}
 
     - start_streaming:
         call: googleapis.run.v1.namespaces.jobs.run
@@ -126,14 +60,59 @@ main:
           project: $${project_id}
           zone: $${zone}
 
-# ヘルスチェック用: どのようなエラーでも常にリトライする述語
+# --- サブワークフロー ---
+
+# サービスが Ready になるまで待機する共通関数
+wait_for_ready:
+  params: [proxy_url, target_url]
+  steps:
+    - try_wait:
+        try:
+          steps:
+            - check_health:
+                call: http.get
+                args:
+                  url: $${proxy_url}
+                  query:
+                    url: $${target_url}
+                  auth:
+                    type: OIDC
+                result: health_result
+            - parse_ready:
+                assign:
+                  - is_ready: false
+            - try_parse_body:
+                try:
+                  steps:
+                    - get_ready_field:
+                        assign:
+                          - is_ready: $${health_result.body.ready}
+                except:
+                  as: e
+                  steps:
+                    - set_false:
+                        assign:
+                          - is_ready: false
+            - verify:
+                switch:
+                  - condition: $${not is_ready}
+                    raise: "Service Not Ready"
+        retry:
+          predicate: $${always_retry}
+          max_retries: 40
+          backoff:
+            initial_delay: 15
+            max_delay: 30
+            multiplier: 1.2
+
+# どのようなエラーでも常にリトライする
 always_retry:
   params: [e]
   steps:
     - do_retry:
         return: true
 
-# 在庫不足や一時的なエラーを判定するカスタム述語
+# 在庫不足や操作エラー時にリトライする
 retry_on_stockout:
   params: [e]
   steps:

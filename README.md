@@ -161,10 +161,18 @@ data/mind/{character_name}/
 **システム構成図**:
 ```
 ┌─────────────────────────────────────────────────────┐
-│           Cloud Scheduler (毎朝自動実行)              │
-│  07:00 News  →  07:55 GCE起動  →  08:00 配信開始     │
-│                                 →  08:40 GCE停止    │
+│           Cloud Scheduler (毎朝の自動実行)             │
+│  07:00 実行開始  →  Cloud Workflows (パイプライン制御)   │
 └─────────────────────────────────────────────────────┘
+                        ↓
+    ┌───────────────────────────────────────────┐
+    │        Orchestration Layer (Workflows)     │
+    │  1. News Collector (ニュース収集)           │
+    │  2. Body Node (GCE) 起動                   │
+    │  3. Health Check (起動完了待機)             │
+    │  4. Saint Graph (配信開始)                  │
+    │  5. Body Node (GCE) 停止                   │
+    └───────────────────────────────────────────┘
                         ↓
     ┌───────────────────────────────────────────┐
     │        Serverless Layer (Cloud Run)       │
@@ -172,10 +180,10 @@ data/mind/{character_name}/
     │  │ Saint Graph (Job)│  │Tools Weather │  │
     │  │  (配信ジョブ)      │  │ (Service)     │  │
     │  └──────────────────┘  └──────────────┘  │
-    │  ┌──────────────────┐                    │
-    │  │ News Collector   │  (Cloud Run Job)   │
-    │  │ (ニュース収集)     │                    │
-    │  └──────────────────┘                    │
+    │  ┌──────────────────┐  ┌──────────────┐  │
+    │  │ News Collector   │  │ Health Proxy  │  │
+    │  │ (ニュース収集)     │  │ (安全な監視)   │  │
+    │  └──────────────────┘  └──────────────┘  │
     └───────────────────────────────────────────┘
                 ↓                    ↓
     ┌─────────────────────┐  ┌──────────────┐
@@ -196,11 +204,13 @@ data/mind/{character_name}/
 ```
 
 **主な特徴**:
-- ✅ **自動化**: 毎朝決まった時間に自動でニュース収集・配信
-  - 07:00: News Collector がニュース収集し GCS に保存
-  - 07:55: Body Node (GCE) 起動、OBS と VoiceVox 準備完了
-  - 08:00: Saint Graph (Cloud Run Job) 実行、配信開始
-  - 08:40: Body Node (GCE) 停止、配信終了
+- ✅ **自動化**: Cloud Workflows による堅牢な配信パイプライン
+  - 07:00: Cloud Scheduler がワークフローを起動
+  - Step 1: ニュース収集ジョブを実行
+  - Step 2: Body Node (GCE) を起動し、ヘルスチェックプロキシで **起動完了まで自動待機**（約5〜10分）
+  - Step 3: Saint Graph (Cloud Run Job) を実行し配信開始
+  - Step 4: 配信完了後、Body Node を自動停止
+- ✅ **堅牢な監視**: 専用の Health Proxy により、VPC 内のサービス状態をセキュアに確認
 - ✅ **コスト最適化**: Spot インスタンス使用で 60-90% コスト削減
 - ✅ **スケール to Zero**: 使用していない時間は課金なし
 - ✅ **Infrastructure as Code**: OpenTofu で完全に管理
