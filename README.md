@@ -23,6 +23,8 @@ Saint GraphはMCPによる拡張可能です。
 - **録画モード** (`STREAMING_MODE=false`): OBS での録画のみ。
 - **配信モード** (`STREAMING_MODE=true`): YouTube Live での配信とコメント取得。
 
+YouTube 配信の具体的な設定方法は **[YouTube 配信セットアップ](docs/knowledge/youtube-setup.md)** を参照してください。
+
 ### 2. 環境変数の設定
 
 `.env` ファイルを作成し、必要な情報を設定してください：
@@ -213,4 +215,4 @@ data/mind/{character_name}/
 | **アーキテクチャ** | [システム概要](docs/architecture/overview.md), [通信プロトコル](docs/architecture/communication.md), [データフロー](docs/architecture/data-flow.md) |
 | **Saint Graph（魂）** | [README](docs/components/saint-graph/README.md), [コアロジック](docs/components/saint-graph/core-logic.md), [プロンプト設計](docs/components/saint-graph/prompts.md) |
 | **Body（肉体）** | [README](docs/components/body/README.md) |
-| **Mind（精神）** | キャラクター作成ガイド（作成予定） |
+| **運用・保守** | [トラブルシューティング](docs/knowledge/troubleshooting.md), [YouTube 配信セットアップ](docs/knowledge/youtube-setup.md) |

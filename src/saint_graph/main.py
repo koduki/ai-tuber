@@ -88,13 +88,23 @@ async def _run_newscaster_loop(saint_graph: SaintGraph, news_service: NewsServic
                 privacy_status=os.getenv("STREAM_PRIVACY", "private")
             )
             logger.info(f"Automatic Streaming Start result: {res}")
+            if "エラー" in res or res.startswith("Error"):
+                logger.critical(f"Streaming start failed: {res}")
+                sys.exit(1)
         else:
             res = await saint_graph.body.start_recording()
             logger.info(f"Automatic Recording Start result: {res}")
+            if "エラー" in res or res.startswith("Error"):
+                logger.critical(f"Recording start failed: {res}")
+                sys.exit(1)
+
             # OBS録画開始後の安定化待機
             await asyncio.sleep(3)
     except Exception as e:
-        logger.warning(f"Could not automatically start: {e}")
+        if isinstance(e, SystemExit):
+            raise
+        logger.critical(f"Could not automatically start due to unexpected error: {e}")
+        sys.exit(1)
 
     # 配信開始の挨拶
     await saint_graph.process_turn(templates["intro"], context="Intro")

@@ -171,7 +171,7 @@ async def start_streaming(title: str, description: str, scheduled_start_time: st
         _youtube_live_adapter = YoutubeLiveAdapter()
         
         # Authenticate
-        youtube_client = _youtube_live_adapter.authenticate_youtube()
+        youtube_client, _ = _youtube_live_adapter.authenticate_youtube()
         
         # Create live broadcast
         logger.info(f"Creating YouTube Live broadcast: {title}")
@@ -223,7 +223,7 @@ async def stop_streaming() -> str:
         
         # Stop YouTube broadcast
         if _youtube_live_adapter and _current_broadcast_id:
-            youtube_client = _youtube_live_adapter.authenticate_youtube()
+            youtube_client, _ = _youtube_live_adapter.authenticate_youtube()
             _youtube_live_adapter.stop_live(youtube_client, _current_broadcast_id)
             logger.info(f"Stopped YouTube broadcast: {_current_broadcast_id}")
         
