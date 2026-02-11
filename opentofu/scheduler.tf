@@ -28,7 +28,7 @@ resource "google_workflows_workflow" "streaming_pipeline" {
 resource "google_cloud_scheduler_job" "workflow_trigger" {
   name             = "ai-tuber-workflow-daily"
   description      = "Triggers the streaming pipeline workflow daily"
-  schedule         = "00 07 * * *" # Start at 07:00 JST
+  schedule         = "00 08 * * *" # Start at 08:00 JST
   time_zone        = "Asia/Tokyo"
   attempt_deadline = "320s"
 
