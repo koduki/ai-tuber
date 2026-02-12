@@ -3,7 +3,7 @@ import os
 from pathlib import Path
 from typing import Optional
 from .config import logger
-from src.saas.storage_client import StorageClient, create_storage_client
+from src.infra.storage_client import StorageClient, create_storage_client
 
 # アプリケーションのルートパス (src directory)
 APP_ROOT = Path(__file__).resolve().parent.parent

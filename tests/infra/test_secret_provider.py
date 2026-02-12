@@ -1,7 +1,7 @@
 """Tests for SecretProvider abstraction."""
 import os
 import pytest
-from src.saas.secret_provider import (
+from src.infra.secret_provider import (
     EnvSecretProvider,
     create_secret_provider,
 )
