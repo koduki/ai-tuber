@@ -1,6 +1,9 @@
 import json
+import os
 from pathlib import Path
+from typing import Optional
 from .config import logger
+from src.saas.storage_client import StorageClient, create_storage_client
 
 # アプリケーションのルートパス (src directory)
 APP_ROOT = Path(__file__).resolve().parent.parent
@@ -11,35 +14,55 @@ DATA_ROOT = APP_ROOT.parent / "data"
 class PromptLoader:
     """
     キャラクター固有およびシステム共通のプロンプトファイルを読み込むクラス。
+    StorageClient を使用して、ローカル / GCS どちらからでも読み込み可能。
     """
 
-    def __init__(self, character_name: str = "ren"):
+    def __init__(
+        self, 
+        character_name: Optional[str] = None,
+        storage_client: Optional[StorageClient] = None
+    ):
         """
         PromptLoaderを初期化します。
         
         Args:
-            character_name: 読み込むキャラクターの名前（data/mindディレクトリ配下のフォルダ名）
+            character_name: 読み込むキャラクターの名前。
+                          None の場合は CHARACTER_NAME 環境変数を使用（デフォルト: "ren"）
+            storage_client: StorageClient インスタンス。None の場合は自動生成。
         """
-        self.character_name = character_name
-        self._saint_graph_prompts_dir = APP_ROOT / "saint_graph" / "system_prompts"
-        self._mind_prompts_dir = DATA_ROOT / "mind" / character_name / "system_prompts"
-        self._persona_path = DATA_ROOT / "mind" / character_name / "persona.md"
-        self._mind_config_path = DATA_ROOT / "mind" / character_name / "mind.json"
+        self.character_name = character_name or os.getenv("CHARACTER_NAME", "ren")
+        self.storage = storage_client or create_storage_client()
+        
+        # ストレージのパス構成
+        self._saint_graph_prompts_path = "src/saint_graph/system_prompts"
+        self._mind_base_path = f"data/mind/{self.character_name}"
+        
+        logger.info(f"PromptLoader initialized for character: {self.character_name}")
 
     def load_system_instruction(self) -> str:
         """
         core_instructions.md と persona.md を結合してシステム指示を返します。
         """
-        core_path = self._saint_graph_prompts_dir / "core_instructions.md"
-        
-        with open(core_path, "r", encoding="utf-8") as f:
-            combined = f.read() + "\n\n"
-
-        with open(self._persona_path, "r", encoding="utf-8") as f:
-            combined += f.read()
-        
-        logger.info(f"Loaded core and persona for {self.character_name}")
-        return combined
+        try:
+            # core_instructions.md を読み込み（共通プロンプト）
+            core_content = self.storage.read_text(
+                bucket="",  # FileSystem mode では base_path からの相対パス
+                key=f"{self._saint_graph_prompts_path}/core_instructions.md"
+            )
+            
+            # persona.md を読み込み（キャラクター固有）
+            persona_content = self.storage.read_text(
+                bucket="",
+                key=f"{self._mind_base_path}/persona.md"
+            )
+            
+            combined = core_content + "\n\n" + persona_content
+            logger.info(f"Loaded core and persona for {self.character_name}")
+            return combined
+            
+        except Exception as e:
+            logger.error(f"Failed to load system instruction: {e}")
+            raise
 
     def load_templates(self, names: list[str]) -> dict[str, str]:
         """
@@ -53,9 +76,15 @@ class PromptLoader:
         """
         templates = {}
         for name in names:
-            path = self._saint_graph_prompts_dir / f"{name}.md"
-            with open(path, "r", encoding="utf-8") as f:
-                templates[name] = f.read()
+            try:
+                content = self.storage.read_text(
+                    bucket="",
+                    key=f"{self._saint_graph_prompts_path}/{name}.md"
+                )
+                templates[name] = content
+            except Exception as e:
+                logger.warning(f"Failed to load template '{name}': {e}")
+        
         return templates
 
     def get_retry_templates(self, templates: dict[str, str]) -> dict[str, str]:
@@ -68,12 +97,15 @@ class PromptLoader:
         """
         mind.json からキャラクター設定を読み込みます。
         """
-        if not self._mind_config_path.exists():
-            return {}
-        
         try:
-            with open(self._mind_config_path, "r", encoding="utf-8") as f:
-                return json.load(f)
+            content = self.storage.read_text(
+                bucket="",
+                key=f"{self._mind_base_path}/mind.json"
+            )
+            return json.loads(content)
+        except FileNotFoundError:
+            logger.warning(f"mind.json not found for {self.character_name}")
+            return {}
         except Exception as e:
             logger.error(f"Error loading mind.json for {self.character_name}: {e}")
             return {}

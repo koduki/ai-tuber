@@ -21,6 +21,10 @@ services:
       - PYTHONPATH=/app
       - ADK_TELEMETRY=false
       - NO_PROXY=body-streamer,tools-weather,localhost,127.0.0.1
+      # SaaS-ready configuration
+      - STORAGE_TYPE=filesystem
+      - SECRET_PROVIDER_TYPE=env
+      - CHARACTER_NAME=${CHARACTER_NAME:-ren}
     depends_on:
       body-streamer:
         condition: service_healthy

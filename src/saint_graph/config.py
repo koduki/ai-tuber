@@ -4,6 +4,8 @@ import os
 import logging
 import sys
 from dataclasses import dataclass, fields, field
+from typing import Optional
+from src.saas.secret_provider import SecretProvider, create_secret_provider
 
 # ログ設定（初期化）
 logging.basicConfig(
@@ -22,7 +24,7 @@ class Config:
     body_url: str = field(default_factory=lambda: os.getenv("BODY_URL") or "http://localhost:8000")
     
     # AI設定
-    google_api_key: str | None = field(default_factory=lambda: os.getenv("GOOGLE_API_KEY"))
+    google_api_key: str | None = None  # SecretProvider 経由で取得（後で設定）
     model_name: str = field(default_factory=lambda: os.getenv("MODEL_NAME", "gemini-2.5-flash-lite"))
     adk_telemetry: bool = field(default_factory=lambda: os.getenv("ADK_TELEMETRY", "false").lower() == "true")
     
@@ -58,8 +60,42 @@ class Config:
                 log_value = value
             logger.info(f"Config: {field.name} = {log_value}")
 
-_config = Config()
-_config.validate()
+
+def _load_google_api_key(secret_provider: Optional[SecretProvider] = None) -> str | None:
+    """
+    SecretProvider を使って GOOGLE_API_KEY を取得。
+    フォールバック: 環境変数から直接読む（互換性のため）
+    """
+    if secret_provider is None:
+        secret_provider = create_secret_provider()
+    
+    try:
+        return secret_provider.get_secret("GOOGLE_API_KEY")
+    except (ValueError, FileNotFoundError):
+        # SecretProvider で取得できない場合は環境変数をフォールバック
+        logger.warning("Failed to load GOOGLE_API_KEY from SecretProvider, falling back to env var")
+        return os.getenv("GOOGLE_API_KEY")
+
+
+_config_base = Config()
+_config_base.validate()
+
+# google_api_key を SecretProvider 経由で取得
+_google_api_key = _load_google_api_key()
+
+# 新しい Config インスタンスを作成（frozen なので再作成）
+_config = Config(
+    mcp_url=_config_base.mcp_url,
+    body_url=_config_base.body_url,
+    google_api_key=_google_api_key,
+    model_name=_config_base.model_name,
+    adk_telemetry=_config_base.adk_telemetry,
+    poll_interval=_config_base.poll_interval,
+    news_dir=_config_base.news_dir,
+    max_wait_cycles=_config_base.max_wait_cycles,
+    is_cloud_run=_config_base.is_cloud_run
+)
+
 _config.log_config()
 
 # 既存コードとの互換性のための定数
