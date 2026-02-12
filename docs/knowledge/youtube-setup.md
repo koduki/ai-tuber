@@ -72,7 +72,7 @@ OAuth トークンは、実際にユーザーとして YouTube にアクセス�
 ```bash
 # 認証スクリプトを実行するための一時コンテナを起動
 docker compose run --rm body-streamer python -c "
-from src.body.streamer.youtube_auth import YouTubeOAuth
+from body.streamer.youtube_auth import YouTubeOAuth
 import json
 
 # OAuth 認証の開始
@@ -110,7 +110,7 @@ print(json.dumps({
 
 ```bash
 # 認証スクリプトを実行（コンテナが停止していても実行可能）
-docker compose run --rm --build body-streamer python -m src.body.streamer.scripts.youtube_auth_helper
+docker compose run --rm --build body-streamer python -m body.streamer.scripts.youtube_auth_helper
 ```
 
 このスクリプトは以下を行います：

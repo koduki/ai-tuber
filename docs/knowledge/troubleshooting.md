@@ -216,7 +216,7 @@ Warning: Scope mismatch during token refresh.
    認証ヘルパを使用してトークンを生成し、表示された JSON を `.env` に貼り付けてください：
    ```bash
    # 認証ヘルパーを実行（ビルドを含めることで確実に最新のスクリプトを使用）
-   docker compose run --rm --build body-streamer python -m src.body.streamer.scripts.youtube_auth_helper
+   docker compose run --rm --build body-streamer python -m body.streamer.scripts.youtube_auth_helper
    ```
    表示された `NEW YOUTUBE_TOKEN_JSON` の内容をコピーし、`.env` の `YOUTUBE_TOKEN_JSON='...'` を更新してください。
 3. **スコープの確認**: 現在の実装では、トークンに含まれるスコープを優先して使用するように統一されています。
@@ -242,7 +242,7 @@ ERROR: Could not retrieve activeLiveChatId after 10 attempts
 
 1. システムは自動的にリトライします（10回、10秒間隔）。通常、数分以内に解消されます。
 2. YouTube Studio で対象の配信が「ライブ配信」として正しく作成されているか確認してください。
-3. リトライ上限を調整する必要がある場合は、`src.body.streamer.fetch_comments.py` の `max_retries` を変更してください。
+3. リトライ上限を調整する必要がある場合は、`body.streamer.fetch_comments.py` の `max_retries` を変更してください。
 
 ```bash
 # Body Streamer のログを確認してリトライ状況を把握
@@ -292,7 +292,7 @@ docker compose exec body-streamer tail -f /tmp/fetch_comments.log
 docker compose exec body-streamer ps aux | grep fetch_comments
 
 # 手動でコメント取得をテスト
-docker compose exec body-streamer python -m src.body.streamer.scripts.fetch_comments
+docker compose exec body-streamer python -m body.streamer.scripts.fetch_comments
 ```
 
 **注意**: `STREAM_PRIVACY=private` の場合、コメント投稿にはチャンネルのメンバーである必要があります。
@@ -340,7 +340,7 @@ docker compose logs -f body-streamer | grep "play_audio_file"
 
 # WAV ファイルの長さ計算が正しいか確認
 docker compose exec body-streamer python -c "
-from src.body.streamer.voice import get_wav_duration
+from body.streamer.voice import get_wav_duration
 duration = get_wav_duration('/app/shared/voice/speech_0001.wav')
 print(f'Duration: {duration}s')
 "

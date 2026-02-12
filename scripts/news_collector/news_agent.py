@@ -7,11 +7,14 @@ import asyncio
 import re
 from google.cloud import storage
 
-# プロジェクトルートをsys.pathに追加
+# プロジェクトルートとsrcをsys.pathに追加
 current_dir = os.path.dirname(os.path.abspath(__file__))
 project_root = os.path.dirname(os.path.dirname(current_dir))
+src_dir = os.path.join(project_root, "src")
 if project_root not in sys.path:
     sys.path.insert(0, project_root)
+if src_dir not in sys.path:
+    sys.path.insert(0, src_dir)
 
 from google.adk import Agent
 from google.adk.runners import InMemoryRunner
@@ -24,7 +27,7 @@ from google.adk.tools.google_search_tool import GoogleSearchTool
 
 # 設定
 try:
-    from src.saint_graph.config import MODEL_NAME
+    from saint_graph.config import MODEL_NAME
     # GOOGLE_API_KEY は環境変数に含まれていることを想定
 except ImportError:
     MODEL_NAME = "gemini-2.5-flash-lite"

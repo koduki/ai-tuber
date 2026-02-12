@@ -13,7 +13,7 @@ services:
     # body-cli は profiles: manual で手動起動のため、depends_on は設定しない
     environment:
       - GOOGLE_API_KEY=${GOOGLE_API_KEY}
-      - PYTHONPATH=/app
+      - PYTHONPATH=/app/src:/app
 
   # 開発モードでは saint-graph を自動起動しない（手動でテスト実行するため）
   saint-graph:

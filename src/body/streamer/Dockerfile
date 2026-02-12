@@ -12,8 +12,11 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy source code
 COPY src/ /app/src/
 
-# Expose MCP server port
+# Expose REST API port
 EXPOSE 8000
 
-# Run the MCP server
-CMD ["python", "-m", "src.body.streamer.main"]
+# Set Python path to include src to allow top-level imports of packages inside src/
+ENV PYTHONPATH=/app/src
+
+# Run the streamer
+CMD ["python", "-m", "body.streamer.main"]
