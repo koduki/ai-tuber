@@ -50,6 +50,12 @@ variable "admin_ip_ranges" {
   default     = ["0.0.0.0/0"] # Default to open, but should be overridden in terraform.tfvars
 }
 
+variable "character_name" {
+  description = "Name of the character (e.g. ren)"
+  type        = string
+  default     = "ren"
+}
+
 provider "google" {
   project = var.project_id
   region  = var.region
