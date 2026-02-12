@@ -1,18 +1,5 @@
 # Cloud Build Triggers for CI/CD
 
-# Variables for Repository
-variable "github_owner" {
-  description = "GitHub repository owner"
-  type        = string
-  default     = "" # Should be set in terraform.tfvars
-}
-
-variable "github_repository" {
-  description = "GitHub repository name"
-  type        = string
-  default     = "ai-tuber"
-}
-
 # 1. Trigger for SaintGraph (Soul/Mind Engine)
 resource "google_cloudbuild_trigger" "saint_graph_trigger" {
   name        = "ai-tuber-saint-graph"

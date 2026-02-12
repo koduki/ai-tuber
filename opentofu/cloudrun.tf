@@ -45,12 +45,12 @@ resource "google_cloud_run_v2_job" "saint_graph" {
 
         env {
           name  = "STREAM_TITLE"
-          value = "紅月れんのAIニュース配信"
+          value = var.stream_title
         }
 
         env {
           name  = "STREAM_DESCRIPTION"
-          value = "Google ADKとGeminiを使用した次世代AITuberの配信テストです。"
+          value = var.stream_description
         }
 
         env {
@@ -184,7 +184,7 @@ resource "google_cloud_run_v2_service" "healthcheck_proxy" {
 
   template {
     containers {
-      image = "${var.region}-docker.pkg.dev/${var.project_id}/${var.repository_name}/healthcheck-proxy:latest"
+      image = "${var.region}-docker.pkg.dev/${var.project_id}/${var.artifact_repository}/healthcheck-proxy:latest"
       resources {
         limits = {
           cpu    = "1"
@@ -205,9 +205,7 @@ resource "google_cloud_run_v2_service" "healthcheck_proxy" {
   }
 }
 
-data "google_project" "project" {
-  project_id = var.project_id
-}
+
 
 output "tools_weather_url" {
   value = google_cloud_run_v2_service.tools_weather.uri
