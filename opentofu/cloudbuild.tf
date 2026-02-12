@@ -7,7 +7,7 @@ variable "github_owner" {
   default     = "" # Should be set in terraform.tfvars
 }
 
-variable "github_repo_name" {
+variable "github_repository" {
   description = "GitHub repository name"
   type        = string
   default     = "ai-tuber"
@@ -20,7 +20,7 @@ resource "google_cloudbuild_trigger" "saint_graph_trigger" {
 
   github {
     owner = var.github_owner
-    name  = var.github_repo_name
+    name  = var.github_repository
     push {
       branch = "^main$|^master$|^dev/.*$" # Trigger on main/master/dev branches
     }
@@ -36,7 +36,7 @@ resource "google_cloudbuild_trigger" "saint_graph_trigger" {
 
   substitutions = {
     _REGION     = var.region
-    _REPOSITORY = var.repository_name
+    _REPOSITORY = var.artifact_registry_name
   }
 }
 
@@ -47,7 +47,7 @@ resource "google_cloudbuild_trigger" "body_trigger" {
 
   github {
     owner = var.github_owner
-    name  = var.github_repo_name
+    name  = var.github_repository
     push {
       branch = "^main$|^master$|^dev/.*$"
     }
@@ -63,7 +63,7 @@ resource "google_cloudbuild_trigger" "body_trigger" {
 
   substitutions = {
     _REGION     = var.region
-    _REPOSITORY = var.repository_name
+    _REPOSITORY = var.artifact_registry_name
   }
 }
 
@@ -74,7 +74,7 @@ resource "google_cloudbuild_trigger" "news_collector_trigger" {
 
   github {
     owner = var.github_owner
-    name  = var.github_repo_name
+    name  = var.github_repository
     push {
       branch = "^main$|^master$|^dev/.*$"
     }
@@ -90,7 +90,7 @@ resource "google_cloudbuild_trigger" "news_collector_trigger" {
 
   substitutions = {
     _REGION     = var.region
-    _REPOSITORY = var.repository_name
+    _REPOSITORY = var.artifact_registry_name
   }
 }
 
@@ -101,7 +101,7 @@ resource "google_cloudbuild_trigger" "tools_weather_trigger" {
 
   github {
     owner = var.github_owner
-    name  = var.github_repo_name
+    name  = var.github_repository
     push {
       branch = "^main$|^master$|^dev/.*$"
     }
@@ -117,7 +117,7 @@ resource "google_cloudbuild_trigger" "tools_weather_trigger" {
 
   substitutions = {
     _REGION     = var.region
-    _REPOSITORY = var.repository_name
+    _REPOSITORY = var.artifact_registry_name
   }
 }
 
@@ -128,7 +128,7 @@ resource "google_cloudbuild_trigger" "mind_data_sync_trigger" {
 
   github {
     owner = var.github_owner
-    name  = var.github_repo_name
+    name  = var.github_repository
     push {
       branch = "^main$|^master$|^dev/.*$"
     }

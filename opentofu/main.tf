@@ -38,7 +38,7 @@ variable "enable_spot_instance" {
   default     = true
 }
 
-variable "repository_name" {
+variable "artifact_registry_name" {
   description = "Artifact Registry repository name"
   type        = string
   default     = "ai-tuber"
