@@ -3,7 +3,7 @@ import os
 import tempfile
 from pathlib import Path
 import pytest
-from src.infra.storage_client import (
+from infra.storage_client import (
     FileSystemStorageClient,
     create_storage_client,
 )

@@ -5,7 +5,7 @@ import logging
 import sys
 from dataclasses import dataclass, fields, field
 from typing import Optional
-from src.infra.secret_provider import SecretProvider, create_secret_provider
+from infra.secret_provider import SecretProvider, create_secret_provider
 
 # ログ設定（初期化）
 logging.basicConfig(

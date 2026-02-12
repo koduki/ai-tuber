@@ -3,7 +3,7 @@ import os
 from pathlib import Path
 from typing import Optional
 from .config import logger
-from src.infra.storage_client import StorageClient, create_storage_client
+from infra.storage_client import StorageClient, create_storage_client
 
 # アプリケーションのルートパス (src directory)
 APP_ROOT = Path(__file__).resolve().parent.parent
@@ -33,7 +33,7 @@ class PromptLoader:
         self.character_name = character_name or os.getenv("CHARACTER_NAME", "ren")
         self.storage = storage_client or create_storage_client()
         # System prompts (src/saint_graph/system_prompts) are always local (in container)
-        from src.infra.storage_client import FileSystemStorageClient
+        from infra.storage_client import FileSystemStorageClient
         self.system_storage = FileSystemStorageClient()
         self.bucket = os.getenv("GCS_BUCKET_NAME", "")
         self._is_gcs = os.getenv("STORAGE_TYPE") == "gcs"
