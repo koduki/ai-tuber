@@ -13,7 +13,8 @@ AI Tuber システムでよくある問題とその解決方法をまとめて�
 Error response from daemon: could not select device driver "" with capabilities: [[gpu]]
 ```
 
-**原因**: nvidia-docker2 がインストールされていない、または NVIDIA ドライバが正しく設定されていない。
+**原因**: NVIDIA Container Toolkit がインストールされていない、または NVIDIA ドライバが正しく設定されていない。
+以前の `nvidia-docker2` は非推奨となり、現在は `nvidia-container-toolkit` が使用されます。
 
 **解決方法**:
 
@@ -21,8 +22,14 @@ Error response from daemon: could not select device driver "" with capabilities:
 # NVIDIA ドライバのインストール確認
 nvidia-smi
 
-# nvidia-docker2 のインストール
-sudo apt-get install -y nvidia-docker2
+# NVIDIA Container Toolkit のインストール
+curl -s -L https://nvidia.github.io/libnvidia-container/stable/deb/nvidia-container-toolkit.list | \
+  sudo tee /etc/apt/sources.list.d/nvidia-container-toolkit.list
+sudo apt-get update
+sudo apt-get install -y nvidia-container-toolkit
+
+# Docker ランタイムの設定
+sudo nvidia-ctk runtime configure --runtime=docker
 sudo systemctl restart docker
 
 # 動作確認
@@ -132,6 +139,29 @@ cat .env
 # 例: JSON はシングルクォートで囲む
 YOUTUBE_CLIENT_SECRET_JSON='{"installed":{...}}'
 ```
+
+---
+
+### GCE 起動時にコンテナが立ち上がらない
+
+**症状**:
+GCE インスタンスは「実行中」だが、OBS や VoiceVox にアクセスできない。
+
+**原因と解決方法**:
+
+1. **スタートアップスクリプトが実行中**:
+   初回起動時は GPU ドライバのインストールに 5〜10 分かかります。
+   `sudo journalctl -u google-startup-scripts.service -f` で進行状況を確認してください。
+
+2. **メタデータ取得エラー (404)**:
+   `mkdir: cannot create directory ... <!DOCTYPE html>` のようなエラーが出る場合、メタデータの `character_name` が未設定です。`compute.tf` の `metadata` を確認してください。
+
+3. **ボリュームの権限エラー (VoiceVox exit 1)**:
+   VoiceVox コンテナが権限不足で落ちている可能性があります。
+   `sudo chmod -R 777 /opt/ai-tuber/data` を実行して権限を開放してください。
+
+4. **シークレットへのアクセス権限**:
+   `permission denied` が Secret Manager 関連で出る場合、GCE のサービスアカウントに `roles/secretmanager.secretAccessor` 権限が付与されているか確認してください。
 
 ---
 

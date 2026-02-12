@@ -1,4 +1,3 @@
-# GCP Deployment Guide (OpenTofu)
 
 このディレクトリには、AI Tuber システムを Google Cloud Platform (GCP) にデプロイするための OpenTofu 設定と手順が含まれています。
 
@@ -283,7 +282,7 @@ sudo journalctl -u google-startup-scripts.service -f
 2. Docker & Docker Compose のインストール（1〜2分）
 3. Artifact Registry 認証設定（数秒）
 4. **NVIDIA GPU ドライバーのインストール（3〜5分）** ← GCP 公式インストーラーを使用
-5. nvidia-docker2 のインストール（1分）
+5. **NVIDIA Container Toolkit のインストール（1分）**
 6. 設定ファイル生成（.env, docker-compose.yml）（数秒）
 7. Docker イメージのプル（1〜2分）
 8. コンテナの起動（30秒）
@@ -351,36 +350,30 @@ gcloud artifacts docker images list asia-northeast1-docker.pkg.dev/${PROJECT_ID}
 Error: nvidia-container-cli: initialization error: load library failed: libnvidia-ml.so
 ```
 
-**原因**: NVIDIA GPU ドライバーがインストールされていない  
-**解決**: GCP の公式 GPU ドライバーインストーラーを使用
+**原因**: NVIDIA GPU ドライバーがインストールされていない。またはランタイムが正しく設定されていない。
+**解決**: スタートアップスクリプトは自動的に `nvidia-container-toolkit` を使用するように修正されました。手動で直す場合は以下を実行してください：
 
 ```bash
 # GCE インスタンス上で実行
-curl https://raw.githubusercontent.com/GoogleCloudPlatform/compute-gpu-installation/main/linux/install_gpu_driver.py --output install_gpu_driver.py
-sudo python3 install_gpu_driver.py
-
-# インストール後、GPU が認識されているか確認
-nvidia-smi
-
-# コンテナを起動
-cd /opt/ai-tuber
-sudo docker-compose up -d
+curl -s -L https://nvidia.github.io/libnvidia-container/stable/deb/nvidia-container-toolkit.list | sudo tee /etc/apt/sources.list.d/nvidia-container-toolkit.list
+sudo apt-get update && sudo apt-get install -y nvidia-container-toolkit
+sudo nvidia-ctk runtime configure --runtime=docker
+sudo systemctl restart docker
 ```
 
-**3-2. DKMS ビルドエラー**
+##### 4. 404 Not Found (Metadata error)
 ```
-Building module(s).....................(bad exit status: 2)
-Error! Bad return status for module build on kernel: 6.8.0-1045-gcp (x86_64)
-Errors were encountered while processing:
- nvidia-dkms-550
- nvidia-driver-550
- cuda-drivers-550
+mkdir: cannot create directory '/opt/ai-tuber/data/mind/<!DOCTYPE html> ...' : File name too long
 ```
+**原因**: インスタンスメタデータ（`character_name` など）の取得に失敗し、GCP が返した 404 エラーの HTML ページが変数に代入されてしまった。
+**解決**: スクリプトは robust な取得（`get_metadata` 関数）を行うように更新されました。`compute.tf` に `character_name` メタデータが定義されているか確認してください。
 
-**原因**: CUDA リポジトリからの直接インストールは GCP カーネルと互換性の問題がある  
-**解決**: 上記と同じ GCP 公式インストーラーを使用してください。このスクリプトはカーネル互換性を自動的に処理します。
-
-**注意**: スタートアップスクリプトは既に GCP 公式インストーラーを使用するように修正されています。インスタンスを再作成（`tofu apply`）すれば、この問題は発生しません。
+##### 5. VoiceVox が Exit 1 で落ちる (権限エラー)
+```
+startup-script: dependency failed to start: container ai-tuber-voicevox-1 exited (1)
+```
+**原因**: マウントした `/opt/ai-tuber/data` の所有権が `root` になっており、VoiceVox コンテナ内ユーザーが書き込み/読み込みできずに落ちている。
+**解決**: スタートアップスクリプターに `chmod -R 777 /opt/ai-tuber/data` を追加しました。手動で直す場合はインスタンス上で実行してください。
 
 ##### 4. コンテナが起動しているか確認
 
