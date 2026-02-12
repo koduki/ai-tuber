@@ -1,5 +1,94 @@
 
+
 このディレクトリには、AI Tuber システムを Google Cloud Platform (GCP) にデプロイするための OpenTofu 設定と手順が含まれています。
+
+## OpenTofu 設計思想
+
+### 基本原則
+
+このインフラ構成は、以下の設計原則に基づいています。
+
+#### 1. **Infrastructure as Code (IaC) の徹底**
+- すべてのインフラをコードで定義し、バージョン管理
+- 手動設定を排除し、再現性と監査性を確保
+- ドリフト検出により、意図しない変更を防止
+
+#### 2. **役割分担の明確化**
+| 担当 | 役割 | 対象 |
+|:---|:---|:---|
+| **OpenTofu** | インフラの「器」を定義 | リソースの作成、IAM、ネットワーク |
+| **Cloud Build** | アプリの「中身」を更新 | イメージのビルド・デプロイ、データ同期 |
+
+この分離により、「構成の変更（Tofu）」と「日々のコード更新（Build）」を独立して管理できます。
+
+#### 3. **変数の一元管理**
+- すべての変数を `main.tf` に集約
+- ハードコードを排除し、環境ごとの差異を `terraform.tfvars` で吸収
+- デフォルト値を適切に設定し、必須項目を明示
+
+#### 4. **最小権限の原則 (Least Privilege)**
+- 各サービスアカウントに必要最小限の権限のみ付与
+- プロジェクトレベルではなく、リソースレベルでの権限設定を優先
+- IAM の定義を `iam.tf` に集約して可視化
+
+#### 5. **セキュリティ多層防御**
+- VPC 隔離によるネットワーク分離
+- Secret Manager による機密情報の一元管理
+- OIDC 認証によるサービス間通信の保護
+- IAP 経由の SSH アクセスのみ許可
+
+### ファイル構成の意図
+
+| ファイル | 責務 | 内容 |
+|:---|:---|:---|
+| `main.tf` | エントリポイント・変数定義 | すべての変数、プロバイダ設定、API 有効化 |
+| `cloudrun.tf` | Cloud Run リソース | Job (SaintGraph, NewsCollector) と Service (Tools, Proxy) |
+| `cloudbuild.tf` | CI/CD トリガー | ディレクトリベースの自動デプロイ設定 |
+| `compute.tf` | Compute Engine | GPU 搭載 Body Node の定義 |
+| `network.tf` | ネットワーク | VPC、サブネット、ファイアウォール、NAT |
+| `iam.tf` | 権限管理 | サービスアカウントと IAM ロールの集約 |
+| `storage.tf` | ストレージ | GCS バケットと権限 |
+| `secrets.tf` | 機密情報 | Secret Manager リソース |
+| `scheduler.tf` | スケジューリング | Cloud Workflows とトリガー |
+| `workflow.yaml` | オーケストレーション | 配信パイプラインの定義 |
+
+この構成により、**責務ごとに独立したファイル**となり、変更の影響範囲が把握しやすくなっています。
+
+### 設計上の重要な決定
+
+#### Cloud Run Job vs Service (SaintGraph)
+SaintGraph は **Job** として実装されています。理由：
+- **長時間実行**: 配信は最大 1 時間続く（Service の 60 分制限を超える）
+- **シンプル**: HTTP サーバー不要で、エントリポイントのみ
+- **適合性**: 「1 回の配信」という概念に Job がマッチ
+
+#### Spot Instance の採用
+Body Node（GCE）は **Spot Instance** をデフォルトとしています。理由：
+- **コスト削減**: 通常料金の 60-90% オフ
+- **許容可能なリスク**: 配信中断は YouTube で再接続可能
+- **切り替え可能**: `enable_spot_instance = false` で通常インスタンスに変更可
+
+#### VPC 隔離とプロキシパターン
+Body Node のヘルスチェック用に **Healthcheck Proxy** を配置。理由：
+- **セキュリティ**: GCE の内部ポートをインターネットに公開しない
+- **認証**: OIDC により許可されたサービスのみアクセス可能
+- **監視**: Cloud Workflows から GCE の状態を安全に確認
+
+### 変数管理のポリシー
+
+#### 必須変数（`terraform.tfvars` で設定）
+- `project_id`: GCP プロジェクト ID
+- `bucket_name`: GCS バケット名（グローバルにユニーク）
+- `github_owner`: GitHub のユーザー名または組織名
+- `admin_ip_ranges`: 管理者の IP アドレス範囲
+
+#### オプション変数（デフォルト値あり）
+- `region`, `zone`: デプロイ先のリージョン/ゾーン
+- `character_name`: キャラクター名（Mind データの識別子）
+- `stream_title`, `stream_description`: 配信のメタデータ
+- `enable_spot_instance`: Spot Instance の有効化
+
+この方針により、**必要最小限の設定で動作**し、詳細なカスタマイズも可能です。
 
 ## アーキテクチャ概要
 
