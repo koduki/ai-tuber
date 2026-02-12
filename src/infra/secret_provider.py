@@ -52,12 +52,14 @@ class GcpSecretProvider(SecretProvider):
 
     def get_secret(self, name: str) -> str:
         """Get secret from GCP Secret Manager."""
-        secret_name = f"projects/{self.project_id}/secrets/{name}/versions/latest"
+        # Normalize name: GOOGLE_API_KEY -> google-api-key
+        secret_id = name.lower().replace("_", "-")
+        secret_name = f"projects/{self.project_id}/secrets/{secret_id}/versions/latest"
         try:
             response = self.client.access_secret_version(request={"name": secret_name})
             return response.payload.data.decode("UTF-8")
         except Exception as e:
-            logger.error(f"Failed to access secret '{name}': {e}")
+            logger.error(f"Failed to access secret '{name}' (as '{secret_id}'): {e}")
             raise ValueError(f"Secret '{name}' not found in Secret Manager") from e
 
 

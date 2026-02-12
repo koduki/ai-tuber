@@ -32,6 +32,10 @@ class PromptLoader:
         """
         self.character_name = character_name or os.getenv("CHARACTER_NAME", "ren")
         self.storage = storage_client or create_storage_client()
+        # System prompts (src/saint_graph/system_prompts) are always local (in container)
+        from src.infra.storage_client import FileSystemStorageClient
+        self.system_storage = FileSystemStorageClient()
+        self.bucket = os.getenv("GCS_BUCKET_NAME", "")
         
         # ストレージのパス構成
         self._saint_graph_prompts_path = "src/saint_graph/system_prompts"
@@ -44,15 +48,15 @@ class PromptLoader:
         core_instructions.md と persona.md を結合してシステム指示を返します。
         """
         try:
-            # core_instructions.md を読み込み（共通プロンプト）
-            core_content = self.storage.read_text(
-                bucket="",  # FileSystem mode では base_path からの相対パス
+            # core_instructions.md を読み込み（共通プロンプト） - Always from source code (Local FS)
+            core_content = self.system_storage.read_text(
+                bucket="",
                 key=f"{self._saint_graph_prompts_path}/core_instructions.md"
             )
             
-            # persona.md を読み込み（キャラクター固有）
+            # persona.md を読み込み（キャラクター固有） - From Storage (GCS or Local)
             persona_content = self.storage.read_text(
-                bucket="",
+                bucket=self.bucket if os.getenv("STORAGE_TYPE") == "gcs" else "",
                 key=f"{self._mind_base_path}/persona.md"
             )
             
@@ -67,17 +71,12 @@ class PromptLoader:
     def load_templates(self, names: list[str]) -> dict[str, str]:
         """
         指定された名前のテンプレートをsaint_graph配下から読み込みます。
-        
-        Args:
-            names: 読み込むテンプレート名のリスト（拡張子なし）
-        
-        Returns:
-            テンプレート名をキー、内容を値とする辞書
         """
         templates = {}
         for name in names:
             try:
-                content = self.storage.read_text(
+                # Templates are always from source code (Local FS)
+                content = self.system_storage.read_text(
                     bucket="",
                     key=f"{self._saint_graph_prompts_path}/{name}.md"
                 )
@@ -99,7 +98,7 @@ class PromptLoader:
         """
         try:
             content = self.storage.read_text(
-                bucket="",
+                bucket=self.bucket if os.getenv("STORAGE_TYPE") == "gcs" else "",
                 key=f"{self._mind_base_path}/mind.json"
             )
             return json.loads(content)

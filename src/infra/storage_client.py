@@ -120,9 +120,14 @@ class GcsStorageClient(StorageClient):
         except ImportError:
             raise ImportError("google-cloud-storage is required for GcsStorageClient")
 
+    def _get_bucket(self, bucket: str):
+        if not bucket:
+            raise ValueError("Bucket name must not be empty in GcsStorageClient")
+        return self.client.bucket(bucket)
+
     def download_file(self, bucket: str, key: str, dest: str) -> None:
         """Download file from GCS to local destination."""
-        bucket_obj = self.client.bucket(bucket)
+        bucket_obj = self._get_bucket(bucket)
         blob = bucket_obj.blob(key)
         
         dest_path = Path(dest)
@@ -133,20 +138,20 @@ class GcsStorageClient(StorageClient):
 
     def upload_file(self, bucket: str, key: str, src: str) -> None:
         """Upload file from local source to GCS."""
-        bucket_obj = self.client.bucket(bucket)
+        bucket_obj = self._get_bucket(bucket)
         blob = bucket_obj.blob(key)
         blob.upload_from_filename(src)
         logger.debug(f"Uploaded {src} to gs://{bucket}/{key}")
 
     def read_text(self, bucket: str, key: str) -> str:
         """Read text content from GCS."""
-        bucket_obj = self.client.bucket(bucket)
+        bucket_obj = self._get_bucket(bucket)
         blob = bucket_obj.blob(key)
         return blob.download_as_text()
 
     def list_objects(self, bucket: str, prefix: str) -> List[str]:
         """List objects in GCS bucket with given prefix."""
-        bucket_obj = self.client.bucket(bucket)
+        bucket_obj = self._get_bucket(bucket)
         blobs = bucket_obj.list_blobs(prefix=prefix)
         return [blob.name for blob in blobs]
 
