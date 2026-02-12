@@ -1,3 +1,11 @@
+import sys
+from pathlib import Path
+
+# src/ を sys.path に追加し、全環境で from infra.xxx が解決できるようにする
+_src_dir = str(Path(__file__).resolve().parent.parent / "src")
+if _src_dir not in sys.path:
+    sys.path.insert(0, _src_dir)
+
 import pytest
 import asyncio
 import os
