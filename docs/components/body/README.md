@@ -107,6 +107,7 @@ src/body/
 ## 関連ドキュメント
 
 - [アーキテクチャ](./architecture.md) - Body 全体設計
+- [GCE プロビジョニング](./provisioning.md) - startup.sh の振る舞い
 - [Streamer 概要](./streamer/overview.md) - Streamerモード
 - [CLI 概要](./cli/overview.md) - CLI モード
 - [システム概要](../../architecture/overview.md) - 全体アーキテクチャ

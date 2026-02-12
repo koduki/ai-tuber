@@ -38,6 +38,7 @@ AI Tuber は、**魂（Saint Graph）**、**肉体（Body）**、**精神（Mind
 ストリーミング制御:
 
 - [概要](./components/body/README.md)
+- [GCE プロビジョニング](./components/body/provisioning.md) - startup.sh の振る舞い
 - [アーキテクチャ](./components/body/architecture.md) *(作成予定)*
 - **Streamer モード**:
   - [概要](./components/body/streamer/overview.md) *(作成予定)*
