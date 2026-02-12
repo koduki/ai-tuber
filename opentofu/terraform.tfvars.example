@@ -6,5 +6,5 @@ character_name          = "ren"
 github_owner            = "your-github-username"
 github_repository       = "ai-tuber"
 enable_spot_instance    = true
-artifact_registry_name  = "ai-tuber"
+artifact_repository     = "ai-tuber"
 admin_ip_ranges         = ["YOUR_PUBLIC_IP/32"]

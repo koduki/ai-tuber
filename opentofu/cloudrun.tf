@@ -11,7 +11,7 @@ resource "google_cloud_run_v2_job" "saint_graph" {
   template {
     template {
       containers {
-        image = "${var.region}-docker.pkg.dev/${var.project_id}/${var.artifact_registry_name}/saint-graph:latest"
+        image = "${var.region}-docker.pkg.dev/${var.project_id}/${var.artifact_repository}/saint-graph:latest"
 
         env {
           name  = "STORAGE_TYPE"
@@ -102,7 +102,7 @@ resource "google_cloud_run_v2_service" "tools_weather" {
 
   template {
     containers {
-      image = "${var.region}-docker.pkg.dev/${var.project_id}/${var.artifact_registry_name}/tools-weather:latest"
+      image = "${var.region}-docker.pkg.dev/${var.project_id}/${var.artifact_repository}/tools-weather:latest"
 
       resources {
         limits = {
@@ -134,7 +134,7 @@ resource "google_cloud_run_v2_job" "news_collector" {
   template {
     template {
       containers {
-        image = "${var.region}-docker.pkg.dev/${var.project_id}/${var.artifact_registry_name}/news-collector:latest"
+        image = "${var.region}-docker.pkg.dev/${var.project_id}/${var.artifact_repository}/news-collector:latest"
 
         env {
           name = "GOOGLE_API_KEY"

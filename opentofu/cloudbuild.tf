@@ -36,7 +36,7 @@ resource "google_cloudbuild_trigger" "saint_graph_trigger" {
 
   substitutions = {
     _REGION     = var.region
-    _REPOSITORY = var.artifact_registry_name
+    _REPOSITORY = var.artifact_repository
   }
 }
 
@@ -63,7 +63,7 @@ resource "google_cloudbuild_trigger" "body_trigger" {
 
   substitutions = {
     _REGION     = var.region
-    _REPOSITORY = var.artifact_registry_name
+    _REPOSITORY = var.artifact_repository
   }
 }
 
@@ -90,7 +90,7 @@ resource "google_cloudbuild_trigger" "news_collector_trigger" {
 
   substitutions = {
     _REGION     = var.region
-    _REPOSITORY = var.artifact_registry_name
+    _REPOSITORY = var.artifact_repository
   }
 }
 
@@ -117,7 +117,7 @@ resource "google_cloudbuild_trigger" "tools_weather_trigger" {
 
   substitutions = {
     _REGION     = var.region
-    _REPOSITORY = var.artifact_registry_name
+    _REPOSITORY = var.artifact_repository
   }
 }
 
