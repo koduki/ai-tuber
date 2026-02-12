@@ -83,6 +83,11 @@ _config_base.validate()
 # google_api_key を SecretProvider 経由で取得
 _google_api_key = _load_google_api_key()
 
+# ADK の Gemini クラスは os.environ["GOOGLE_API_KEY"] を直接参照するため、
+# SecretProvider から取得したキーを環境変数にも反映する
+if _google_api_key and not os.getenv("GOOGLE_API_KEY"):
+    os.environ["GOOGLE_API_KEY"] = _google_api_key
+
 # 新しい Config インスタンスを作成（frozen なので再作成）
 _config = Config(
     mcp_url=_config_base.mcp_url,
