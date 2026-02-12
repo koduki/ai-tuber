@@ -145,16 +145,29 @@ GOOGLE_API_KEY=$(gcloud secrets versions access latest --secret="google-api-key"
 YT_SECRET=$(gcloud secrets versions access latest --secret="youtube-client-secret" 2>/dev/null || echo "{}")
 YT_TOKEN=$(gcloud secrets versions access latest --secret="youtube-token" 2>/dev/null || echo "{}")
 
+# Metadata-based stream config
+STREAM_TITLE=$(get_metadata "stream_title" "紅月れんのAIニュース配信")
+STREAM_DESC=$(get_metadata "stream_description" "Google ADKとGeminiを使用した次世代AITuberの配信テストです。")
+STREAM_PRIVACY=$(get_metadata "stream_privacy" "private")
+
 cat > .env << EOF
+# Core Secrets
 GOOGLE_API_KEY=${GOOGLE_API_KEY}
 YOUTUBE_CLIENT_SECRET_JSON='${YT_SECRET}'
 YOUTUBE_TOKEN_JSON='${YT_TOKEN}'
+
+# Infrastructure Abstraction (SaaS-ready)
+STORAGE_TYPE=gcs
+SECRET_PROVIDER_TYPE=gcp
+GCP_PROJECT_ID=${PROJECT_ID}
 GCS_BUCKET_NAME=${BUCKET_NAME}
+
+# Application States
 CHARACTER_NAME=${CHARACTER_NAME}
 STREAMING_MODE=true
-STREAM_TITLE="紅月れんのAIニュース配信テスト"
-STREAM_DESCRIPTION="Google ADKとGeminiを使った次世代AITuber、紅月れんのニュース配信テストです。"
-STREAM_PRIVACY=private
+STREAM_TITLE=${STREAM_TITLE}
+STREAM_DESCRIPTION=${STREAM_DESC}
+STREAM_PRIVACY=${STREAM_PRIVACY}
 VOICEVOX_DATA_DIR=/opt/ai-tuber/data/mind/${CHARACTER_NAME}
 EOF
 
