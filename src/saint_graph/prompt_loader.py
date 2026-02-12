@@ -36,12 +36,22 @@ class PromptLoader:
         from src.infra.storage_client import FileSystemStorageClient
         self.system_storage = FileSystemStorageClient()
         self.bucket = os.getenv("GCS_BUCKET_NAME", "")
+        self._is_gcs = os.getenv("STORAGE_TYPE") == "gcs"
         
         # ストレージのパス構成
         self._saint_graph_prompts_path = "src/saint_graph/system_prompts"
-        self._mind_base_path = f"data/mind/{self.character_name}"
+        # GCS: gsutil rsync data/mind/ gs://bucket/mind/ → GCS key は mind/{character}
+        # Local: プロジェクトルートからの相対パス → data/mind/{character}
+        if self._is_gcs:
+            self._mind_base_path = f"mind/{self.character_name}"
+        else:
+            self._mind_base_path = f"data/mind/{self.character_name}"
         
         logger.info(f"PromptLoader initialized for character: {self.character_name}")
+
+    def _mind_bucket(self) -> str:
+        """mind データ読み込み用のバケット名を返す。ローカルの場合は空文字。"""
+        return self.bucket if self._is_gcs else ""
 
     def load_system_instruction(self) -> str:
         """
@@ -56,7 +66,7 @@ class PromptLoader:
             
             # persona.md を読み込み（キャラクター固有） - From Storage (GCS or Local)
             persona_content = self.storage.read_text(
-                bucket=self.bucket if os.getenv("STORAGE_TYPE") == "gcs" else "",
+                bucket=self._mind_bucket(),
                 key=f"{self._mind_base_path}/persona.md"
             )
             
@@ -98,7 +108,7 @@ class PromptLoader:
         """
         try:
             content = self.storage.read_text(
-                bucket=self.bucket if os.getenv("STORAGE_TYPE") == "gcs" else "",
+                bucket=self._mind_bucket(),
                 key=f"{self._mind_base_path}/mind.json"
             )
             return json.loads(content)
@@ -108,3 +118,4 @@ class PromptLoader:
         except Exception as e:
             logger.error(f"Error loading mind.json for {self.character_name}: {e}")
             return {}
+
