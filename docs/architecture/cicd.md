@@ -95,6 +95,33 @@ Cloud Build は、最小権限の原則に基づき、以下の IAM ロールを
 
 ---
 
+## 手動実行の手順 (`gcloud`)
+
+Git Push を行わずに、または特定のトリガーを強制的に実行したい場合は、以下の `gcloud` コマンドを使用してください。
+
+### 1. トリガーを起動する
+GitHub に接続済みのトリガーを、特定のブランチを指定して手動で起動します。
+
+```bash
+# Saint Graph のビルド & デプロイ
+gcloud beta builds triggers run ai-tuber-saint-graph --branch=main --region=global
+
+# Mind データの同期
+gcloud beta builds triggers run ai-tuber-mind-data-sync --branch=main --region=global
+```
+
+### 2. ローカルから直接ビルドをリクエストする
+Git への Push を介さず、ローカルのファイル一式を GCP に送信してビルドを実行します（YAML のテスト等に便利）。
+
+```bash
+# Saint Graph のオンデマンドビルド
+gcloud builds submit --config cloudbuild-saint-graph.yaml \
+  --substitutions=_REGION=asia-northeast1,_REPOSITORY=ai-tuber .
+```
+
+---
+
 ## 関連ファイル
 - `cloudbuild-*.yaml`: 各コンポーネントのビルド定義
 - `opentofu/cloudbuild.tf`: トリガーと IAM の定義
+
