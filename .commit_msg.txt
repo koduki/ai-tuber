@@ -1,0 +1,6 @@
+docs: update documentation to reflect infra abstraction layer
+
+- Add src/infra and tests/infra to project structure docs
+- Add STORAGE_TYPE and SECRET_PROVIDER_TYPE to env var reference
+- Update prompt_loader.py and config.py descriptions
+- Fix remaining saas references in __init__.py files
