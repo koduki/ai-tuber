@@ -51,8 +51,12 @@ docker compose up -d voicevox
    `gs://{バケット名}/mind/{character_name}/user_dict.json`
 
 2. **自動同期**:
-   GCE インスタンスの起動時に、スタートアップスクリプトが自動的に GCS からファイルをダウンロードし、コンテナにマウントします。
+   GCE インスタンスの起動時に、スタートアップスクリプトが自動的に GCS からファイルをダウンロードし、`/opt/ai-tuber/data/mind/{character_name}/` に配置します。
+
+3. **権限設定**:
+   VoiceVox コンテナのユーザーがファイルを読み込めるよう、スタートアップスクリプト内で自動的に `chmod -R 777` が適用されます。
 
 ## 注意事項
 - ユーザー辞書に1つも単語が登録されていない場合、`user_dict.json` は作成されません。
 - コンテナ内のマウント先は `/home/user/.local/share/voicevox-engine-dev` です。
+- GCE 環境ではインスタンスメタデータの `character_name` に基づいて同期対象が決定されます。
