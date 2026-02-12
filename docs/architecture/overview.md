@@ -203,6 +203,7 @@ graph TD
 - ✅ **共有ストレージ**: Cloud Storage でニュース原稿を共有
 - ✅ **Secret Manager 統合**: API キーや YouTube 認証情報を安全に管理
 - ✅ **Git 不要**: Artifact Registry から直接イメージをプル
+- ✅ **CI/CD 自動化**: Cloud Build によるディレクトリ単位の自動ビルド・デプロイ
 
 **Saint Graph を Job として実装した理由**:
 - HTTP サーバーの実装が不要（コードがシンプル）
@@ -210,7 +211,7 @@ graph TD
 - バッチ処理（配信）としての実態に即している
 - ヘルスチェック不要で堅牢
 
-詳細: **[GCP デプロイガイド](../../opentofu/README.md)**
+詳細: **[GCP デプロイガイド](../../opentofu/README.md)** / **[CI/CD アーキテクチャ](./cicd.md)**
 
 ---
 

@@ -380,9 +380,15 @@ refactor: リファクタリング
 
 ---
 
-## CI/CD（将来的に追加予定）
+## CI/CD 自動化
 
-現在、GitHub Actions によるテスト自動化を検討中です。
+本プロジェクトでは GitHub と Cloud Build が連携しており、特定のディレクトリを変更して Push するだけで自動的にビルドとデプロイが行われます。
+
+- **Saint Graph**: `src/saint_graph/` 配下の変更
+- **Body**: `src/body/` 配下の変更
+- **Mind データ**: `data/mind/` 配下の変更
+
+詳細は [CI/CD アーキテクチャ](../architecture/cicd.md) を参照してください。
 
 ---
 
