@@ -6,6 +6,6 @@ COPY src/saint_graph/requirements.txt /app/requirements.txt
 RUN pip install --no-cache-dir -r /app/requirements.txt
 
 COPY . /app/
-ENV PYTHONPATH=/app
+ENV PYTHONPATH=/app/src
 
-CMD ["python", "-m", "src.saint_graph.main"]
+CMD ["python", "-m", "saint_graph.main"]

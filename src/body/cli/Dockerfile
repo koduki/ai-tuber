@@ -13,6 +13,6 @@ COPY src /app/src
 
 ENV PYTHONIOENCODING=utf-8
 ENV LANG=C.UTF-8
-ENV PYTHONPATH=/app
+ENV PYTHONPATH=/app/src
 
-CMD ["python", "-m", "src.body.cli.main"]
+CMD ["python", "-m", "body.cli.main"]

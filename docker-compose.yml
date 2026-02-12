@@ -18,15 +18,19 @@ services:
       - STREAM_TITLE=${STREAM_TITLE:-}
       - STREAM_DESCRIPTION=${STREAM_DESCRIPTION:-}
       - STREAM_PRIVACY=${STREAM_PRIVACY:-private}
-      - PYTHONPATH=/app
+      - PYTHONPATH=/app/src
       - ADK_TELEMETRY=false
       - NO_PROXY=body-streamer,tools-weather,localhost,127.0.0.1
+      # SaaS-ready configuration
+      - STORAGE_TYPE=filesystem
+      - SECRET_PROVIDER_TYPE=env
+      - CHARACTER_NAME=${CHARACTER_NAME:-ren}
     depends_on:
       body-streamer:
         condition: service_healthy
       tools-weather:
         condition: service_healthy
-    command: python -m src.saint_graph.main
+    command: python -m saint_graph.main
 
   # --- Tools Weather (MCP Server) ---
   tools-weather:

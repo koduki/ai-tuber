@@ -35,12 +35,15 @@ ai-tuber/
 │       ├── requirements.txt
 │       └── README.md
 ├── src/
+│   ├── infra/             # インフラ抽象化レイヤー
+│   │   ├── storage_client.py  # Storage 抽象化 (FileSystem / GCS)
+│   │   └── secret_provider.py # Secret 抽象化 (Env / GCP Secret Manager)
 │   ├── saint_graph/       # Saint Graph (魂) - Google ADK Agent
 │   │   ├── main.py        # エントリポイント
-│   │   ├── agent.py       # Agent 設定とターン処理
+│   │   ├── saint_graph.py # Agent 設定とターン処理
 │   │   ├── body_client.py # Body REST クライアント
-│   │   ├── prompts.py     # プロンプト読み込み
-│   │   └── tools.py       # MCP ツール統合
+│   │   ├── prompt_loader.py # プロンプト読み込み (StorageClient 経由)
+│   │   └── config.py      # 設定管理 (SecretProvider 経由)
 │   ├── body/
 │   │   ├── cli/           # Body CLI (開発用)
 │   │   │   ├── main.py
@@ -65,6 +68,7 @@ ai-tuber/
 ├── tests/
 │   ├── unit/              # ユニットテスト
 │   ├── integration/       # 統合テスト
+│   ├── infra/             # インフラ抽象化レイヤーのテスト
 │   └── e2e/               # E2E テスト
 ├── docs/                  # ドキュメント
 └── docker-compose.yml     # Docker 構成
@@ -369,14 +373,22 @@ refactor: リファクタリング
 | `NEWS_DIR` | `/app/data/news` | ニュース原稿ディレクトリ |
 | `MODEL_NAME` | `gemini-2.5-flash-lite` | Gemini モデル |
 | `ADK_TELEMETRY` | `false` | ADK テレメトリ |
+| `STORAGE_TYPE` | `filesystem` | ストレージ種別 (`filesystem` / `gcs`) |
+| `SECRET_PROVIDER_TYPE` | `env` | シークレット取得元 (`env` / `gcp`) |
 
 詳細は [通信プロトコル](../architecture/communication.md) を参照してください。
 
 ---
 
-## CI/CD（将来的に追加予定）
+## CI/CD 自動化
 
-現在、GitHub Actions によるテスト自動化を検討中です。
+本プロジェクトでは GitHub と Cloud Build が連携しており、特定のディレクトリを変更して Push するだけで自動的にビルドとデプロイが行われます。
+
+- **Saint Graph**: `src/saint_graph/` 配下の変更
+- **Body**: `src/body/` 配下の変更
+- **Mind データ**: `data/mind/` 配下の変更
+
+詳細は [CI/CD アーキテクチャ](../architecture/cicd.md) を参照してください。
 
 ---
 

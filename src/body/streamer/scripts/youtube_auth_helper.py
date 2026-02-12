@@ -3,8 +3,8 @@ import logging
 import sys
 import os
 
-from src.body.streamer.youtube_live_adapter import YoutubeLiveAdapter
-from src.body.streamer.utils import ensure_youtube_secrets
+from body.streamer.youtube_live_adapter import YoutubeLiveAdapter
+from body.streamer.utils import ensure_youtube_secrets
 
 
 def main():

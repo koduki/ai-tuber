@@ -37,9 +37,11 @@ resource "google_compute_instance" "body_node" {
   }
 
   metadata = {
-    enable-oslogin = "TRUE"
-    gcs_bucket     = var.bucket_name
-    character_name = var.character_name
+    enable-oslogin     = "TRUE"
+    gcs_bucket         = var.bucket_name
+    character_name     = var.character_name
+    stream_title       = var.stream_title
+    stream_description = var.stream_description
   }
 
   metadata_startup_script = file("${path.module}/../scripts/gce/startup.sh")

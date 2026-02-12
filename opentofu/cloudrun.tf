@@ -11,41 +11,31 @@ resource "google_cloud_run_v2_job" "saint_graph" {
   template {
     template {
       containers {
-        image = "${var.region}-docker.pkg.dev/${var.project_id}/${var.repository_name}/saint-graph:latest"
+        image = "${var.region}-docker.pkg.dev/${var.project_id}/${var.artifact_repository}/saint-graph:latest"
 
         env {
-          name = "GOOGLE_API_KEY"
-          value_source {
-            secret_key_ref {
-              secret  = google_secret_manager_secret.google_api_key.secret_id
-              version = "latest"
-            }
-          }
+          name  = "STORAGE_TYPE"
+          value = "gcs"
         }
 
         env {
-          name = "YOUTUBE_CLIENT_SECRET_JSON"
-          value_source {
-            secret_key_ref {
-              secret  = google_secret_manager_secret.youtube_client_secret.secret_id
-              version = "latest"
-            }
-          }
+          name  = "SECRET_PROVIDER_TYPE"
+          value = "gcp"
         }
 
         env {
-          name = "YOUTUBE_TOKEN_JSON"
-          value_source {
-            secret_key_ref {
-              secret  = google_secret_manager_secret.youtube_token.secret_id
-              version = "latest"
-            }
-          }
+          name  = "GCP_PROJECT_ID"
+          value = var.project_id
         }
 
         env {
           name  = "GCS_BUCKET_NAME"
           value = var.bucket_name
+        }
+
+        env {
+          name  = "CHARACTER_NAME"
+          value = var.character_name
         }
 
         env {
@@ -55,12 +45,12 @@ resource "google_cloud_run_v2_job" "saint_graph" {
 
         env {
           name  = "STREAM_TITLE"
-          value = "紅月れんのAIニュース配信テスト"
+          value = var.stream_title
         }
 
         env {
           name  = "STREAM_DESCRIPTION"
-          value = "Google ADKとGeminiを使った次世代AITuber、紅月れんのニュース配信テストです。"
+          value = var.stream_description
         }
 
         env {
@@ -112,7 +102,7 @@ resource "google_cloud_run_v2_service" "tools_weather" {
 
   template {
     containers {
-      image = "${var.region}-docker.pkg.dev/${var.project_id}/${var.repository_name}/tools-weather:latest"
+      image = "${var.region}-docker.pkg.dev/${var.project_id}/${var.artifact_repository}/tools-weather:latest"
 
       resources {
         limits = {
@@ -144,7 +134,7 @@ resource "google_cloud_run_v2_job" "news_collector" {
   template {
     template {
       containers {
-        image = "${var.region}-docker.pkg.dev/${var.project_id}/${var.repository_name}/news-collector:latest"
+        image = "${var.region}-docker.pkg.dev/${var.project_id}/${var.artifact_repository}/news-collector:latest"
 
         env {
           name = "GOOGLE_API_KEY"
@@ -194,7 +184,7 @@ resource "google_cloud_run_v2_service" "healthcheck_proxy" {
 
   template {
     containers {
-      image = "${var.region}-docker.pkg.dev/${var.project_id}/${var.repository_name}/healthcheck-proxy:latest"
+      image = "${var.region}-docker.pkg.dev/${var.project_id}/${var.artifact_repository}/healthcheck-proxy:latest"
       resources {
         limits = {
           cpu    = "1"
@@ -215,9 +205,7 @@ resource "google_cloud_run_v2_service" "healthcheck_proxy" {
   }
 }
 
-data "google_project" "project" {
-  project_id = var.project_id
-}
+
 
 output "tools_weather_url" {
   value = google_cloud_run_v2_service.tools_weather.uri

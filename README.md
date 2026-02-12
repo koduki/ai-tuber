@@ -7,7 +7,11 @@ Ren Studioは「AITuber 紅月れん」を動かすためのシステムです�
 ## 特徴
 
 - **3層アーキテクチャ**: 魂・肉体・精神が分離された設計
+- **コードとデータの分離**: Mind（キャラクター）をデータとして扱い、コードの再利用性を最大化
+- **ステートレスコンテナ**: ユーザ固有情報をイメージに含めず、起動時に動的ロード
+- **プラットフォーム抽象化**: ローカル/GCP の差異を StorageClient/SecretProvider で吸収
 - **ハイブリッド通信**: REST（身体操作）+ MCP（外部ツール）
+- **CI/CD 自動化**: Cloud Build によるディレクトリ単位の自動デプロイ
 - **YouTube Live 対応**: OAuth 認証、配信作成、リアルタイムコメント取得
 - **感情制御**: AI 生成テキストから感情タグを自動パース
 - **センテンス順次再生**: 音声の重複を防ぐインテリジェントな再生システム
@@ -135,6 +139,8 @@ data/mind/{character_name}/
 | `STREAM_PRIVACY` | `private` | 配信公開設定 (`public`, `unlisted`, `private`) |
 | `CHARACTER_NAME` | `ren` | キャラクター名 |
 | `NEWS_DIR` | `/app/data/news` | ニュース原稿ディレクトリ |
+| `STORAGE_TYPE` | `filesystem` | ストレージ種別 (`filesystem` / `gcs`) |
+| `SECRET_PROVIDER_TYPE` | `env` | シークレット取得元 (`env` / `gcp`) |
 
 ### Body（肉体）
 

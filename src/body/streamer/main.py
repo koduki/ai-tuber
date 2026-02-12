@@ -7,7 +7,7 @@ from starlette.responses import JSONResponse
 from starlette.requests import Request
 from starlette.routing import Route
 from .tools import speak, change_emotion, get_comments, start_obs_recording, stop_obs_recording, play_audio_file, start_streaming, stop_streaming, get_streaming_comments
-from src.body.streamer.utils import ensure_youtube_secrets
+from .utils import ensure_youtube_secrets
 from .youtube import start_comment_polling
 
 # ログ設定

@@ -38,7 +38,7 @@ variable "enable_spot_instance" {
   default     = true
 }
 
-variable "repository_name" {
+variable "artifact_repository" {
   description = "Artifact Registry repository name"
   type        = string
   default     = "ai-tuber"
@@ -54,6 +54,30 @@ variable "character_name" {
   description = "Name of the character (e.g. ren)"
   type        = string
   default     = "ren"
+}
+
+variable "github_owner" {
+  description = "GitHub repository owner"
+  type        = string
+  default     = "" # Should be set in terraform.tfvars
+}
+
+variable "github_repository" {
+  description = "GitHub repository name"
+  type        = string
+  default     = "ai-tuber"
+}
+
+variable "stream_title" {
+  description = "Default stream title for YouTube broadcasts"
+  type        = string
+  default     = "紅月れんのAIニュース配信"
+}
+
+variable "stream_description" {
+  description = "Default stream description for YouTube broadcasts"
+  type        = string
+  default     = "Google ADKとGeminiを使用した次世代AITuberの配信テストです。"
 }
 
 provider "google" {
@@ -74,5 +98,20 @@ resource "google_project_service" "workflowexecutions" {
 
 resource "google_project_service" "vpcaccess" {
   service            = "vpcaccess.googleapis.com"
+  disable_on_destroy = false
+}
+
+resource "google_project_service" "cloudbuild" {
+  service            = "cloudbuild.googleapis.com"
+  disable_on_destroy = false
+}
+
+resource "google_project_service" "compute" {
+  service            = "compute.googleapis.com"
+  disable_on_destroy = false
+}
+
+resource "google_project_service" "run" {
+  service            = "run.googleapis.com"
   disable_on_destroy = false
 }

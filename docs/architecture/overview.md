@@ -37,6 +37,80 @@ Google ADK をベースにした意思決定エンジン。システムの思考
 
 ---
 
+## アーキテクチャ設計原則
+
+本システムは、将来的な拡張性と保守性を考慮し、以下の設計原則に基づいて構築されています。
+
+### 1. コードとデータの分離
+
+**Mind（キャラクター定義）をデータとして扱う**ことで、コードの再利用性を最大化します。
+
+- **Saint Graph** は汎用的な「思考エンジン」として実装
+- **キャラクター設定**（persona.md、mind.json、アセット）は外部データとして管理
+- キャラクターを追加・変更する際、コードの変更やコンテナの再ビルドは不要
+
+```
+コード (再利用可能)
+  └─ SaintGraph エンジン
+       ↓ 読み込み
+データ (キャラクター固有)
+  ├─ persona.md      # 性格・口調
+  ├─ mind.json       # 技術設定（speaker_id等）
+  └─ assets/         # 立ち絵・音声
+```
+
+### 2. ステートレスコンテナ
+
+**コンテナイメージにユーザ固有情報を含めない**ことで、デプロイとスケーリングを柔軟に行えます。
+
+- コンテナ起動時に `CHARACTER_NAME` 環境変数でキャラクターを指定
+- プロンプトやアセットは起動時に `StorageClient` 経由で動的ロード
+- API キーや認証情報は `SecretProvider` 経由で取得
+
+**メリット**:
+- イメージの再ビルドなしでキャラクター切り替え可能
+- 機密情報がイメージに含まれない（セキュリティ向上）
+- 将来的なマルチテナント化への対応が容易
+
+### 3. プラットフォーム抽象化
+
+**ローカル開発と本番環境の差異を吸収**することで、開発体験を統一します。
+
+#### Storage Abstraction Layer
+
+| 環境 | ストレージ | 認証 |
+|------|-----------|------|
+| **ローカル** | FileSystem (`./data/`) | 不要 |
+| **本番 (GCP)** | Google Cloud Storage | IAM / Service Account |
+
+`StorageClient` インターフェースにより、アプリケーションはストレージの実装詳細を意識せずに動作します。
+
+**⚠️ GCS とローカルのパス規約の違い:**
+
+`cloudbuild-mind.yaml` の同期コマンド `gsutil rsync data/mind/ gs://bucket/mind/` により、GCS 上のキーには `data/` プレフィクスが付きません。
+
+| 環境 | `persona.md` のパス |
+|------|---|
+| **ローカル** | `{base}/data/mind/ren/persona.md` |
+| **GCS** | `gs://bucket/mind/ren/persona.md` |
+
+この差異は `PromptLoader` 内で `STORAGE_TYPE` 環境変数に基づき自動的に吸収されます。
+
+#### Secrets Abstraction Layer
+
+| 環境 | シークレット取得元 |
+|------|------------------|
+| **ローカル** | 環境変数 (`.env`) |
+| **本番 (GCP)** | Secret Manager |
+
+`SecretProvider` インターフェースにより、API キーや認証情報の取得方法を統一します。
+
+**名前の正規化:** `GcpSecretProvider` はシークレット名を自動変換します（`GOOGLE_API_KEY` → `google-api-key`）。これにより、アプリコード内は `UPPER_CASE` で統一しつつ、Secret Manager 側は GCP の kebab-case 命名規則に従えます。
+
+**ADK 連携:** Google ADK は `os.environ["GOOGLE_API_KEY"]` を直接参照するため、`SecretProvider` で取得した API キーは環境変数にも反映されます。
+
+---
+
 ## システム構成
 
 ### マイクロサービス構成
@@ -144,6 +218,7 @@ graph TD
 - ✅ **共有ストレージ**: Cloud Storage でニュース原稿を共有
 - ✅ **Secret Manager 統合**: API キーや YouTube 認証情報を安全に管理
 - ✅ **Git 不要**: Artifact Registry から直接イメージをプル
+- ✅ **CI/CD 自動化**: Cloud Build によるディレクトリ単位の自動ビルド・デプロイ
 
 **Saint Graph を Job として実装した理由**:
 - HTTP サーバーの実装が不要（コードがシンプル）
@@ -151,7 +226,7 @@ graph TD
 - バッチ処理（配信）としての実態に即している
 - ヘルスチェック不要で堅牢
 
-詳細: **[GCP デプロイガイド](../../opentofu/README.md)**
+詳細: **[GCP デプロイガイド](../../opentofu/README.md)** / **[CI/CD アーキテクチャ](./cicd.md)**
 
 ---
 
@@ -252,6 +327,9 @@ tests/
 │   ├── test_youtube_oauth.py           # YouTube OAuth 認証
 │   ├── test_youtube_comment_adapter.py  # YouTube コメント取得
 │   └── test_agent_scenarios.py         # 天気+発話シナリオ
+├── infra/             # インフラ抽象化レイヤーテスト
+│   ├── test_storage_client.py     # StorageClient (FileSystem / GCS)
+│   └── test_secret_provider.py    # SecretProvider (Env / GCP)
 └── e2e/               # E2E テスト
     └── test_system_smoke.py        # システム全体動作確認
 ```

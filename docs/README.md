@@ -15,6 +15,7 @@ AI Tuber は、**魂（Saint Graph）**、**肉体（Body）**、**精神（Mind
 システム全体の設計:
 
 - [システム概要](./architecture/overview.md) - 三位一体構造の説明
+- [CI/CD 自動化](./architecture/cicd.md) - Cloud Build トリガー構成
 - [通信プロトコル](./architecture/communication.md) - REST/MCP 仕様
 - [データフロー](./architecture/data-flow.md) - 処理シーケンス
 
@@ -38,6 +39,7 @@ AI Tuber は、**魂（Saint Graph）**、**肉体（Body）**、**精神（Mind
 ストリーミング制御:
 
 - [概要](./components/body/README.md)
+- [GCE プロビジョニング](./components/body/provisioning.md) - startup.sh の振る舞い
 - [アーキテクチャ](./components/body/architecture.md) *(作成予定)*
 - **Streamer モード**:
   - [概要](./components/body/streamer/overview.md) *(作成予定)*
@@ -59,6 +61,15 @@ AI Tuber は、**魂（Saint Graph）**、**肉体（Body）**、**精神（Mind
 - [感情制御](./components/mind/emotion-control.md) *(作成予定)*
 - [キャラクター作成ガイド](./components/mind/character-creation-guide.md) *(作成予定)*
 - [VOICEVOX 辞書管理](./components/mind/voicevox-dictionary.md)
+
+---
+
+### Infra（インフラ抽象化）
+
+ローカル / GCP の差異を吸収する抽象化レイヤー:
+
+- **[StorageClient](../src/infra/storage_client.py)** - ファイル取得先の抽象化 (`FileSystem` / `GCS`)
+- **[SecretProvider](../src/infra/secret_provider.py)** - 機密情報取得先の抽象化 (`Env` / `GCP Secret Manager`)
 
 ---
 

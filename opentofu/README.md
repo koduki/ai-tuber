@@ -1,5 +1,94 @@
 
+
 このディレクトリには、AI Tuber システムを Google Cloud Platform (GCP) にデプロイするための OpenTofu 設定と手順が含まれています。
+
+## OpenTofu 設計思想
+
+### 基本原則
+
+このインフラ構成は、以下の設計原則に基づいています。
+
+#### 1. **Infrastructure as Code (IaC) の徹底**
+- すべてのインフラをコードで定義し、バージョン管理
+- 手動設定を排除し、再現性と監査性を確保
+- ドリフト検出により、意図しない変更を防止
+
+#### 2. **役割分担の明確化**
+| 担当 | 役割 | 対象 |
+|:---|:---|:---|
+| **OpenTofu** | インフラの「器」を定義 | リソースの作成、IAM、ネットワーク |
+| **Cloud Build** | アプリの「中身」を更新 | イメージのビルド・デプロイ、データ同期 |
+
+この分離により、「構成の変更（Tofu）」と「日々のコード更新（Build）」を独立して管理できます。
+
+#### 3. **変数の一元管理**
+- すべての変数を `main.tf` に集約
+- ハードコードを排除し、環境ごとの差異を `terraform.tfvars` で吸収
+- デフォルト値を適切に設定し、必須項目を明示
+
+#### 4. **最小権限の原則 (Least Privilege)**
+- 各サービスアカウントに必要最小限の権限のみ付与
+- プロジェクトレベルではなく、リソースレベルでの権限設定を優先
+- IAM の定義を `iam.tf` に集約して可視化
+
+#### 5. **セキュリティ多層防御**
+- VPC 隔離によるネットワーク分離
+- Secret Manager による機密情報の一元管理
+- OIDC 認証によるサービス間通信の保護
+- IAP 経由の SSH アクセスのみ許可
+
+### ファイル構成の意図
+
+| ファイル | 責務 | 内容 |
+|:---|:---|:---|
+| `main.tf` | エントリポイント・変数定義 | すべての変数、プロバイダ設定、API 有効化 |
+| `cloudrun.tf` | Cloud Run リソース | Job (SaintGraph, NewsCollector) と Service (Tools, Proxy) |
+| `cloudbuild.tf` | CI/CD トリガー | ディレクトリベースの自動デプロイ設定 |
+| `compute.tf` | Compute Engine | GPU 搭載 Body Node の定義 |
+| `network.tf` | ネットワーク | VPC、サブネット、ファイアウォール、NAT |
+| `iam.tf` | 権限管理 | サービスアカウントと IAM ロールの集約 |
+| `storage.tf` | ストレージ | GCS バケットと権限 |
+| `secrets.tf` | 機密情報 | Secret Manager リソース |
+| `scheduler.tf` | スケジューリング | Cloud Workflows とトリガー |
+| `workflow.yaml` | オーケストレーション | 配信パイプラインの定義 |
+
+この構成により、**責務ごとに独立したファイル**となり、変更の影響範囲が把握しやすくなっています。
+
+### 設計上の重要な決定
+
+#### Cloud Run Job vs Service (SaintGraph)
+SaintGraph は **Job** として実装されています。理由：
+- **長時間実行**: 配信は最大 1 時間続く（Service の 60 分制限を超える）
+- **シンプル**: HTTP サーバー不要で、エントリポイントのみ
+- **適合性**: 「1 回の配信」という概念に Job がマッチ
+
+#### Spot Instance の採用
+Body Node（GCE）は **Spot Instance** をデフォルトとしています。理由：
+- **コスト削減**: 通常料金の 60-90% オフ
+- **許容可能なリスク**: 配信中断は YouTube で再接続可能
+- **切り替え可能**: `enable_spot_instance = false` で通常インスタンスに変更可
+
+#### VPC 隔離とプロキシパターン
+Body Node のヘルスチェック用に **Healthcheck Proxy** を配置。理由：
+- **セキュリティ**: GCE の内部ポートをインターネットに公開しない
+- **認証**: OIDC により許可されたサービスのみアクセス可能
+- **監視**: Cloud Workflows から GCE の状態を安全に確認
+
+### 変数管理のポリシー
+
+#### 必須変数（`terraform.tfvars` で設定）
+- `project_id`: GCP プロジェクト ID
+- `bucket_name`: GCS バケット名（グローバルにユニーク）
+- `github_owner`: GitHub のユーザー名または組織名
+- `admin_ip_ranges`: 管理者の IP アドレス範囲
+
+#### オプション変数（デフォルト値あり）
+- `region`, `zone`: デプロイ先のリージョン/ゾーン
+- `character_name`: キャラクター名（Mind データの識別子）
+- `stream_title`, `stream_description`: 配信のメタデータ
+- `enable_spot_instance`: Spot Instance の有効化
+
+この方針により、**必要最小限の設定で動作**し、詳細なカスタマイズも可能です。
 
 ## アーキテクチャ概要
 
@@ -70,7 +159,58 @@ echo -n '{"token":"...","refresh_token":"..."}' | gcloud secrets create youtube-
 
 **注意**: YouTube 認証情報は、ローカルで OAuth フローを完了した後の JSON ファイルの内容をそのまま登録してください。
 
-### 2. Docker イメージのビルドとプッシュ
+### 2. GitHub リポジトリの接続 (CI/CD 用)
+
+Cloud Build トリガーを作成するには、事前に GitHub リポジトリを GCP に接続する必要があります。
+
+#### 手順 1: Cloud Build の GitHub App 接続
+
+以下のいずれかの方法で接続してください。
+
+**方法 A: コンソールから直接接続（推奨）**
+
+1. 以下の URL を開きます：
+   ```
+   https://console.cloud.google.com/cloud-build/triggers;region=global/connect?project=<YOUR_PROJECT_ID>
+   ```
+   （`<YOUR_PROJECT_ID>` を実際のプロジェクト ID に置き換えてください）
+
+2. **「リポジトリを接続」** をクリック
+
+3. **「GitHub (Cloud Build GitHub App)」** を選択（推奨）
+   - 従来の GitHub App よりもセキュアで、きめ細かい権限管理が可能
+
+4. GitHub での認証を完了
+   - GitHub アカウントでのログインを求められます
+   - Cloud Build App のインストールと権限付与を承認
+
+5. 接続するリポジトリを選択
+   - `koduki/ai-tuber`（または自分のフォーク）を選択
+   - **「接続」** をクリック
+
+**方法 B: Cloud Build トリガー作成画面から接続**
+
+1. [Cloud Build トリガー](https://console.cloud.google.com/cloud-build/triggers) を開く
+2. **「トリガーを作成」** をクリック
+3. **「リポジトリを接続」** → 上記の手順 3〜5 を実施
+
+#### 手順 2: 接続の確認
+
+以下のコマンドで接続されたリポジトリを確認できます：
+
+```bash
+gcloud builds repositories list --connection=<CONNECTION_NAME> --region=global
+```
+
+または、[Cloud Build の「リポジトリ」タブ](https://console.cloud.google.com/cloud-build/repositories) で視覚的に確認できます。
+
+#### 重要な注意事項
+
+- **この手順は手動操作が必須です**: OAuth 認証が必要なため、OpenTofu だけでは完結できません
+- **一度接続すれば、以降は不要です**: 同じプロジェクトで同じリポジトリを使い続ける限り、再接続は不要です
+- **複数のリポジトリを接続可能**: 必要に応じて他のリポジトリも追加できます
+
+### 3. Docker イメージのビルドとプッシュ
 
 **重要**: GCE の Body Node が正常に起動するには、**以下のすべてのイメージが Artifact Registry にプッシュされている必要があります**。いずれか一つでも欠けていると、スタートアップスクリプトが失敗します。
 
@@ -142,21 +282,32 @@ gcloud artifacts docker images list ${REGION}-docker.pkg.dev/${PROJECT_ID}/ai-tu
 # - healthcheck-proxy
 ```
 
-### 3. OpenTofu によるインフラのデプロイ
+### 4. OpenTofu によるインフラのデプロイ
 
-**イメージのプッシュ後**に OpenTofu でインフラをデプロイします：
+**前提条件**:
+- イメージが Artifact Registry にプッシュ済み
+- GitHub リポジトリが Cloud Build に接続済み（手順 2 を完了）
+
+インフラをデプロイします：
 
 ```bash
 cd opentofu
 
 # 設定ファイルの作成
 cp terraform.tfvars.example terraform.tfvars
-# エディタで terraform.tfvars を編集し、project_id や admin_ip_ranges を設定
+# エディタで terraform.tfvars を編集し、project_id, github_owner, admin_ip_ranges などを設定
 
 # デプロイ実行
 tofu init
 tofu apply
 ```
+
+**注意**: GitHub 接続が完了していない場合、Cloud Build トリガーの作成時に以下のエラーが発生します：
+```
+Error: Repository mapping does not exist. Please visit https://console.cloud.google.com/cloud-build/triggers;region=global/connect?project=...
+```
+この場合は、手順 2 に戻って GitHub 接続を完了させてください。
+
 
 ## 運用とモニタリング
 

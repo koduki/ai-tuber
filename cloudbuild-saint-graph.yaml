@@ -1,0 +1,20 @@
+steps:
+  # Build the container image
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['build', '-t', '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPOSITORY}/saint-graph:latest', '-f', 'src/saint_graph/Dockerfile', '.']
+
+  # Push the container image to Artifact Registry
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['push', '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPOSITORY}/saint-graph:latest']
+
+  # Update the Cloud Run Job
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: 'gcloud'
+    args: ['run', 'jobs', 'update', 'ai-tuber-saint-graph', '--image', '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPOSITORY}/saint-graph:latest', '--region', '${_REGION}']
+
+substitutions:
+  _REGION: asia-northeast1
+  _REPOSITORY: ai-tuber
+
+options:
+  logging: CLOUD_LOGGING_ONLY
