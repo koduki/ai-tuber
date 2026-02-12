@@ -1,0 +1,11 @@
+steps:
+  # Sync mind data to GCS
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: 'gsutil'
+    args: ['rsync', '-r', '-d', 'data/mind/', 'gs://${_BUCKET_NAME}/mind/']
+
+substitutions:
+  _BUCKET_NAME: ai-tuber-shared-data # This should ideally be passed or managed by Tofu
+
+options:
+  logging: CLOUD_LOGGING_ONLY

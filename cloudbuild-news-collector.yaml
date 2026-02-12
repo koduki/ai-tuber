@@ -1,0 +1,20 @@
+steps:
+  # Build the container image
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['build', '-t', '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPOSITORY}/news-collector:latest', '-f', 'scripts/news_collector/Dockerfile', '.']
+
+  # Push the container image to Artifact Registry
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['push', '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPOSITORY}/news-collector:latest']
+
+  # Update the Cloud Run Job
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: 'gcloud'
+    args: ['run', 'jobs', 'update', 'ai-tuber-news-collector', '--image', '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPOSITORY}/news-collector:latest', '--region', '${_REGION}']
+
+substitutions:
+  _REGION: asia-northeast1
+  _REPOSITORY: ai-tuber
+
+options:
+  logging: CLOUD_LOGGING_ONLY

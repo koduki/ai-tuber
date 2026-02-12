@@ -1,0 +1,20 @@
+steps:
+  # Build the container image
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['build', '-t', '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPOSITORY}/tools-weather:latest', '-f', 'src/tools/weather/Dockerfile', '.']
+
+  # Push the container image to Artifact Registry
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['push', '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPOSITORY}/tools-weather:latest']
+
+  # Deploy to Cloud Run Service
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: 'gcloud'
+    args: ['run', 'deploy', 'ai-tuber-tools-weather', '--image', '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPOSITORY}/tools-weather:latest', '--region', '${_REGION}', '--platform', 'managed', '--quiet']
+
+substitutions:
+  _REGION: asia-northeast1
+  _REPOSITORY: ai-tuber
+
+options:
+  logging: CLOUD_LOGGING_ONLY
