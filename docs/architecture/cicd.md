@@ -121,7 +121,63 @@ gcloud builds submit --config cloudbuild-saint-graph.yaml \
 
 ---
 
+## トラブルシューティング
+
+### Secret not found (404)
+
+**症状:**
+```
+Failed to access secret 'GOOGLE_API_KEY': 404 Secret [projects/.../secrets/GOOGLE_API_KEY] not found
+```
+
+**原因:** GCP Secret Manager の ID は `google-api-key`（kebab-case）だが、アプリが `GOOGLE_API_KEY`（UPPER_CASE）で要求していた。
+
+**解決:** `GcpSecretProvider.get_secret()` にシークレット名の自動正規化を追加（`GOOGLE_API_KEY` → `google-api-key`）。
+
+---
+
+### GCS object not found (persona.md)
+
+**症状:**
+```
+No such object: bucket/data/mind/ren/persona.md
+```
+
+**原因:** `cloudbuild-mind.yaml` の同期コマンドが `gsutil rsync data/mind/ gs://bucket/mind/` のため、GCS 上のキーは `mind/ren/persona.md`。アプリが `data/mind/ren/persona.md` でアクセスしていた。
+
+**解決:** `PromptLoader` で `STORAGE_TYPE` に応じてパスを分岐：
+- GCS: `mind/{character_name}/`
+- Local: `data/mind/{character_name}/`
+
+---
+
+### Missing key inputs argument (ADK)
+
+**症状:**
+```
+ValueError: Missing key inputs argument! To use the Google AI API, provide (`api_key`) arguments.
+```
+
+**原因:** Google ADK の `Gemini` クラスは `os.environ["GOOGLE_API_KEY"]` を直接参照する。`SecretProvider` 経由で取得したキーはアプリ変数にのみ格納され、環境変数に反映されていなかった。
+
+**解決:** `config.py` で SecretProvider から取得した API キーを `os.environ["GOOGLE_API_KEY"]` にセットするようにした。
+
+---
+
+### デプロイ後に修正が反映されない
+
+**症状:** コード修正をコミットしたが、Cloud Run Job の実行結果が変わらない。
+
+**原因:** `git push` していない。Cloud Build のトリガーは GitHub のブランチからコードを取得するため、ローカルのコミットだけでは反映されない。
+
+**解決:**
+```bash
+git push
+gcloud beta builds triggers run <trigger-name> --branch=<branch> --region=global
+```
+
+---
+
 ## 関連ファイル
 - `cloudbuild-*.yaml`: 各コンポーネントのビルド定義
 - `opentofu/cloudbuild.tf`: トリガーと IAM の定義
-

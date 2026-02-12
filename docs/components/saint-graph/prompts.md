@@ -112,37 +112,51 @@ Saint Graph のプロンプトシステムについて説明します。
 
 ### prompt_loader.py
 
+`PromptLoader` は **デュアルストレージ構成** を採用しています。
+
+| データ種別 | ストレージ | 理由 |
+|:---|:---|:---|
+| **システムプロンプト** (`core_instructions.md`, テンプレート) | 常にローカル FS (コンテナイメージ内) | コードの一部、ビルド時に同梱 |
+| **Mind データ** (`persona.md`, `mind.json`) | `StorageClient` 経由 (GCS or Local) | キャラクター固有データ、外部管理 |
+
 ```python
-def load_combined_prompt(phase: str, character_name: str) -> str:
-    # システムプロンプト
-    system_prompt = load_system_prompt(phase)
-    
-    # キャラクタープロンプト
-    character_prompt = load_character_prompt(character_name)
-    
-    # 結合
-    return f"""
-{system_prompt}
+class PromptLoader:
+    def __init__(self, character_name, storage_client=None):
+        self.storage = storage_client or create_storage_client()  # GCS or Local
+        self.system_storage = FileSystemStorageClient()  # 常にローカル
+        
+        # GCS: gsutil rsync data/mind/ gs://bucket/mind/ → GCS key は mind/{character}
+        # Local: プロジェクトルートからの相対パス → data/mind/{character}
+        if os.getenv("STORAGE_TYPE") == "gcs":
+            self._mind_base_path = f"mind/{character_name}"
+        else:
+            self._mind_base_path = f"data/mind/{character_name}"
 
-## キャラクター設定
-
-{character_prompt}
-"""
+    def load_system_instruction(self):
+        # システムプロンプト (ローカル FS)
+        core = self.system_storage.read_text(
+            bucket="", key="src/saint_graph/system_prompts/core_instructions.md"
+        )
+        # ペルソナ (ストレージ抽象レイヤー経由)
+        persona = self.storage.read_text(
+            bucket=self._mind_bucket(), key=f"{self._mind_base_path}/persona.md"
+        )
+        return core + "\n\n" + persona
 ```
 
 ### 使用例
 
 ```python
-# 挨拶フェーズのプロンプト
-prompt = load_combined_prompt(
-    phase="intro",
-    character_name="ren"
-)
+# PromptLoader は環境に応じて自動的に適切なストレージを使用
+loader = PromptLoader(character_name="ren")
+system_instruction = loader.load_system_instruction()
+templates = loader.load_templates(["intro", "news_reading", "closing"])
+mind_config = loader.load_mind_config()
 
 # Agent に設定
 agent = Agent(
-    model="gemini-2.5-flash-lite",
-    system_instruction=prompt,
+    model=Gemini(model="gemini-2.5-flash-lite"),
+    instruction=system_instruction,
     tools=tools
 )
 ```
@@ -157,23 +171,17 @@ agent = Agent(
 
 ```json
 {
-  "speaker_id": 46
+  "speaker_id": 58
 }
 ```
 
 ### 読み込み
 
 ```python
-import json
-
-def load_mind_config(character_name: str) -> dict:
-    path = f"/app/data/mind/{character_name}/mind.json"
-    with open(path) as f:
-        return json.load(f)
-
-# 使用例
-config = load_mind_config("ren")
-speaker_id = config.get("speaker_id")
+# StorageClient 経由で GCS / ローカルどちらからも読み込み可能
+loader = PromptLoader(character_name="ren")
+mind_config = loader.load_mind_config()
+speaker_id = mind_config.get("speaker_id")
 ```
 
 ---

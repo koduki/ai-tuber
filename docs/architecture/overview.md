@@ -85,6 +85,17 @@ Google ADK をベースにした意思決定エンジン。システムの思考
 
 `StorageClient` インターフェースにより、アプリケーションはストレージの実装詳細を意識せずに動作します。
 
+**⚠️ GCS とローカルのパス規約の違い:**
+
+`cloudbuild-mind.yaml` の同期コマンド `gsutil rsync data/mind/ gs://bucket/mind/` により、GCS 上のキーには `data/` プレフィクスが付きません。
+
+| 環境 | `persona.md` のパス |
+|------|---|
+| **ローカル** | `{base}/data/mind/ren/persona.md` |
+| **GCS** | `gs://bucket/mind/ren/persona.md` |
+
+この差異は `PromptLoader` 内で `STORAGE_TYPE` 環境変数に基づき自動的に吸収されます。
+
 #### Secrets Abstraction Layer
 
 | 環境 | シークレット取得元 |
@@ -93,6 +104,10 @@ Google ADK をベースにした意思決定エンジン。システムの思考
 | **本番 (GCP)** | Secret Manager |
 
 `SecretProvider` インターフェースにより、API キーや認証情報の取得方法を統一します。
+
+**名前の正規化:** `GcpSecretProvider` はシークレット名を自動変換します（`GOOGLE_API_KEY` → `google-api-key`）。これにより、アプリコード内は `UPPER_CASE` で統一しつつ、Secret Manager 側は GCP の kebab-case 命名規則に従えます。
+
+**ADK 連携:** Google ADK は `os.environ["GOOGLE_API_KEY"]` を直接参照するため、`SecretProvider` で取得した API キーは環境変数にも反映されます。
 
 ---
 
