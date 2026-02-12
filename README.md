@@ -135,6 +135,8 @@ data/mind/{character_name}/
 | `STREAM_PRIVACY` | `private` | 配信公開設定 (`public`, `unlisted`, `private`) |
 | `CHARACTER_NAME` | `ren` | キャラクター名 |
 | `NEWS_DIR` | `/app/data/news` | ニュース原稿ディレクトリ |
+| `STORAGE_TYPE` | `filesystem` | ストレージ種別 (`filesystem` / `gcs`) |
+| `SECRET_PROVIDER_TYPE` | `env` | シークレット取得元 (`env` / `gcp`) |
 
 ### Body（肉体）
 

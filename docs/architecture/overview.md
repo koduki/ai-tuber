@@ -252,6 +252,9 @@ tests/
 │   ├── test_youtube_oauth.py           # YouTube OAuth 認証
 │   ├── test_youtube_comment_adapter.py  # YouTube コメント取得
 │   └── test_agent_scenarios.py         # 天気+発話シナリオ
+├── infra/             # インフラ抽象化レイヤーテスト
+│   ├── test_storage_client.py     # StorageClient (FileSystem / GCS)
+│   └── test_secret_provider.py    # SecretProvider (Env / GCP)
 └── e2e/               # E2E テスト
     └── test_system_smoke.py        # システム全体動作確認
 ```

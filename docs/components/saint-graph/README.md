@@ -70,18 +70,19 @@ Saint Graph は AI Tuber システムの「魂」であり、意思決定エン�
 **プロンプト管理**: システムプロンプトとキャラクタープロンプトの結合
 
 機能:
+- `StorageClient` 経由でプロンプトを読み込み（ローカル / GCS 対応）
 - `system_prompts/` からのシステムプロンプト読み込み
 - `data/mind/{character}/` からのキャラクタープロンプト読み込み
 - `mind.json` の読み込み（speaker_id など）
 
-### 6. config.py
+### 7. config.py
 **設定管理**: 環境変数の読み込みと定数定義
 
 主要設定:
+- `GOOGLE_API_KEY`: `SecretProvider` 経由で取得（Env / GCP Secret Manager 対応）
 - `RUN_MODE`: cli / streamer
 - `BODY_URL`: Body サービスの URL
 - `WEATHER_MCP_URL`: 天気 MCP サーバーの URL
-- `GOOGLE_API_KEY`: Gemini API キー
 - `MODEL_NAME`: 使用する Gemini モデル
 
 ---

@@ -62,6 +62,15 @@ AI Tuber は、**魂（Saint Graph）**、**肉体（Body）**、**精神（Mind
 
 ---
 
+### Infra（インフラ抽象化）
+
+ローカル / GCP の差異を吸収する抽象化レイヤー:
+
+- **[StorageClient](../src/infra/storage_client.py)** - ファイル取得先の抽象化 (`FileSystem` / `GCS`)
+- **[SecretProvider](../src/infra/secret_provider.py)** - 機密情報取得先の抽象化 (`Env` / `GCP Secret Manager`)
+
+---
+
 ## ガイド
 
 利用方法と参考資料:
