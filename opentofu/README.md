@@ -159,7 +159,58 @@ echo -n '{"token":"...","refresh_token":"..."}' | gcloud secrets create youtube-
 
 **注意**: YouTube 認証情報は、ローカルで OAuth フローを完了した後の JSON ファイルの内容をそのまま登録してください。
 
-### 2. Docker イメージのビルドとプッシュ
+### 2. GitHub リポジトリの接続 (CI/CD 用)
+
+Cloud Build トリガーを作成するには、事前に GitHub リポジトリを GCP に接続する必要があります。
+
+#### 手順 1: Cloud Build の GitHub App 接続
+
+以下のいずれかの方法で接続してください。
+
+**方法 A: コンソールから直接接続（推奨）**
+
+1. 以下の URL を開きます：
+   ```
+   https://console.cloud.google.com/cloud-build/triggers;region=global/connect?project=<YOUR_PROJECT_ID>
+   ```
+   （`<YOUR_PROJECT_ID>` を実際のプロジェクト ID に置き換えてください）
+
+2. **「リポジトリを接続」** をクリック
+
+3. **「GitHub (Cloud Build GitHub App)」** を選択（推奨）
+   - 従来の GitHub App よりもセキュアで、きめ細かい権限管理が可能
+
+4. GitHub での認証を完了
+   - GitHub アカウントでのログインを求められます
+   - Cloud Build App のインストールと権限付与を承認
+
+5. 接続するリポジトリを選択
+   - `koduki/ai-tuber`（または自分のフォーク）を選択
+   - **「接続」** をクリック
+
+**方法 B: Cloud Build トリガー作成画面から接続**
+
+1. [Cloud Build トリガー](https://console.cloud.google.com/cloud-build/triggers) を開く
+2. **「トリガーを作成」** をクリック
+3. **「リポジトリを接続」** → 上記の手順 3〜5 を実施
+
+#### 手順 2: 接続の確認
+
+以下のコマンドで接続されたリポジトリを確認できます：
+
+```bash
+gcloud builds repositories list --connection=<CONNECTION_NAME> --region=global
+```
+
+または、[Cloud Build の「リポジトリ」タブ](https://console.cloud.google.com/cloud-build/repositories) で視覚的に確認できます。
+
+#### 重要な注意事項
+
+- **この手順は手動操作が必須です**: OAuth 認証が必要なため、OpenTofu だけでは完結できません
+- **一度接続すれば、以降は不要です**: 同じプロジェクトで同じリポジトリを使い続ける限り、再接続は不要です
+- **複数のリポジトリを接続可能**: 必要に応じて他のリポジトリも追加できます
+
+### 3. Docker イメージのビルドとプッシュ
 
 **重要**: GCE の Body Node が正常に起動するには、**以下のすべてのイメージが Artifact Registry にプッシュされている必要があります**。いずれか一つでも欠けていると、スタートアップスクリプトが失敗します。
 
@@ -231,21 +282,32 @@ gcloud artifacts docker images list ${REGION}-docker.pkg.dev/${PROJECT_ID}/ai-tu
 # - healthcheck-proxy
 ```
 
-### 3. OpenTofu によるインフラのデプロイ
+### 4. OpenTofu によるインフラのデプロイ
 
-**イメージのプッシュ後**に OpenTofu でインフラをデプロイします：
+**前提条件**:
+- イメージが Artifact Registry にプッシュ済み
+- GitHub リポジトリが Cloud Build に接続済み（手順 2 を完了）
+
+インフラをデプロイします：
 
 ```bash
 cd opentofu
 
 # 設定ファイルの作成
 cp terraform.tfvars.example terraform.tfvars
-# エディタで terraform.tfvars を編集し、project_id や admin_ip_ranges を設定
+# エディタで terraform.tfvars を編集し、project_id, github_owner, admin_ip_ranges などを設定
 
 # デプロイ実行
 tofu init
 tofu apply
 ```
+
+**注意**: GitHub 接続が完了していない場合、Cloud Build トリガーの作成時に以下のエラーが発生します：
+```
+Error: Repository mapping does not exist. Please visit https://console.cloud.google.com/cloud-build/triggers;region=global/connect?project=...
+```
+この場合は、手順 2 に戻って GitHub 接続を完了させてください。
+
 
 ## 運用とモニタリング
 
