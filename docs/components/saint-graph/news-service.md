@@ -22,33 +22,22 @@ data/news/
 
 環境変数 `NEWS_DIR` でディレクトリを指定できます（デフォルト: `/app/data/news`）。
 
-### Cloud Storage 連携
-
-GCP 環境では、ニュース原稿を **Cloud Storage** から自動的にダウンロードします。
-
-**動作フロー**:
-1. 環境変数 `GCS_BUCKET_NAME` が設定されている場合、GCS からダウンロードを試みる
-2. ダウンロード成功 → ローカルの `news_script.md` を上書き
-3. ダウンロード失敗（バケットが空、ネットワークエラー等） → ローカルファイルを使用（フォールバック）
-
+### ストレージ連携
+ 
+GCP 環境では、ニュース原稿を **Cloud Storage** から取得します。ローカル開発環境ではプロジェクトの `data/` ディレクトリから読み込みます。
+ 
+**特長**:
+- **透過的なアクセス**: `StorageClient` が環境変数 `STORAGE_TYPE` に応じて自動的に物理的な場所（GCS バケットかローカル FS か）を切り替えます。
+- **デフォルトバケット**: `GCS_BUCKET_NAME` が設定されている場合、利用側コードでバケット名を指定する必要はありません。
+ 
 **環境変数**:
 ```bash
-GCS_BUCKET_NAME=ai-tuber-news  # GCS バケット名（任意）
-NEWS_DIR=/app/data/news         # ローカル保存先（デフォルト）
+STORAGE_TYPE=gcs                # または filesystem
+GCS_BUCKET_NAME=ai-tuber-news  # GCS バケット名
+NEWS_DIR=news                   # 論理パス（デフォルト）
 ```
-
-**実装例**:
-```python
-# news_service.py
-if bucket_name:
-    success = download_from_gcs(bucket_name, "news_script.md", local_path)
-    if success:
-        print(f"Downloaded news from GCS: {bucket_name}")
-    else:
-        print("GCS download failed, using local file")
-```
-
-この仕組みにより、News Collector（Cloud Run Job）で収集したニュースを、Saint Graph（配信ジョブ）が自動的に取得できます。
+ 
+この仕組みにより、Saint Graph はインフラの詳細を知ることなく、常に `news/news_script.md` という論理的なキーで最新の原稿にアクセスできます。
 
 ### Markdown フォーマット
 

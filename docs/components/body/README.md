@@ -51,6 +51,7 @@ src/body/
 │   ├── youtube_live_adapter.py    # YouTube Live API
 │   ├── youtube_comment_adapter.py # YouTube コメント取得
 │   ├── fetch_comments.py          # コメント取得スクリプト
+│   ├── download_assets.py         # アセット取得スクリプト (NEW)
 │   └── obs/config/                # OBS 設定ファイル
 ├── cli/
 │   ├── main.py                    # REST API サーバー
@@ -72,7 +73,7 @@ src/body/
 | 音声再生 | OBS メディアソース制御、再生時間計算 |
 | 録画制御 | OBS 録画開始・停止 |
 | 配信制御 | YouTube Live API、OBS ストリーミング |
-| コメント取得 | YouTube Live Chat API、サププロセス管理 |
+| 資産管理 | `StorageClient` によるアセット起動時取得 |
 
 ### CLI モード
 

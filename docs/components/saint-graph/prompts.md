@@ -122,24 +122,21 @@ Saint Graph のプロンプトシステムについて説明します。
 ```python
 class PromptLoader:
     def __init__(self, character_name, storage_client=None):
-        self.storage = storage_client or create_storage_client()  # GCS or Local
-        self.system_storage = FileSystemStorageClient()  # 常にローカル
+        self.character_name = character_name
+        self.storage = storage_client or create_storage_client()
         
-        # GCS: gsutil rsync data/mind/ gs://bucket/mind/ → GCS key は mind/{character}
-        # Local: プロジェクトルートからの相対パス → data/mind/{character}
-        if os.getenv("STORAGE_TYPE") == "gcs":
-            self._mind_base_path = f"mind/{character_name}"
-        else:
-            self._mind_base_path = f"data/mind/{character_name}"
+        # システムプロンプト (src/...) はソースコードに同梱されているため、プロジェクトルートを基点とする
+        from infra.storage_client import FileSystemStorageClient
+        self.system_storage = FileSystemStorageClient(base_path=PROJECT_ROOT)
 
     def load_system_instruction(self):
         # システムプロンプト (ローカル FS)
         core = self.system_storage.read_text(
-            bucket="", key="src/saint_graph/system_prompts/core_instructions.md"
+            key="src/saint_graph/system_prompts/core_instructions.md"
         )
-        # ペルソナ (ストレージ抽象レイヤー経由)
+        # ペルソナ (StorageClient 経由 - GCS または data/ ディレクトリ)
         persona = self.storage.read_text(
-            bucket=self._mind_bucket(), key=f"{self._mind_base_path}/persona.md"
+            key=f"mind/{self.character_name}/persona.md"
         )
         return core + "\n\n" + persona
 ```

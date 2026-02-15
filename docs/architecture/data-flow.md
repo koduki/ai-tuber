@@ -247,13 +247,46 @@ for attempt in range(max_attempts):
         break
     
     await asyncio.sleep(retry_interval)
-```
 
 ---
-
+ 
+## キャラクターアセット読み込みフロー
+ 
+立ち絵画像や BGM はイメージに焼き込まれず、コンテナ起動時に動的にダウンロードされます。
+ 
+### 処理シーケンス
+ 
+```mermaid
+sequenceDiagram
+    participant SV as Supervisor
+    participant DL as download_assets.py
+    participant ST as StorageClient
+    participant OB as start_obs.sh
+    participant OS as OBS Studio
+ 
+    SV->>DL: 起動 (priority: 45)
+    DL->>ST: アセット取得 (GCS/Local)
+    ST-->>DL: 完了
+    DL->>DL: マーカーファイル作成 (.assets_ready)
+    SV->>OB: 起動 (priority: 50)
+    OB->>OB: マーカーファイルの存在を待機
+    OB->>OS: OBS プロセス起動
+    OS->>OS: /app/assets/ から画像を読み込み
+```
+ 
+1. **実行トリガー**: `supervisord` が起動時に `download_assets.py` を実行
+2. **データ取得**: `StorageClient` を使用し、環境設定に応じた場所からアセットを取得
+3. **同期制御**:
+   - ダウンロード完了時に `/app/assets/.assets_ready` を作成
+   - `start_obs.sh` がこのファイルの出現を最大120秒待機
+4. **OBS 起動**: アセットが揃った状態で OBS 起動。シーン定義 (`Untitled.json`) にある `/app/assets/...` を参照
+ 
+---
+ 
 ## 関連ドキュメント
 
 - [システム概要](./overview.md) - 全体アーキテクチャ
 - [Saint Graph - Core Logic](../components/saint-graph/core-logic.md) - ターン処理の実装
 - [Body - Audio Playback](../components/body/streamer/audio-playback.md) - 音声再生システム
 - [Body - YouTube](../components/body/streamer/youtube.md) - YouTube コメント取得
+```

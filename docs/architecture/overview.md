@@ -64,8 +64,8 @@ Google ADK をベースにした意思決定エンジン。システムの思考
 **コンテナイメージにユーザ固有情報を含めない**ことで、デプロイとスケーリングを柔軟に行えます。
 
 - コンテナ起動時に `CHARACTER_NAME` 環境変数でキャラクターを指定
-- プロンプトやアセットは起動時に `StorageClient` 経由で動的ロード
-- API キーや認証情報は `SecretProvider` 経由で取得
+- プロンプトやアセットは起動時に `StorageClient` 経由で動的ロード（画像・BGM等も含む）
+- API キーや認証情報は環境変数（Cloud Run / GCE 等が提供）経由で取得
 
 **メリット**:
 - イメージの再ビルドなしでキャラクター切り替え可能
@@ -96,18 +96,11 @@ Google ADK をベースにした意思決定エンジン。システムの思考
 
 この差異は `PromptLoader` 内で `STORAGE_TYPE` 環境変数に基づき自動的に吸収されます。
 
-#### Secrets Abstraction Layer
-
-| 環境 | シークレット取得元 |
-|------|------------------|
-| **ローカル** | 環境変数 (`.env`) |
-| **本番 (GCP)** | Secret Manager |
-
-`SecretProvider` インターフェースにより、API キーや認証情報の取得方法を統一します。
-
-**名前の正規化:** `GcpSecretProvider` はシークレット名を自動変換します（`GOOGLE_API_KEY` → `google-api-key`）。これにより、アプリコード内は `UPPER_CASE` で統一しつつ、Secret Manager 側は GCP の kebab-case 命名規則に従えます。
-
-**ADK 連携:** Google ADK は `os.environ["GOOGLE_API_KEY"]` を直接参照するため、`SecretProvider` で取得した API キーは環境変数にも反映されます。
+#### Secrets Management
+ 
+ 本システムは、実行環境（Cloud Run や GCE）が提供する環境変数を直接利用する設計を採用しています。これにより、インフラレイヤーでセキュアに注入された値をアプリケーションコードが透過的に利用できます。
+ 
+ **ADK 連携:** Google ADK は `os.environ["GOOGLE_API_KEY"]` を直接参照するため、実行環境から提供されたキーをそのまま利用します。
 
 ---
 
