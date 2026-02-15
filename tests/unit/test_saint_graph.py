@@ -31,16 +31,16 @@ def mock_adk():
 @pytest.mark.asyncio
 async def test_saint_graph_initialization(mock_adk):
     # Setup
-    body_url = "http://body-cli:8000"
-    mcp_url = "http://weather:8001/sse"
+    weather_mcp_url = "http://weather:8001/sse"
     system_instruction = "Test instruction"
+    mock_body = mock_adk["BodyClient"]()
     
     # Execute
-    sg = SaintGraph(body_url, mcp_url, system_instruction)
+    sg = SaintGraph(mock_body, weather_mcp_url, system_instruction)
     
     # Verify
     assert sg.system_instruction == system_instruction
-    mock_adk["BodyClient"].assert_called_once_with(base_url=body_url)
+    assert sg.body == mock_body
     mock_adk["McpToolset"].assert_called_once()
     mock_adk["Agent"].assert_called_once()
     mock_adk["InMemoryRunner"].assert_called_once_with(agent=sg.agent)
@@ -48,8 +48,8 @@ async def test_saint_graph_initialization(mock_adk):
 @pytest.mark.asyncio
 async def test_process_turn_parses_emotion_tag(mock_adk):
     # Setup
-    body_url = "http://body-cli:8000"
-    sg = SaintGraph(body_url, "", "Instruction")
+    mock_body = mock_adk["BodyClient"]()
+    sg = SaintGraph(mock_body, "", "Instruction")
     sg.body.change_emotion = AsyncMock()
     sg.body.speak = AsyncMock()
     
@@ -74,8 +74,8 @@ async def test_process_turn_parses_emotion_tag(mock_adk):
 @pytest.mark.asyncio
 async def test_process_turn_defaults_to_neutral(mock_adk):
     # Setup
-    body_url = "http://body-cli:8000"
-    sg = SaintGraph(body_url, "", "Instruction")
+    mock_body = mock_adk["BodyClient"]()
+    sg = SaintGraph(mock_body, "", "Instruction")
     sg.body.change_emotion = AsyncMock()
     sg.body.speak = AsyncMock()
     
@@ -97,24 +97,53 @@ async def test_process_turn_defaults_to_neutral(mock_adk):
     sg.body.change_emotion.assert_called_once_with("neutral")
     sg.body.speak.assert_called_once_with("No tag here", style="neutral", speaker_id=None)
 
-def test_config_priority(monkeypatch):
+@pytest.mark.asyncio
+async def test_high_level_process_methods(mock_adk):
+    # Setup
+    mock_body = mock_adk["BodyClient"]()
+    templates = {
+        "intro": "Welcome to my stream",
+        "news_reading": "Here is {title}: {content}",
+        "news_finished": "Done with news",
+        "closing": "Bye bye"
+    }
+    sg = SaintGraph(mock_body, "", "Instruction", templates=templates)
+    sg.process_turn = AsyncMock()
+
+    # Execute & Verify process_intro
+    await sg.process_intro()
+    sg.process_turn.assert_called_with("Welcome to my stream", context="Intro")
+
+    # Execute & Verify process_news_reading
+    await sg.process_news_reading("MyTopic", "MyContent")
+    sg.process_turn.assert_called_with("Here is MyTopic: MyContent", context="News Reading: MyTopic")
+
+    # Execute & Verify process_news_finished
+    await sg.process_news_finished()
+    sg.process_turn.assert_called_with("Done with news", context="News Finished")
+
+    # Execute & Verify process_closing
+    await sg.process_closing()
+    sg.process_turn.assert_called_with("Bye bye", context="Closing")
+
+def test_config_defaults(monkeypatch):
     from saint_graph.config import Config
     
-    # Test 1: Defaults
+    # Defaults
     monkeypatch.delenv("WEATHER_MCP_URL", raising=False)
-    monkeypatch.delenv("MCP_URL", raising=False)
+    monkeypatch.delenv("BODY_URL", raising=False)
     cfg = Config()
-    assert cfg.mcp_url == "http://tools-weather:8001/sse"
+    assert cfg.weather_mcp_url == "http://tools-weather:8001/sse"
+    assert cfg.body_url == "http://localhost:8000"
     
-    # Test 2: MCP_URL (Legacy)
-    monkeypatch.setenv("MCP_URL", "http://legacy:8001/sse")
-    cfg = Config()
-    assert cfg.mcp_url == "http://legacy:8001/sse"
+def test_config_env_override(monkeypatch):
+    from saint_graph.config import Config
     
-    # Test 3: WEATHER_MCP_URL (Priority)
-    monkeypatch.setenv("WEATHER_MCP_URL", "http://priority:8001/sse")
+    monkeypatch.setenv("WEATHER_MCP_URL", "http://new-weather:8001/sse")
+    monkeypatch.setenv("BODY_URL", "http://new-body:8000")
     cfg = Config()
-    assert cfg.mcp_url == "http://priority:8001/sse"
+    assert cfg.weather_mcp_url == "http://new-weather:8001/sse"
+    assert cfg.body_url == "http://new-body:8000"
 
 def test_config_cloud_run_fail_fast(monkeypatch):
     from saint_graph.config import Config

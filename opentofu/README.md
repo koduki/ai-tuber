@@ -237,7 +237,7 @@ docker push ${REGISTRY}/body-streamer:latest
 docker build -t ${REGISTRY}/obs-studio:latest -f src/body/streamer/obs/Dockerfile .
 docker push ${REGISTRY}/obs-studio:latest
 
-docker build -t ${REGISTRY}/healthcheck-proxy:latest -f src/tools/health-proxy/Dockerfile src/tools/health-proxy
+docker build -t ${REGISTRY}/healthcheck-proxy:latest -f src/health-proxy/Dockerfile src/health-proxy
 docker push ${REGISTRY}/healthcheck-proxy:latest
 ```
 
@@ -257,7 +257,7 @@ docker push ${REGISTRY}/tools-weather:latest
 docker build -t ${REGISTRY}/news-collector:latest -f scripts/news_collector/Dockerfile .
 docker push ${REGISTRY}/news-collector:latest
 
-docker build -t ${REGISTRY}/healthcheck-proxy:latest -f src/tools/health-proxy/Dockerfile src/tools/health-proxy
+docker build -t ${REGISTRY}/healthcheck-proxy:latest -f src/health-proxy/Dockerfile src/health-proxy
 docker push ${REGISTRY}/healthcheck-proxy:latest
 
 # GCE Body Node 用イメージ

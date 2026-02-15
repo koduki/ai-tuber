@@ -7,7 +7,7 @@ from typing import List, Optional, Any, Iterable
 from google.adk import Agent
 from google.adk.runners import InMemoryRunner
 from google.adk.models import Gemini
-from google.adk.tools import McpToolset, FunctionTool
+from google.adk.tools import McpToolset
 from google.adk.tools.mcp_tool.mcp_toolset import SseConnectionParams
 from google.adk.events.event import Event
 
@@ -28,69 +28,72 @@ class SaintGraph:
     """
     Google ADKを使用してエージェントの振る舞いを管理するコアクラス。
     Body機能はAIのレスポンス（テキスト＋感情タグ）をパースしてREST APIを実行します。
-    外部ツール（天気など）や明示的な制御（録画など）はMCPまたはローカルツールで呼び出されます。
+    外部ツール（天気など）は MCP で管理されます。
     """
 
-    def __init__(self, body_url: str, mcp_url: str, system_instruction: str, mind_config: Optional[dict] = None, tools: List[Any] = None):
+    def __init__(self, body: BodyClient, weather_mcp_url: str, system_instruction: str, mind_config: Optional[dict] = None, tools: List[Any] = None, templates: Optional[dict[str, str]] = None):
         """
         SaintGraphを初期化します。
         
         Args:
-            body_url: Body REST APIのベースURL (例: http://body-cli:8000)
-            mcp_url: MCPツール用のURL（天気APIなど）
+            body: BodyClient インスタンス
+            weather_mcp_url: MCPツール用のURL（天気APIなど）
             system_instruction: システム指示文
             mind_config: キャラクター設定辞書 (speaker_id など)
             tools: 追加のカスタムツール（モック等）
+            templates: 配信フェーズごとのテンプレート辞書
         """
+        self.body = body
         self.system_instruction = system_instruction
         self.mind_config = mind_config or {}
+        self.templates = templates or {}
         self.speaker_id = self.mind_config.get("speaker_id")
-        
-        # Body REST APIクライアントの初期化
-        self.body = BodyClient(base_url=body_url)
-        
+
         # MCP ツールセットの初期化（天気などの外部ツール用）
         self.toolsets = []
-        if mcp_url:
-            connection_params = SseConnectionParams(url=mcp_url)
+        if weather_mcp_url:
+            connection_params = SseConnectionParams(url=weather_mcp_url)
             toolset = McpToolset(connection_params=connection_params)
             self.toolsets.append(toolset)
         
-        # 明示的な制御ツール（AIが自発的に呼べるもの）
-        self.local_tools = [
-            FunctionTool(self.start_recording),
-            FunctionTool(self.stop_recording)
-        ]
-        
-        # エージェントの構成
-        # speak/change_emotion はツールとして登録せず、レスポンスパースで対応
-        all_tools = self.local_tools + self.toolsets + (tools if tools else [])
+        # ツールの統合
+        all_tools = self.toolsets + (tools if tools else [])
+
         self.agent = Agent(
-            name="SaintV2",
+            name="SaintGraph",
             model=Gemini(model=MODEL_NAME),
-            instruction=system_instruction,
+            instruction=self.system_instruction,
             tools=all_tools if all_tools else None
         )
-        
-        # ランナーの初期化
         self.runner = InMemoryRunner(agent=self.agent)
-        logger.info(f"SaintGraph initialized with model {MODEL_NAME}, body_url={body_url}, mcp_url={mcp_url}")
+        logger.info(f"SaintGraph initialized with model {MODEL_NAME}, weather_mcp_url={weather_mcp_url}")
 
     async def close(self):
         """ツールセットの接続を解除してクリーンアップします。"""
-        for ts in self.toolsets:
-            if hasattr(ts, 'close'):
+        for ts in self.agent.tools:
+            if isinstance(ts, McpToolset) and hasattr(ts, 'close'):
                 await ts.close()
 
-    # --- 録画制御ツール (AIが呼べる) ---
+    async def process_intro(self):
+        """開始挨拶を実行します。"""
+        template = self.templates.get("intro", "こんにちは。配信を始めます。")
+        await self.process_turn(template, context="Intro")
 
-    async def start_recording(self) -> str:
-        """OBSの録画を開始します。"""
-        return await self.body.start_recording()
+    async def process_news_reading(self, title: str, content: str):
+        """ニュース読み上げを実行します。"""
+        template = self.templates.get("news_reading", "ニュース「{title}」を読み上げます。\n{content}")
+        instruction = template.format(title=title, content=content)
+        await self.process_turn(instruction, context=f"News Reading: {title}")
 
-    async def stop_recording(self) -> str:
-        """OBSの録画を停止します。"""
-        return await self.body.stop_recording()
+    async def process_news_finished(self):
+        """ニュース全消化時の反応を実行します。"""
+        template = self.templates.get("news_finished", "全てのニュースを読み上げました。")
+        await self.process_turn(template, context="News Finished")
+
+    async def process_closing(self):
+        """締めの挨拶を実行します。"""
+        template = self.templates.get("closing", "それでは、本日の配信を終了します。ありがとうございました。")
+        await self.process_turn(template, context="Closing")
 
     # --- メインターン処理 ---
 
@@ -98,12 +101,21 @@ class SaintGraph:
         """
         単一のインタラクションターンを処理します。
         AIからのテキスト出力を取得し、感情タグ [emotion: ...] をパースして Body API を実行します。
-        
-        音声は並列生成し、再生は順次実行します。
         """
         logger.info(f"Turn started. Input: {user_input[:50]}..., Context: {context}")
         try:
-            await self._ensure_session()
+            # セッションの確保
+            session = await self.runner.session_service.get_session(
+                app_name=self.runner.app_name, 
+                user_id="yt_user", 
+                session_id="yt_session"
+            )
+            if not session:
+                await self.runner.session_service.create_session(
+                    app_name=self.runner.app_name, 
+                    user_id="yt_user", 
+                    session_id="yt_session"
+                )
             
             current_user_message = user_input
             if context:
@@ -127,8 +139,6 @@ class SaintGraph:
                 sentences = self._parse_response(full_text)
                 logger.info(f"Parsed {len(sentences)} sentences from AI response")
                 
-                
-                # シンプルな実装: 順次生成+再生（並列生成は次フェーズで実装）
                 current_emotion = None
                 for emotion, text in sentences:
                     # 感情が変わった場合のみ変更
@@ -136,12 +146,7 @@ class SaintGraph:
                         await self.body.change_emotion(emotion)
                         current_emotion = emotion
                     
-                    # 発話（生成+再生+完了待機）
-                    # 音声ファイル生成
-                    logger.debug(f"Generating audio for sentence: {text} (Emotion: {emotion})")
-                    # generate_and_save_audio はまだ存在しないため、speakを直接呼び出す
-                    # file_path, duration = await self.body.generate_and_save_audio(text, style=emotion, speaker_id=self.speaker_id)
-                    # audio_tasks.append((file_path, duration, emotion)) # audio_tasks は未定義
+                    # 発話（完了待機）
                     await self.body.speak(text, style=emotion, speaker_id=self.speaker_id)
                 
                 logger.info(f"Turn completed. {len(sentences)} sentences spoken")
@@ -149,7 +154,6 @@ class SaintGraph:
                 logger.warning("No text output received from AI.")
 
         except Exception as e:
-            # 追加: ExceptionGroup / TaskGroup の sub-exception を全部ログ出し
             logger.error("process_turn failed: %r (%s)", e, type(e))
             logger.error("process_turn traceback:\n%s", traceback.format_exc())
             for i, sub in enumerate(_iter_exception_group(e)):
@@ -245,46 +249,3 @@ class SaintGraph:
             result.append(sentences[-1])
         
         return result if result else [text]
-
-    # --- セッション管理 ---
-
-    async def _ensure_session(self):
-        """セッションが存在することを確認し、なければ作成します。"""
-        session = await self.runner.session_service.get_session(
-            app_name=self.runner.app_name, 
-            user_id="yt_user", 
-            session_id="yt_session"
-        )
-        if not session:
-            await self.runner.session_service.create_session(
-                app_name=self.runner.app_name, 
-                user_id="yt_user", 
-                session_id="yt_session"
-            )
-
-    async def call_tool(self, name: str, arguments: dict) -> str:
-        """
-        ツールを直接呼び出します（コメント用など）。
-        """
-        # ローカルツール
-        if name == "start_recording":
-            return await self.start_recording()
-        if name == "stop_recording":
-            return await self.stop_recording()
-
-        # MCPツール
-        for toolset in self.toolsets:
-            tools = await toolset.get_tools()
-            for tool in tools:
-                if tool.name == name:
-                    res = await tool.run_async(args=arguments, tool_context=None)
-                    return self._extract_mcp_text(res)
-        
-        raise Exception(f"Tool {name} not found.")
-
-    def _extract_mcp_text(self, res: Any) -> str:
-        """ツール実行結果からテキストを抽出"""
-        if hasattr(res, 'content') and res.content:
-            if isinstance(res.content, list) and len(res.content) > 0:
-                return getattr(res.content[0], 'text', str(res))
-        return str(res)

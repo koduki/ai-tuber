@@ -24,8 +24,9 @@ class TestFileSystemStorageClient:
         # Create client with tmp_path as base
         client = FileSystemStorageClient(base_path=str(tmp_path))
         
-        # Test
-        result = client.read_text("data/mind/ren", "persona.md")
+        # Test - base_path is already tmp_path, logic keys are relative to base_path
+        # In this test case, base_path is explicitly set to tmp_path (which contains data/...)
+        result = client.read_text("data/mind/ren/persona.md")
         assert result == test_content
 
     def test_download_file(self, tmp_path):
@@ -42,8 +43,8 @@ class TestFileSystemStorageClient:
         # Create client
         client = FileSystemStorageClient(base_path=str(tmp_path / "src"))
         
-        # Test
-        client.download_file("data", "test.txt", str(dest_file))
+        # Test - base_path is tmp_path/src. We want to 'download' from relative key 'data/test.txt'
+        client.download_file("data/test.txt", str(dest_file))
         assert dest_file.exists()
         assert dest_file.read_text(encoding="utf-8") == "test content"
 
@@ -57,7 +58,7 @@ class TestFileSystemStorageClient:
         client = FileSystemStorageClient(base_path=str(tmp_path))
         
         # Test
-        client.upload_file("uploads", "uploaded.txt", str(src_file))
+        client.upload_file("uploads/uploaded.txt", str(src_file))
         
         uploaded_file = tmp_path / "uploads" / "uploaded.txt"
         assert uploaded_file.exists()
@@ -68,7 +69,7 @@ class TestFileSystemStorageClient:
         client = FileSystemStorageClient(base_path=str(tmp_path))
         
         with pytest.raises(FileNotFoundError):
-            client.read_text("nonexistent", "file.txt")
+            client.read_text("nonexistent/file.txt")
 
 
 class TestStorageClientFactory:

@@ -131,9 +131,14 @@ services:
       - "4455:4455" # OBS WebSocket
     volumes:
       - voice_share:/app/shared/voice
+      - ./data:/app/data
     environment:
       - DISPLAY=:99
+      - STORAGE_TYPE=filesystem
+      - CHARACTER_NAME=${CHARACTER_NAME:-ren}
+      - GCS_BUCKET_NAME=${GCS_BUCKET_NAME:-}
     shm_size: '2gb'
+
     deploy:
       resources:
         reservations:

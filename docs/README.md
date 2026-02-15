@@ -15,9 +15,9 @@ AI Tuber は、**魂（Saint Graph）**、**肉体（Body）**、**精神（Mind
 システム全体の設計:
 
 - [システム概要](./architecture/overview.md) - 三位一体構造の説明
-- [CI/CD 自動化](./architecture/cicd.md) - Cloud Build トリガー構成
-- [通信プロトコル](./architecture/communication.md) - REST/MCP 仕様
 - [データフロー](./architecture/data-flow.md) - 処理シーケンス
+- [通信プロトコル](./architecture/communication.md) - REST/MCP 仕様
+- [CI/CD 自動化](./architecture/cicd.md) - Cloud Build トリガー構成
 
 ---
 

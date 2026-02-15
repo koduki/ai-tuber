@@ -23,24 +23,31 @@ Saint Graph は AI Tuber システムの「魂」であり、意思決定エン�
 ## 主要コンポーネント
 
 ### 1. main.py
-**メインループ**: ニュース配信のライフサイクル管理。配信・録画の開始に失敗した場合は異常終了（Fail-Fast）します。
+**エントリーポイント**: 初期化と配信の開始・停止を担当。ループの実行は `broadcast_loop.py` に委譲します。配信・録画の開始に失敗した場合は異常終了（Fail-Fast）します。
+
+### 2. broadcast_loop.py
+**配信ステートマシン**: `BroadcastPhase` (Enum) と各フェーズハンドラで構成される軽量ステートマシン。
 
 フェーズ:
-1. 挨拶（intro）
-2. ニュース読み上げ（news_reading）
-3. ニュース終了（news_finished）
-4. 質疑応答ループ
-5. 終了（closing）
+| フェーズ | 説明 | 遷移先 |
+|---------|------|--------|
+| `INTRO` | 配信開始の挨拶 | → `NEWS` |
+| `NEWS` | コメント優先確認 → ニュース読み上げ | → `NEWS` / `IDLE` |
+| `IDLE` | ニュース終了後のコメント待機 | → `IDLE` / `CLOSING` |
+| `CLOSING` | 締めの挨拶 → 配信停止 | → 終了 |
 
-### 2. saint_graph.py
+各フェーズのハンドラは `BroadcastContext` を受け取り、次の `BroadcastPhase` を返します。
+
+### 3. saint_graph.py
 **コアロジック**: Google ADK Agent のラッパー
 
 主要機能:
 - Agent の初期化と MCP ツールセット統合
 - `process_turn()`: ターン処理と感情パース
+- **高レベルメソッド**: `process_intro()`, `process_news_reading()`, `process_news_finished()`, `process_closing()` による配信アクションの抽象化。各フェーズのテンプレート管理もここで行います。
 - セッション管理
 
-### 3. news_service.py
+### 4. news_service.py
 **ニュース管理**: Markdown 形式のニュース原稿の読み込み
 
 機能:
@@ -48,7 +55,7 @@ Saint Graph は AI Tuber システムの「魂」であり、意思決定エン�
 - `NewsItem` オブジェクトへの変換
 - 配信状態の管理
 
-### 4. news_agent.py
+### 5. news_agent.py
 **ニュース収集**: 最新ニュースの自動収集と原稿生成（`scripts/news_collector/`）
 
 機能:
@@ -57,16 +64,15 @@ Saint Graph は AI Tuber システムの「魂」であり、意思決定エン�
 - ポストプロセス（断り書きの除去等）
 - [詳細ドキュメント](./news-collector.md)
 
-### 5. body_client.py
+### 6. body_client.py
 **Body REST クライアント**: Body への HTTP リクエスト送信
 
 主要メソッド:
 - `speak(text, style)`: 発話
 - `change_emotion(emotion)`: 表情変更
 - `get_comments()`: コメント取得
-- `start_recording()` / `stop_recording()`: 録画制御
 
-### 6. prompt_loader.py
+### 7. prompt_loader.py
 **プロンプト管理**: システムプロンプトとキャラクタープロンプトの結合
 
 **ステートレスアーキテクチャの実現**:
@@ -79,7 +85,7 @@ Saint Graph は AI Tuber システムの「魂」であり、意思決定エン�
 - `data/mind/{character}/` からのキャラクタープロンプト読み込み
 - `mind.json` の読み込み（speaker_id など）
 
-### 7. config.py
+### 8. config.py
 **設定管理**: 環境変数の読み込みと定数定義
 
 **ステートレスアーキテクチャの実現**:
@@ -98,8 +104,9 @@ Saint Graph は AI Tuber システムの「魂」であり、意思決定エン�
 
 ```
 src/saint_graph/
-├── main.py                    # メインループ
-├── saint_graph.py             # コアロジック
+├── main.py                    # エントリーポイント（初期化・配信開始/停止）
+├── broadcast_loop.py          # 配信ステートマシン
+├── saint_graph.py             # コアロジック（ADK Agent ラッパー）
 ├── news_service.py            # ニュース管理
 ├── body_client.py             # Body クライアント
 ├── prompt_loader.py           # プロンプト管理

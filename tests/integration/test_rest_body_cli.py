@@ -3,6 +3,7 @@ from body.cli.main import app
 from body.cli.tools import io_adapter
 from unittest.mock import patch
 from starlette.testclient import TestClient
+import json
 
 client = TestClient(app)
 
@@ -33,20 +34,44 @@ def test_change_emotion_api():
 
 def test_get_comments_api():
     with patch("body.cli.main.get_comments") as mock_get:
-        mock_get.return_value = "Test comment 1\nTest comment 2"
+        mock_get.return_value = json.dumps([
+            {"author": "User", "message": "Test comment 1"},
+            {"author": "User", "message": "Test comment 2"}
+        ])
         response = client.get("/api/comments")
         
         assert response.status_code == 200
         assert response.json()["status"] == "ok"
-        assert response.json()["comments"] == ["Test comment 1", "Test comment 2"]
+        comments = response.json()["comments"]
+        assert len(comments) == 2
+        assert comments[0]["author"] == "User"
+        assert comments[0]["message"] == "Test comment 1"
         mock_get.assert_called_once()
 
 def test_get_comments_empty_api():
     with patch("body.cli.main.get_comments") as mock_get:
-        mock_get.return_value = "No new comments."
+        mock_get.return_value = json.dumps([])
         response = client.get("/api/comments")
         
         assert response.status_code == 200
         assert response.json()["status"] == "ok"
         assert response.json()["comments"] == []
         mock_get.assert_called_once()
+
+def test_start_broadcast_api():
+    with patch("body.cli.main.start_broadcast") as mock_start:
+        mock_start.return_value = "CLI mode: broadcast start skipped"
+        response = client.post("/api/broadcast/start", json={})
+        
+        assert response.status_code == 200
+        assert response.json()["status"] == "ok"
+        assert "CLI mode" in response.json()["result"]
+
+def test_stop_broadcast_api():
+    with patch("body.cli.main.stop_broadcast") as mock_stop:
+        mock_stop.return_value = "CLI mode: broadcast stop skipped"
+        response = client.post("/api/broadcast/stop")
+        
+        assert response.status_code == 200
+        assert response.json()["status"] == "ok"
+        assert "CLI mode" in response.json()["result"]

@@ -4,47 +4,34 @@ AI Tuber システムにおけるデータの流れと処理シーケンスを�
 
 ---
 
-## 配信フロー全体像
+```mermaid
+stateDiagram-v2
+    [*] --> INTRO: main() → run_broadcast_loop()
+    INTRO --> NEWS: handle_intro()
 
-```
-┌──────────────┐
-│ 1. 初期化     │ Saint Graph 起動、Body/Tools 接続、録画開始
-└──────┬───────┘
-       │
-       ▼
-┌──────────────┐
-│ 2. 挨拶      │ キャラクターが自己紹介
-└──────┬───────┘
-       │
-       ▼
-┌──────────────────────────────────────┐
-│ 3. ニュース配信ループ                  │
-│  ┌────────────────────────────────┐  │
-│  │ 3-1. ニュース読み上げ           │  │
-│  │   - AI がニュース原稿を解説     │  │
-│  │   - 感情タグ付きテキスト生成    │  │
-│  │   - センテンス単位で音声再生    │  │
-│  └────────────┬───────────────────┘  │
-│               ▼                        │
-│  ┌────────────────────────────────┐  │
-│  │ 3-2. 質疑応答                   │  │
-│  │   - コメントをポーリング        │  │
-│  │   - 質問に AI が回答            │  │
-│  └────────────┬───────────────────┘  │
-│               │                        │
-│               └─→ 次のニュースへ       │
-└───────────────┬──────────────────────┘
-                │ (全ニュース終了)
-                ▼
-┌──────────────┐
-│ 4. 質疑応答   │ 視聴者からの質問に答え続ける
-│   (沈黙待機)  │ (MAX_WAIT_CYCLES 秒まで)
-└──────┬───────┘
-       │
-       ▼
-┌──────────────┐
-│ 5. 終了       │ クロージング挨拶、録画停止
-└──────────────┘
+    NEWS --> PollComments1
+    state PollComments1 <<choice>>
+    PollComments1 --> RespondComment: コメントあり
+    PollComments1 --> ReadNews: コメントなし
+    RespondComment --> NEWS: 応答完了
+    ReadNews --> CheckNews
+    
+    state CheckNews <<choice>>
+    CheckNews --> NEWS: ニュース残あり
+    CheckNews --> IDLE: ニュース全消化
+
+    IDLE --> PollComments2
+    state PollComments2 <<choice>>
+    PollComments2 --> RespondIdle: コメントあり
+    PollComments2 --> WaitSilence: コメントなし
+    RespondIdle --> IDLE: counter reset
+    WaitSilence --> CheckTimeout
+    
+    state CheckTimeout <<choice>>
+    CheckTimeout --> IDLE: counter++, 継続
+    CheckTimeout --> CLOSING: タイムアウト
+
+    CLOSING --> [*]: handle_closing() → 配信停止
 ```
 
 ---
@@ -155,16 +142,30 @@ await body_client.speak(text, style=emotion)
 
 ### ポーリングループ
 
+各フェーズハンドラの冒頭で共通関数 `_poll_and_respond()` を呼び出し、コメントを優先的に処理します。
+
 ```python
-while True:
-    # 1.0秒ごとにコメントをポーリング
-    comments = await body_client.get_comments()
-    
-    if comments:
-        # 新しいコメントがあれば AI に渡す
-        response = await agent.process_turn(comments)
-    
-    await asyncio.sleep(1.0)
+async def _poll_and_respond(ctx: BroadcastContext) -> bool:
+    """コメントをポーリングし、あれば応答。全フェーズ共通。"""
+    comments_data = await ctx.saint_graph.body.get_comments()
+    if comments_data:
+        comments_text = "\n".join(
+            f"{c['author']}: {c['message']}" for c in comments_data
+        )
+        await ctx.saint_graph.process_turn(comments_text)
+        return True
+    return False
+
+# 各ハンドラでの使用例 (handle_news)
+async def handle_news(ctx: BroadcastContext) -> BroadcastPhase:
+    if await _poll_and_respond(ctx):   # コメント優先
+        return BroadcastPhase.NEWS
+    if ctx.news_service.has_next():    # ニュース読み上げ
+        item = ctx.news_service.get_next_item()
+        await ctx.saint_graph.process_news_reading(title=item.title, content=item.content)
+        return BroadcastPhase.NEWS
+    await ctx.saint_graph.process_news_finished() # ニュース全消化
+    return BroadcastPhase.IDLE
 ```
 
 ### YouTube Live コメント取得（Streamer モード）
@@ -246,13 +247,46 @@ for attempt in range(max_attempts):
         break
     
     await asyncio.sleep(retry_interval)
-```
 
 ---
-
+ 
+## キャラクターアセット読み込みフロー
+ 
+立ち絵画像や BGM はイメージに焼き込まれず、コンテナ起動時に動的にダウンロードされます。
+ 
+### 処理シーケンス
+ 
+```mermaid
+sequenceDiagram
+    participant SV as Supervisor
+    participant DL as download_assets.py
+    participant ST as StorageClient
+    participant OB as start_obs.sh
+    participant OS as OBS Studio
+ 
+    SV->>DL: 起動 (priority: 45)
+    DL->>ST: アセット取得 (GCS/Local)
+    ST-->>DL: 完了
+    DL->>DL: マーカーファイル作成 (.assets_ready)
+    SV->>OB: 起動 (priority: 50)
+    OB->>OB: マーカーファイルの存在を待機
+    OB->>OS: OBS プロセス起動
+    OS->>OS: /app/assets/ から画像を読み込み
+```
+ 
+1. **実行トリガー**: `supervisord` が起動時に `download_assets.py` を実行
+2. **データ取得**: `StorageClient` を使用し、環境設定に応じた場所からアセットを取得
+3. **同期制御**:
+   - ダウンロード完了時に `/app/assets/.assets_ready` を作成
+   - `start_obs.sh` がこのファイルの出現を最大120秒待機
+4. **OBS 起動**: アセットが揃った状態で OBS 起動。シーン定義 (`Untitled.json`) にある `/app/assets/...` を参照
+ 
+---
+ 
 ## 関連ドキュメント
 
 - [システム概要](./overview.md) - 全体アーキテクチャ
 - [Saint Graph - Core Logic](../components/saint-graph/core-logic.md) - ターン処理の実装
 - [Body - Audio Playback](../components/body/streamer/audio-playback.md) - 音声再生システム
 - [Body - YouTube](../components/body/streamer/youtube.md) - YouTube コメント取得
+```

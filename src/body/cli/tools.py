@@ -26,8 +26,37 @@ async def change_emotion(emotion: str) -> str:
 async def get_comments() -> str:
     """
     キューに蓄積されたユーザーコメントを取得します。
+    
+    Returns:
+        コメントリスト (JSON形式)
     """
+    import json
     inputs = io_adapter.get_inputs()
     if not inputs:
-        return "No new comments."
-    return "\n".join(inputs)
+        return json.dumps([])
+    
+    # body-streamerの形式に合わせて、辞書のリストとして返す
+    comments = [{"author": "User", "message": line} for line in inputs]
+    return json.dumps(comments, ensure_ascii=False)
+
+
+async def start_broadcast(config: dict = None) -> str:
+    """
+    配信/録画を開始します。
+    CLI モードでは何もしません（ログ出力のみ）。
+    """
+    import logging
+    logger = logging.getLogger(__name__)
+    logger.info("[CLI] start_broadcast called (no-op in CLI mode)")
+    return "CLI mode: broadcast start skipped"
+
+
+async def stop_broadcast() -> str:
+    """
+    配信/録画を停止します。
+    CLI モードでは何もしません（ログ出力のみ）。
+    """
+    import logging
+    logger = logging.getLogger(__name__)
+    logger.info("[CLI] stop_broadcast called (no-op in CLI mode)")
+    return "CLI mode: broadcast stop skipped"

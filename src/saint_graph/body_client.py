@@ -6,7 +6,7 @@ import httpx
 import logging
 from typing import Optional, List, Dict, Any
 
-from .config import MCP_URL
+from .config import BODY_URL
 
 logger = logging.getLogger(__name__)
 
@@ -23,15 +23,9 @@ class BodyClient:
         
         Args:
             base_url: Base URL for the body service. If not provided,
-                      uses the first URL from MCP_URLS (converted to REST format).
+                      uses the BODY_URL from config.
         """
-        if base_url:
-            self.base_url = base_url.rstrip("/")
-        else:
-            # Convert MCP URL (http://body-cli:8000/sse) to REST base URL
-            mcp_url = MCP_URL if MCP_URL else "http://body-cli:8000/sse"
-            self.base_url = mcp_url.replace("/sse", "")
-        
+        self.base_url = (base_url or BODY_URL).rstrip("/")
         logger.info(f"BodyClient initialized with base_url: {self.base_url}")
     
     async def speak(self, text: str, style: Optional[str] = None, speaker_id: Optional[int] = None) -> str:
@@ -105,89 +99,43 @@ class BodyClient:
                 logger.error(f"Error calling get_comments API: {e}")
                 return []
     
-    async def start_recording(self) -> str:
+    async def start_broadcast(self, config: Optional[Dict[str, Any]] = None) -> str:
         """
-        Call the start_recording API (streamer only).
+        Call the broadcast start API (unified endpoint).
+        
+        Args:
+            config: Optional broadcast config (title, description, etc.)
+            
+        Returns:
+            Result message from the API
+        """
+        async with httpx.AsyncClient(timeout=DEFAULT_TIMEOUT) as client:
+            try:
+                payload = config or {}
+                response = await client.post(f"{self.base_url}/api/broadcast/start", json=payload)
+                response.raise_for_status()
+                data = response.json()
+                return data.get("result", "Broadcast started")
+            except Exception as e:
+                logger.error(f"Error calling start_broadcast API: {e}")
+                return f"Error: {e}"
+    
+    async def stop_broadcast(self) -> str:
+        """
+        Call the broadcast stop API (unified endpoint).
         
         Returns:
             Result message from the API
         """
         async with httpx.AsyncClient(timeout=DEFAULT_TIMEOUT) as client:
             try:
-                response = await client.post(f"{self.base_url}/api/recording/start")
+                response = await client.post(f"{self.base_url}/api/broadcast/stop")
                 response.raise_for_status()
                 data = response.json()
-                return data.get("result", "Recording started")
+                return data.get("result", "Broadcast stopped")
             except Exception as e:
-                logger.error(f"Error calling start_recording API: {e}")
+                logger.error(f"Error calling stop_broadcast API: {e}")
                 return f"Error: {e}"
-    
-    async def stop_recording(self) -> str:
-        """
-        Call the stop_recording API (streamer only).
-        
-        Returns:
-            Result message from the API
-        """
-        async with httpx.AsyncClient(timeout=DEFAULT_TIMEOUT) as client:
-            try:
-                response = await client.post(f"{self.base_url}/api/recording/stop")
-                response.raise_for_status()
-                data = response.json()
-                return data.get("result", "Recording stopped")
-            except Exception as e:
-                logger.error(f"Error calling stop_recording API: {e}")
-                return f"Error: {e}"
-    
-    async def start_streaming(self, title: str, description: str, scheduled_start_time: str, 
-                             thumbnail_path: Optional[str] = None, privacy_status: str = "private") -> str:
-        """
-        Call the start_streaming API.
-        """
-        async with httpx.AsyncClient(timeout=DEFAULT_TIMEOUT) as client:
-            try:
-                payload = {
-                    "title": title,
-                    "description": description,
-                    "scheduled_start_time": scheduled_start_time,
-                    "thumbnail_path": thumbnail_path,
-                    "privacy_status": privacy_status
-                }
-                response = await client.post(f"{self.base_url}/api/streaming/start", json=payload)
-                response.raise_for_status()
-                data = response.json()
-                return data.get("result", "Streaming started")
-            except Exception as e:
-                logger.error(f"Error calling start_streaming API: {e}")
-                return f"Error: {e}"
-
-    async def stop_streaming(self) -> str:
-        """
-        Call the stop_streaming API.
-        """
-        async with httpx.AsyncClient(timeout=DEFAULT_TIMEOUT) as client:
-            try:
-                response = await client.post(f"{self.base_url}/api/streaming/stop")
-                response.raise_for_status()
-                data = response.json()
-                return data.get("result", "Streaming stopped")
-            except Exception as e:
-                logger.error(f"Error calling stop_streaming API: {e}")
-                return f"Error: {e}"
-
-    async def get_streaming_comments(self) -> List[Dict[str, Any]]:
-        """
-        Call the get_streaming_comments API.
-        """
-        async with httpx.AsyncClient(timeout=DEFAULT_TIMEOUT) as client:
-            try:
-                response = await client.get(f"{self.base_url}/api/streaming/comments")
-                response.raise_for_status()
-                data = response.json()
-                return data.get("comments", [])
-            except Exception as e:
-                logger.error(f"Error calling get_streaming_comments API: {e}")
-                return []
 
     async def play_audio_file(self, file_path: str, duration: float) -> str:
         """

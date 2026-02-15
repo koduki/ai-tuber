@@ -22,33 +22,22 @@ data/news/
 
 環境変数 `NEWS_DIR` でディレクトリを指定できます（デフォルト: `/app/data/news`）。
 
-### Cloud Storage 連携
-
-GCP 環境では、ニュース原稿を **Cloud Storage** から自動的にダウンロードします。
-
-**動作フロー**:
-1. 環境変数 `GCS_BUCKET_NAME` が設定されている場合、GCS からダウンロードを試みる
-2. ダウンロード成功 → ローカルの `news_script.md` を上書き
-3. ダウンロード失敗（バケットが空、ネットワークエラー等） → ローカルファイルを使用（フォールバック）
-
+### ストレージ連携
+ 
+GCP 環境では、ニュース原稿を **Cloud Storage** から取得します。ローカル開発環境ではプロジェクトの `data/` ディレクトリから読み込みます。
+ 
+**特長**:
+- **透過的なアクセス**: `StorageClient` が環境変数 `STORAGE_TYPE` に応じて自動的に物理的な場所（GCS バケットかローカル FS か）を切り替えます。
+- **デフォルトバケット**: `GCS_BUCKET_NAME` が設定されている場合、利用側コードでバケット名を指定する必要はありません。
+ 
 **環境変数**:
 ```bash
-GCS_BUCKET_NAME=ai-tuber-news  # GCS バケット名（任意）
-NEWS_DIR=/app/data/news         # ローカル保存先（デフォルト）
+STORAGE_TYPE=gcs                # または filesystem
+GCS_BUCKET_NAME=ai-tuber-news  # GCS バケット名
+NEWS_DIR=news                   # 論理パス（デフォルト）
 ```
-
-**実装例**:
-```python
-# news_service.py
-if bucket_name:
-    success = download_from_gcs(bucket_name, "news_script.md", local_path)
-    if success:
-        print(f"Downloaded news from GCS: {bucket_name}")
-    else:
-        print("GCS download failed, using local file")
-```
-
-この仕組みにより、News Collector（Cloud Run Job）で収集したニュースを、Saint Graph（配信ジョブ）が自動的に取得できます。
+ 
+この仕組みにより、Saint Graph はインフラの詳細を知ることなく、常に `news/news_script.md` という論理的なキーで最新の原稿にアクセスできます。
 
 ### Markdown フォーマット
 
@@ -110,12 +99,11 @@ news_items = news_service.load_news()
 
 ```python
 # 次のニュースを取得
-next_news = news_service.get_next_news()
+next_news = news_service.get_next_item()
 
 if next_news:
-    # AI に渡す
-    prompt = f"次のニュースを読み上げてください:\n\nタイトル: {next_news.title}\n\n{next_news.content}"
-    await agent.process_turn(prompt)
+    # SaintGraph の高レベルメソッドに委譲（テンプレート適用は AI 側で実施）
+    await saint_graph.process_news_reading(title=next_news.title, content=next_news.content)
 ```
 
 ---
@@ -123,19 +111,18 @@ if next_news:
 ## メインループでの使用
 
 ```python
-# ニュース読み上げフェーズ
-while news_service.has_more_news():
-    news = news_service.get_next_news()
+# ニュース読み上げフェーズ (broadcast_loop.py 内のイメージ)
+while news_service.has_next():
+    news = news_service.get_next_item()
     
-    # AI に依頼
-    prompt = f"次のニュースを解説してください:\n\n{news.title}\n{news.content}"
-    await saint_graph.process_turn(prompt)
+    # AI に依頼（高レベルメソッドの呼び出し）
+    await saint_graph.process_news_reading(title=news.title, content=news.content)
     
     # コメント取得・質疑応答
-    await handle_comments()
+    await _poll_and_respond(ctx)
 
 # 全ニュース終了
-print("すべてのニュース配信が完了しました")
+await saint_graph.process_news_finished()
 ```
 
 ---

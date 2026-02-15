@@ -44,3 +44,8 @@ opentofu/terraform.tfstate.backup
 opentofu/terraform.tfvars
 opentofu/*.tfplan
 opentofu/*.tofuplan
+
+# VOICEVOX Engine generated directories
+data/mind/*/core_libraries/
+data/mind/*/installed_libraries/
+

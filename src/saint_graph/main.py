@@ -2,11 +2,13 @@ import asyncio
 import sys
 import os
 
-from .config import logger, BODY_URL, MCP_URL, POLL_INTERVAL, MAX_WAIT_CYCLES, NEWS_DIR
+from .config import logger, BODY_URL, WEATHER_MCP_URL, NEWS_DIR
 from .saint_graph import SaintGraph
 from .telemetry import setup_telemetry
 from .prompt_loader import PromptLoader
 from .news_service import NewsService
+from .body_client import BodyClient
+from .broadcast_loop import BroadcastContext, run_broadcast_loop
 
 
 async def main():
@@ -39,152 +41,82 @@ async def main():
     mind_config = loader.load_mind_config()
     logger.info(f"Loaded mind config: {mind_config}")
 
+    # BodyClient の初期化
+    body_client = BodyClient(base_url=BODY_URL)
+
     # SaintGraph (ADK + REST Body) の初期化
     saint_graph = SaintGraph(
-        body_url=BODY_URL,
-        mcp_url=MCP_URL,
+        body=body_client,
+        weather_mcp_url=WEATHER_MCP_URL,
         system_instruction=system_instruction,
-        mind_config=mind_config
+        mind_config=mind_config,
+        templates=templates
     )
 
     # MCP URL の疎通確認（デバッグ用）
-    if MCP_URL:
+    if WEATHER_MCP_URL:
         import httpx
-        logger.info(f"Checking connectivity to MCP_URL: {MCP_URL}")
+        logger.info(f"Checking connectivity to WEATHER_MCP_URL: {WEATHER_MCP_URL}")
         try:
             async with httpx.AsyncClient(timeout=5.0) as client:
-                # SSEなのでGETはぶら下がる可能性があるが、まずは疎通を見たいので5秒で切る前提
-                response = await client.get(MCP_URL)
-                logger.info(f"MCP_URL check response: {response.status_code}")
+                response = await client.get(WEATHER_MCP_URL)
+                logger.info(f"WEATHER_MCP_URL check response: {response.status_code}")
         except asyncio.TimeoutError:
-            logger.info("MCP_URL check: connection timed out as expected (SSE)")
+            logger.info("WEATHER_MCP_URL check: connection timed out as expected (SSE)")
         except Exception as e:
-            logger.warning(f"MCP_URL connectivity check failed: {e}")
+            logger.warning(f"WEATHER_MCP_URL connectivity check failed: {e}")
 
-    # メインループ
-    await _run_newscaster_loop(saint_graph, news_service, templates)
+    # 配信パラメータの構築 & 配信開始
+    broadcast_config = _build_broadcast_config()
+    await _start_broadcast(body_client, broadcast_config)
 
+    # ステートマシンによるメインループ実行
+    ctx = BroadcastContext(
+        saint_graph=saint_graph,
+        news_service=news_service,
+    )
 
-async def _run_newscaster_loop(saint_graph: SaintGraph, news_service: NewsService, templates: dict):
-    """ニュースキャスターのメインループを実行します。"""
-    logger.info("Entering Newscaster Loop...")
-
-    finished_news = False
-    end_wait_counter = 0
-
-    # 録画・配信開始の試行 (REST API)
-    streaming_mode = os.getenv("STREAMING_MODE", "false").lower() == "true"
     try:
-        if streaming_mode:
-            from datetime import datetime
-            now_iso = datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ')
-            title = os.getenv("STREAM_TITLE", f"AI Tuber Live Stream - {now_iso}")
-            description = os.getenv("STREAM_DESCRIPTION", "AI Tuber Live Stream")
-            
-            res = await saint_graph.body.start_streaming(
-                title=title,
-                description=description,
-                scheduled_start_time=now_iso,
-                privacy_status=os.getenv("STREAM_PRIVACY", "private")
-            )
-            logger.info(f"Automatic Streaming Start result: {res}")
-            if "エラー" in res or res.startswith("Error"):
-                logger.critical(f"Streaming start failed: {res}")
-                sys.exit(1)
-        else:
-            res = await saint_graph.body.start_recording()
-            logger.info(f"Automatic Recording Start result: {res}")
-            if "エラー" in res or res.startswith("Error"):
-                logger.critical(f"Recording start failed: {res}")
-                sys.exit(1)
+        await run_broadcast_loop(ctx)
+    finally:
+        await _stop_broadcast(body_client)
+        await saint_graph.close()
 
-            # OBS録画開始後の安定化待機
-            await asyncio.sleep(3)
+
+def _build_broadcast_config() -> dict:
+    """環境変数から配信パラメータを構築します。"""
+    from datetime import datetime
+    now_iso = datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ')
+    return {
+        "title": os.getenv("STREAM_TITLE", f"AI Tuber Live Stream - {now_iso}"),
+        "description": os.getenv("STREAM_DESCRIPTION", "AI Tuber Live Stream"),
+        "scheduled_start_time": now_iso,
+        "privacy_status": os.getenv("STREAM_PRIVACY", "private"),
+    }
+
+
+async def _start_broadcast(body: BodyClient, config: dict):
+    """配信または録画を開始します。"""
+    try:
+        res = await body.start_broadcast(config)
+        logger.info(f"Broadcast start result: {res}")
+        if "エラー" in res or res.startswith("Error"):
+            logger.critical(f"Broadcast start failed: {res}")
+            sys.exit(1)
     except Exception as e:
         if isinstance(e, SystemExit):
             raise
-        logger.critical(f"Could not automatically start due to unexpected error: {e}")
+        logger.critical(f"Could not start broadcast: {e}")
         sys.exit(1)
 
-    # 配信開始の挨拶
-    await saint_graph.process_turn(templates["intro"], context="Intro")
 
-    while True:
-        try:
-            # ユーザーからのコメント確認
-            has_user_interaction = await _check_comments(saint_graph, streaming_mode)
-            if has_user_interaction:
-                end_wait_counter = 0
-                await asyncio.sleep(POLL_INTERVAL)
-                continue
-
-            # ニュース読み上げまたは終了処理
-            if news_service.has_next():
-                item = news_service.get_next_item()
-                logger.info(f"Reading news item: {item.title}")
-                instruction = templates["news_reading"].format(title=item.title, content=item.content)
-                await saint_graph.process_turn(instruction, context=f"News Reading: {item.title}")
-            elif not finished_news:
-                finished_news = True
-                logger.info("All news items read. Waiting for final comments.")
-                await saint_graph.process_turn(templates["news_finished"], context="News Finished")
-            else:
-                end_wait_counter += 1
-                if end_wait_counter > MAX_WAIT_CYCLES:
-                    logger.info(f"Silence timeout ({MAX_WAIT_CYCLES}s) reached. Finishing broadcast.")
-                    await saint_graph.process_turn(templates["closing"], context="Closing")
-                    await asyncio.sleep(3)
-                    
-                    # 停止の試行
-                    try:
-                        if streaming_mode:
-                            await saint_graph.body.stop_streaming()
-                        else:
-                            await saint_graph.body.stop_recording()
-                    except:
-                        pass
-                        
-                    await saint_graph.close()
-                    break
-
-            await asyncio.sleep(POLL_INTERVAL)
-
-        except Exception as e:
-            logger.error(f"Unexpected error in Chat Loop: {e}", exc_info=True)
-            await asyncio.sleep(5)
-        except BaseException as e:
-            logger.critical(f"Critical System Error: {e}", exc_info=True)
-            raise
-
-
-async def _check_comments(saint_graph: SaintGraph, streaming_mode: bool = False) -> bool:
-    """コメントをポーリングし、あれば応答します。インタラクションがあればTrueを返します。"""
+async def _stop_broadcast(body: BodyClient):
+    """配信または録画を停止します。"""
     try:
-        # BodyClient経由でコメント取得 (REST API)
-        if streaming_mode:
-            comments_data = await saint_graph.body.get_streaming_comments()
-        else:
-            comments_data = await saint_graph.body.get_comments()
-        
-        if comments_data:
-            # コメントの整形（リストから文字列へ）
-            if isinstance(comments_data, list):
-                # body-streamerの場合の形式
-                if comments_data and isinstance(comments_data[0], dict):
-                    comments_text = "\n".join([f"{c['author']}: {c['message']}" for c in comments_data])
-                else:
-                    # body-cliの場合の形式
-                    comments_text = "\n".join(comments_data)
-            else:
-                comments_text = str(comments_data)
-                
-            if comments_text:
-                logger.info(f"Comments received: {comments_text}")
-                await saint_graph.process_turn(comments_text)
-                return True
+        res = await body.stop_broadcast()
+        logger.info(f"Broadcast stop result: {res}")
     except Exception as e:
-        logger.error(f"Error in polling/turn: {e}")
-    return False
+        logger.warning(f"Failed to stop broadcast cleanly: {e}")
 
 
 if __name__ == "__main__":
@@ -194,5 +126,4 @@ if __name__ == "__main__":
     except Exception:
         traceback.print_exc()
         sys.stderr.flush()
-        sys.stdout.flush()
         sys.stdout.flush()

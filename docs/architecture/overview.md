@@ -32,7 +32,7 @@ Google ADK をベースにした意思決定エンジン。システムの思考
 
 **責任範囲**:
 - キャラクターのペルソナ定義
-- 技術設定（speaker_id など）
+- キャラクターのボイス設定（speaker_id など）
 - アセット（画像・音声）の管理
 
 ---
@@ -64,8 +64,8 @@ Google ADK をベースにした意思決定エンジン。システムの思考
 **コンテナイメージにユーザ固有情報を含めない**ことで、デプロイとスケーリングを柔軟に行えます。
 
 - コンテナ起動時に `CHARACTER_NAME` 環境変数でキャラクターを指定
-- プロンプトやアセットは起動時に `StorageClient` 経由で動的ロード
-- API キーや認証情報は `SecretProvider` 経由で取得
+- プロンプトやアセットは起動時に `StorageClient` 経由で動的ロード（画像・BGM等も含む）
+- API キーや認証情報は環境変数（Cloud Run / GCE 等が提供）経由で取得
 
 **メリット**:
 - イメージの再ビルドなしでキャラクター切り替え可能
@@ -96,18 +96,11 @@ Google ADK をベースにした意思決定エンジン。システムの思考
 
 この差異は `PromptLoader` 内で `STORAGE_TYPE` 環境変数に基づき自動的に吸収されます。
 
-#### Secrets Abstraction Layer
-
-| 環境 | シークレット取得元 |
-|------|------------------|
-| **ローカル** | 環境変数 (`.env`) |
-| **本番 (GCP)** | Secret Manager |
-
-`SecretProvider` インターフェースにより、API キーや認証情報の取得方法を統一します。
-
-**名前の正規化:** `GcpSecretProvider` はシークレット名を自動変換します（`GOOGLE_API_KEY` → `google-api-key`）。これにより、アプリコード内は `UPPER_CASE` で統一しつつ、Secret Manager 側は GCP の kebab-case 命名規則に従えます。
-
-**ADK 連携:** Google ADK は `os.environ["GOOGLE_API_KEY"]` を直接参照するため、`SecretProvider` で取得した API キーは環境変数にも反映されます。
+#### Secrets Management
+ 
+ 本システムは、実行環境（Cloud Run や GCE）が提供する環境変数を直接利用する設計を採用しています。これにより、インフラレイヤーでセキュアに注入された値をアプリケーションコードが透過的に利用できます。
+ 
+ **ADK 連携:** Google ADK は `os.environ["GOOGLE_API_KEY"]` を直接参照するため、実行環境から提供されたキーをそのまま利用します。
 
 ---
 
@@ -120,9 +113,11 @@ Google ADK をベースにした意思決定エンジン。システムの思考
 | `saint-graph` | 思考・対話エンジン（魂） | - | REST Client / MCP Client |
 | `body-streamer` | ストリーミング制御ハブ（肉体） | 8002 | REST API Server |
 | `body-cli` | 開発用 CLI 入出力（肉体） | 8000 | REST API Server |
-| `tools-weather` | 天気情報取得ツール（環境） | 8001 | MCP Server (SSE) |
+| `tools-weather` | 天気情報取得ツール（AI自律ツール） | 8001 | MCP Server (SSE) |
+| `health-proxy` | システム監視・疎通確認プロキシ | 8080 | REST API |
 | `obs-studio` | 配信・映像合成 | 8080, 4455 | VNC / WebSocket |
 | `voicevox` | 音声合成エンジン | 50021 | HTTP API |
+| `news-collector` | ニュース自動収集バッチ | - | Cloud Run Job |
 
 ### システムマップ
 
@@ -135,16 +130,21 @@ graph TD
     NewsScript["data/news/news_script.md"]
   end
 
-  subgraph Tools ["Tools / Scripts"]
+  subgraph Tools ["Tools (Autonomous AI Tools)"]
+    WeatherMcp["src/tools/weather/"]
+    NoteTools["AIが自律判断で使用するツール(MCP等)のみを配置"]
+  end
+
+  subgraph Scripts ["Scripts & Internal Jobs"]
     NewsCollector["scripts/news_collector/news_agent.py"]
   end
 
   subgraph SaintGraph ["Saint Graph (魂)"]
     Agent["ADK Agent"]
     Runner["InMemoryRunner"]
-    Parser["Output Parser ([emotion: type])"]
-    BodyClient["REST BodyClient"]
-    Toolset["McpToolset"]
+- [emotion: type])"]
+    BodyClient["REST BodyClient (System Logic)"]
+    Toolset["McpToolset (Autonomous Extension)"]
   end
 
   subgraph BodyServices ["Body (肉体 / REST API)"]
@@ -170,11 +170,11 @@ graph TD
   MindJson -- "Settings" --> Agent
   Assets -- "Resources" --> Agent
   Agent -- "Text Output" --> Parser
-  Parser -- "REST (HTTP)" --> BodyClient
-  BodyClient -- "REST (HTTP)" --> ServerStreamer
-  BodyClient -- "REST (HTTP)" --> ServerCLI
+  Parser -- "REST/身体操作" --> BodyClient
+  BodyClient -- "REST/身体操作" --> ServerStreamer
+  BodyClient -- "REST/身体操作" --> ServerCLI
   
-  Agent -- "Autonomous Tool Call" --> Toolset
+  Agent -- "自律的ツール利用 (MCP)" --> Toolset
   Toolset -- "MCP (SSE)" --> ServerWeather
   
   ServerStreamer -- "HTTP API" --> VoiceVox
@@ -208,13 +208,13 @@ graph TD
 | Body (OBS + VoiceVox + Streamer) | **Compute Engine + GPU** | GPU共有、高速ファイルアクセス |
 
 **主な特徴**:
-- ✅ **自動化**: Cloud Scheduler による毎朝の自動実行
-  - 07:00: ニュース収集
-  - 07:55: GCE 起動（OBS & VoiceVox 準備）
-  - 08:00: **配信開始**（Saint Graph Job 実行）
-  - 08:40: GCE 停止（配信終了）
-- ✅ **コスト最適化**: Spot インスタンス使用で 60-90% コスト削減
-- ✅ **スケール to Zero**: Cloud Run は未使用時に課金なし
+- ✅ **自動化**: Cloud Workflows による堅牢な配信パイプライン
+  - 08:00: Cloud Scheduler がワークフローを起動
+  - Step 1: ニュース収集ジョブ（Cloud Run Job）を実行
+  - Step 2: Body Node (GCE) を起動し、**起動完了まで自動待機**
+  - Step 3: Saint Graph (Cloud Run Job) を実行し配信開始
+  - Step 4: 配信完了後、Body Node を自動停止してコスト削減
+- ✅ **Infrastructure as Code**: OpenTofu で完全に管理
 - ✅ **共有ストレージ**: Cloud Storage でニュース原稿を共有
 - ✅ **Secret Manager 統合**: API キーや YouTube 認証情報を安全に管理
 - ✅ **Git 不要**: Artifact Registry から直接イメージをプル
@@ -236,7 +236,7 @@ graph TD
 
 ### REST API（Body 操作用）
 
-**用途**: 確実に実行しなければならない「身体操作」
+**用途**: 確実に実行しなければならない、**「アプリケーション・ワークフロー」としての身体操作**
 
 - 発話（speak）
 - 表情変更（change_emotion）
@@ -244,20 +244,20 @@ graph TD
 - 録画・配信制御（recording/streaming）
 
 **特徴**:
+- アプリケーション側のロジック（`main.py` 等）によって一律に制御される
 - 同期的な実行保証
 - エラーハンドリングが容易
-- 低レイテンシ
 
 ### MCP（外部ツール用）
 
-**用途**: AI が自律的に判断して使う「情報取得ツール」
+**用途**: **AI（LLM）が自律的に判断して使う**「情報取得ツール」
 
 - 天気予報（get_weather）
 - 将来的に追加される知識検索など
 
 **特徴**:
+- AI の判断に基づき、必要に応じて呼び出される
 - 動的なツール発見
-- AI が必要に応じて呼び出し
 - スキーマ駆動
 
 ---
@@ -289,14 +289,15 @@ Mind (精神)
 
 ## 配信フロー
 
-1. **初期化**: Saint Graph が Body と MCP Tools に接続
-2. **挨拶**: キャラクターが自己紹介
-3. **ニュース配信ループ**:
-   - ニュース原稿を読み上げ
-   - AI が感情を付与してテキスト生成
-   - センテンス単位で音声合成・再生
-   - コメントを取得して質疑応答
-4. **終了**: クロージング挨拶
+`broadcast_loop.py` のステートマシンにより制御されます。
+
+1. **初期化** (`main.py`): Saint Graph が Body と MCP Tools に接続、配信開始
+2. **INTRO**: キャラクターが自己紹介
+3. **NEWS**: コメント優先確認 → ニュース原稿を 1 本ずつ読み上げ
+4. **IDLE**: ニュース終了後、コメント待機（タイムアウトで CLOSING へ）
+5. **CLOSING**: クロージング挨拶 → 配信停止
+
+各フェーズでコメントに応答できるため、ニュースの合間に視聴者とのインタラクションが可能です。
 
 詳細は [data-flow.md](./data-flow.md) を参照してください。
 
@@ -313,6 +314,7 @@ Mind (精神)
 ```
 tests/
 ├── unit/              # ユニットテスト
+│   ├── test_broadcast_loop.py     # 配信ステートマシン
 │   ├── test_prompt_loader.py      # mind.json 読み込み
 │   ├── test_saint_graph.py        # AI 応答パース・感情制御
 │   ├── test_obs_recording.py      # OBS 録画制御

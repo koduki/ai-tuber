@@ -12,22 +12,22 @@ class StorageClient(ABC):
     """Abstract interface for storage operations."""
 
     @abstractmethod
-    def download_file(self, bucket: str, key: str, dest: str) -> None:
+    def download_file(self, key: str, dest: str, bucket: Optional[str] = None) -> None:
         """Download a file from storage to local destination."""
         pass
 
     @abstractmethod
-    def upload_file(self, bucket: str, key: str, src: str) -> None:
+    def upload_file(self, key: str, src: str, bucket: Optional[str] = None) -> None:
         """Upload a file from local source to storage."""
         pass
 
     @abstractmethod
-    def read_text(self, bucket: str, key: str) -> str:
+    def read_text(self, key: str, bucket: Optional[str] = None) -> str:
         """Read text content from storage."""
         pass
 
     @abstractmethod
-    def list_objects(self, bucket: str, prefix: str) -> List[str]:
+    def list_objects(self, prefix: str, bucket: Optional[str] = None) -> List[str]:
         """List objects in storage with given prefix."""
         pass
 
@@ -37,26 +37,33 @@ class FileSystemStorageClient(StorageClient):
 
     def __init__(self, base_path: Optional[str] = None):
         """
-        Initialize FileSystem storage client.
+        FileSystem ストレージクライアントを初期化。
         
         Args:
-            base_path: Base directory path. If None, uses project root.
+            base_path: 基底ディレクトリ。None の場合は /app/data またはプロジェクトルート/data。
         """
         if base_path is None:
-            # Default to project root
-            self.base_path = Path(__file__).resolve().parent.parent.parent
+            # プロジェクトルートの data ディレクトリをデフォルトとする
+            self.base_path = Path(__file__).resolve().parent.parent.parent / "data"
         else:
             self.base_path = Path(base_path)
+        
+        # 開発環境（dataディレクトリがない場合）への対応
+        if not self.base_path.exists() and "site-packages" not in str(self.base_path):
+            old_base = self.base_path
+            self.base_path = Path(__file__).resolve().parent.parent.parent
+            logger.warning(f"Data root {old_base} not found, falling back to project root: {self.base_path}")
+
         logger.info(f"FileSystemStorageClient initialized with base_path: {self.base_path}")
 
-    def _resolve_path(self, bucket: str, key: str) -> Path:
+    def _resolve_path(self, bucket: Optional[str], key: str) -> Path:
         """Resolve bucket and key to filesystem path."""
         # In filesystem mode, bucket is treated as a subdirectory
-        return self.base_path / bucket / key
+        return self.base_path / (bucket or "") / key
 
-    def download_file(self, bucket: str, key: str, dest: str) -> None:
+    def download_file(self, key: str, dest: str, bucket: Optional[str] = None) -> None:
         """Copy file from filesystem to destination."""
-        src_path = self._resolve_path(bucket, key)
+        src_path = self._resolve_path(bucket or "", key)
         if not src_path.exists():
             raise FileNotFoundError(f"File not found: {src_path}")
         
@@ -67,27 +74,27 @@ class FileSystemStorageClient(StorageClient):
         shutil.copy2(src_path, dest_path)
         logger.debug(f"Downloaded {src_path} to {dest_path}")
 
-    def upload_file(self, bucket: str, key: str, src: str) -> None:
+    def upload_file(self, key: str, src: str, bucket: Optional[str] = None) -> None:
         """Copy file from source to filesystem storage."""
-        dest_path = self._resolve_path(bucket, key)
+        dest_path = self._resolve_path(bucket or "", key)
         dest_path.parent.mkdir(parents=True, exist_ok=True)
         
         import shutil
         shutil.copy2(src, dest_path)
         logger.debug(f"Uploaded {src} to {dest_path}")
 
-    def read_text(self, bucket: str, key: str) -> str:
+    def read_text(self, key: str, bucket: Optional[str] = None) -> str:
         """Read text content from filesystem."""
-        file_path = self._resolve_path(bucket, key)
+        file_path = self._resolve_path(bucket or "", key)
         if not file_path.exists():
             raise FileNotFoundError(f"File not found: {file_path}")
         
         with open(file_path, "r", encoding="utf-8") as f:
             return f.read()
 
-    def list_objects(self, bucket: str, prefix: str) -> List[str]:
+    def list_objects(self, prefix: str, bucket: Optional[str] = None) -> List[str]:
         """List files in filesystem with given prefix."""
-        base_path = self.base_path / bucket
+        base_path = self.base_path / (bucket or "")
         if not base_path.exists():
             return []
         
@@ -106,26 +113,29 @@ class FileSystemStorageClient(StorageClient):
 class GcsStorageClient(StorageClient):
     """Storage client for Google Cloud Storage."""
 
-    def __init__(self, project_id: Optional[str] = None):
+    def __init__(self, project_id: Optional[str] = None, default_bucket: Optional[str] = None):
         """
         Initialize GCS storage client.
         
         Args:
             project_id: GCP project ID. If None, uses default credentials.
+            default_bucket: Default bucket name to use if not specified in calls.
         """
+        self.default_bucket = default_bucket or os.getenv("GCS_BUCKET_NAME")
         try:
             from google.cloud import storage
             self.client = storage.Client(project=project_id)
-            logger.info(f"GcsStorageClient initialized with project: {project_id}")
+            logger.info(f"GcsStorageClient initialized with project: {project_id}, default_bucket: {self.default_bucket}")
         except ImportError:
             raise ImportError("google-cloud-storage is required for GcsStorageClient")
 
-    def _get_bucket(self, bucket: str):
-        if not bucket:
-            raise ValueError("Bucket name must not be empty in GcsStorageClient")
-        return self.client.bucket(bucket)
+    def _get_bucket(self, bucket: Optional[str]):
+        bucket_name = bucket or self.default_bucket
+        if not bucket_name:
+            raise ValueError("Bucket name must be provided or configured via GCS_BUCKET_NAME")
+        return self.client.bucket(bucket_name)
 
-    def download_file(self, bucket: str, key: str, dest: str) -> None:
+    def download_file(self, key: str, dest: str, bucket: Optional[str] = None) -> None:
         """Download file from GCS to local destination."""
         bucket_obj = self._get_bucket(bucket)
         blob = bucket_obj.blob(key)
@@ -134,22 +144,22 @@ class GcsStorageClient(StorageClient):
         dest_path.parent.mkdir(parents=True, exist_ok=True)
         
         blob.download_to_filename(dest)
-        logger.debug(f"Downloaded gs://{bucket}/{key} to {dest}")
+        logger.debug(f"Downloaded gs://{bucket_obj.name}/{key} to {dest}")
 
-    def upload_file(self, bucket: str, key: str, src: str) -> None:
+    def upload_file(self, key: str, src: str, bucket: Optional[str] = None) -> None:
         """Upload file from local source to GCS."""
         bucket_obj = self._get_bucket(bucket)
         blob = bucket_obj.blob(key)
         blob.upload_from_filename(src)
-        logger.debug(f"Uploaded {src} to gs://{bucket}/{key}")
+        logger.debug(f"Uploaded {src} to gs://{bucket_obj.name}/{key}")
 
-    def read_text(self, bucket: str, key: str) -> str:
+    def read_text(self, key: str, bucket: Optional[str] = None) -> str:
         """Read text content from GCS."""
         bucket_obj = self._get_bucket(bucket)
         blob = bucket_obj.blob(key)
         return blob.download_as_text()
 
-    def list_objects(self, bucket: str, prefix: str) -> List[str]:
+    def list_objects(self, prefix: str, bucket: Optional[str] = None) -> List[str]:
         """List objects in GCS bucket with given prefix."""
         bucket_obj = self._get_bucket(bucket)
         blobs = bucket_obj.list_blobs(prefix=prefix)

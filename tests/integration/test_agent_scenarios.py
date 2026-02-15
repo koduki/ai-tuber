@@ -71,9 +71,9 @@ async def test_weather_scenario():
         mock_body_client.speak = AsyncMock(side_effect=speak)
         mock_body_client.change_emotion = AsyncMock(side_effect=change_emotion)
         
-        # Initialize SaintGraph with dummy body_url, empty mcp_urls and custom tools
+        # Initialize SaintGraph with mock body client, empty mcp_urls and custom tools
         sg = SaintGraph(
-            body_url="http://mock-body",
+            body=mock_body_client,
             mcp_url="",
             system_instruction=system_instruction,
             tools=[weather_tool]
