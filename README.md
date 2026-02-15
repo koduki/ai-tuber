@@ -174,52 +174,43 @@ graph TD
         CW[Cloud Workflows]
     end
 
-    subgraph Serverless ["サーバーレス実行レイヤー (Cloud Run)"]
-        subgraph NC_Group ["News Collector"]
-            NC[News Collector Job]
-            GCS_N[(GCS: ニュース原稿)]
-            NC --> GCS_N
-        end
-        
-        subgraph SG_Group ["Saint Graph"]
-            SG[Saint Graph Job]
-            GCS_P[(GCS: プロンプト/記憶)]
-            SG --> GCS_P
-        end
-
-        subgraph ToolsLayer ["拡張機能 (MCP)"]
-            TW[Tools Weather]
-        end
-        
-        subgraph UtilityLayer ["補助機能"]
-            HP[Health Proxy]
-        end
+    subgraph News ["News Collector"]
+        NC[News Collector Job]
+        GCS_N[(GCS: ニュース原稿)]
+        NC --> GCS_N
+    end
+    
+    subgraph SaintGraph ["Saint Graph (魂)"]
+        SG[Saint Graph Job]
+        GCS_P[(GCS: プロンプト/記憶)]
+        SG --> GCS_P
     end
 
-    subgraph Computing ["コンピューティングレイヤー (GCE + GPU)"]
-        subgraph BodyNode ["Streamer (Body)"]
-            STR[Body Streamer]
-            GCS_M[(GCS: 音声/アセット)]
-            STR <--> GCS_M
-        end
+    subgraph Tools ["拡張機能 (MCP)"]
+        TW[Tools Weather Service]
+    end
+
+    subgraph Body ["Body (肉体 / GCE + GPU)"]
+        STR[Body Streamer]
         VV[VoiceVox]
         OBS[OBS Studio]
+        GCS_M[(GCS: 音声/アセット)]
+        STR <--> GCS_M
+        STR --> VV
+        STR --> OBS
     end
 
     YT[YouTube Live]
 
     %% Flow
     CS -- "スケジュール実行" --> CW
-    CW -- "パイプライン制御" --> NC
-    CW -- "パイプライン制御" --> SG
-    CW -- "起動監視" --> HP
+    CW -- "パイプライン制御" --> News
+    CW -- "パイプライン制御" --> SaintGraph
+    CW -- "インスタンス起動/停止" --> Body
 
     %% Interactions
-    SG -- "身体操作 (REST)" --> STR
-    SG -- "自律ツール利用 (MCP)" --> TW
-    HP -- "ヘルスチェック" --> STR
-    STR --> VV
-    STR --> OBS
+    SaintGraph -- "身体操作 (REST)" --> STR
+    SaintGraph -- "自律ツール利用 (MCP)" --> Tools
     OBS -- "映像配信 (RTMP)" --> YT
 ```
 
