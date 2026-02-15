@@ -6,20 +6,14 @@ AI Tuber システムにおけるデータの流れと処理シーケンスを�
 
 ```mermaid
 stateDiagram-v2
-    [*] --> Init: main()
-    Init --> INTRO: run_broadcast_loop()
+    [*] --> INTRO: main() → run_broadcast_loop()
 
-    state "BroadcastPhase" as SM {
-        INTRO --> NEWS: handle_intro()
-        NEWS --> NEWS: コメント応答 / ニュース読み上げ
-        NEWS --> IDLE: ニュース全消化
-        IDLE --> IDLE: コメント応答 (counter reset) / 待機 (counter++)
-        IDLE --> CLOSING: idle_counter > MAX_WAIT_CYCLES
-        CLOSING --> [*]: handle_closing()
-    }
-
-    SM --> Stop: ループ終了
-    Stop --> [*]: 配信停止・リソース解放
+    INTRO --> NEWS: handle_intro()
+    NEWS --> NEWS: コメント応答 / ニュース読み上げ
+    NEWS --> IDLE: ニュース全消化
+    IDLE --> IDLE: コメント応答 (counter reset) / 待機 (counter++)
+    IDLE --> CLOSING: idle_counter > MAX_WAIT_CYCLES
+    CLOSING --> [*]: handle_closing() → 配信停止
 
     note right of NEWS
         全フェーズ共通:
