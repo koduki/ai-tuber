@@ -5,7 +5,6 @@ import datetime
 import logging
 import asyncio
 import re
-from google.cloud import storage
 
 # プロジェクトルートとsrcをsys.pathに追加
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -24,6 +23,9 @@ from google.genai import types
 
 # 検索ツールのインポート
 from google.adk.tools.google_search_tool import GoogleSearchTool
+
+# インフラ（StorageClient）のインポート
+from infra.storage_client import create_storage_client
 
 # 設定
 try:
@@ -211,44 +213,36 @@ async def run_agent(themes: list[str], target_date: str):
 
     cleaned_response = clean_news_script(full_response)
     
-    # ファイルに保存
-    output_path = os.path.join(project_root, "data/news/news_script.md")
-    os.makedirs(os.path.dirname(output_path), exist_ok=True)
-
-    with open(output_path, "w", encoding="utf-8") as f:
-        f.write(cleaned_response)
-
-    logger.info(f"ニュース原稿を保存しました: {output_path}")
-    print(f"更新完了。確認してください: {output_path}")
+    # ストレージクライアントの初期化
+    storage = create_storage_client()
     
-    # GCSへのアップロード（オプション）
-    gcs_bucket = os.getenv("GCS_BUCKET_NAME")
-    if gcs_bucket:
-        try:
-            upload_to_gcs(output_path, gcs_bucket, "news/news_script.md")
-            logger.info(f"GCS バケット '{gcs_bucket}' にアップロードしました")
-            print(f"GCS アップロード完了: gs://{gcs_bucket}/news/news_script.md")
-        except Exception as e:
-            logger.error(f"GCS アップロードエラー: {e}")
-            print(f"警告: GCS アップロードに失敗しましたが、ローカルファイルは保存されています")
+    # 論理パスの決定 (data/ 配下を StorageClient が管理)
+    logical_key = "news/news_script.md"
+    
+    # ローカルおよびリモートに保存
+    try:
+        # ローカル側の出力をトリガーにするのではなく、StorageClient 経由で保存を抽象化
+        # まずは一時的に書き出したファイルをアップロード（将来的に write_text も追加可能）
+        local_output_path = os.path.join(project_root, "data", logical_key)
+        os.makedirs(os.path.dirname(local_output_path), exist_ok=True)
+        
+        with open(local_output_path, "w", encoding="utf-8") as f:
+            f.write(cleaned_response)
+        
+        logger.info(f"ニュース原稿を保存しました: {local_output_path}")
+
+        # GCS (または設定されたストレージ) にアップロード
+        # STORAGE_TYPE=gcs の場合のみアップロードを実行
+        if os.getenv("STORAGE_TYPE") == "gcs":
+            storage.upload_file(key=logical_key, src=local_output_path)
+            logger.info(f"ストレージにアップロードしました: {logical_key}")
+            print(f"アップロード完了: {logical_key}")
+        
+    except Exception as e:
+        logger.error(f"保存/アップロードエラー: {e}")
+        print(f"警告: 保存に失敗しました: {e}")
 
 
-def upload_to_gcs(local_file_path: str, bucket_name: str, destination_blob_name: str):
-    """
-    ファイルをGoogle Cloud Storageにアップロードします。
-    
-    Args:
-        local_file_path: アップロードするローカルファイルのパス
-        bucket_name: GCSバケット名
-        destination_blob_name: GCS内の保存先パス
-    """
-    
-    storage_client = storage.Client()
-    bucket = storage_client.bucket(bucket_name)
-    blob = bucket.blob(destination_blob_name)
-    
-    blob.upload_from_filename(local_file_path)
-    logger.info(f"File {local_file_path} uploaded to gs://{bucket_name}/{destination_blob_name}")
 
 
 def main():

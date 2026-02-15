@@ -12,12 +12,12 @@ class StorageClient(ABC):
     """Abstract interface for storage operations."""
 
     @abstractmethod
-    def download_file(self, bucket: str, key: str, dest: str) -> None:
+    def download_file(self, key: str, dest: str, bucket: Optional[str] = None) -> None:
         """Download a file from storage to local destination."""
         pass
 
     @abstractmethod
-    def upload_file(self, bucket: str, key: str, src: str) -> None:
+    def upload_file(self, key: str, src: str, bucket: Optional[str] = None) -> None:
         """Upload a file from local source to storage."""
         pass
 
@@ -56,14 +56,14 @@ class FileSystemStorageClient(StorageClient):
 
         logger.info(f"FileSystemStorageClient initialized with base_path: {self.base_path}")
 
-    def _resolve_path(self, bucket: str, key: str) -> Path:
+    def _resolve_path(self, bucket: Optional[str], key: str) -> Path:
         """Resolve bucket and key to filesystem path."""
         # In filesystem mode, bucket is treated as a subdirectory
-        return self.base_path / bucket / key
+        return self.base_path / (bucket or "") / key
 
-    def download_file(self, bucket: str, key: str, dest: str) -> None:
+    def download_file(self, key: str, dest: str, bucket: Optional[str] = None) -> None:
         """Copy file from filesystem to destination."""
-        src_path = self._resolve_path(bucket, key)
+        src_path = self._resolve_path(bucket or "", key)
         if not src_path.exists():
             raise FileNotFoundError(f"File not found: {src_path}")
         
@@ -74,9 +74,9 @@ class FileSystemStorageClient(StorageClient):
         shutil.copy2(src_path, dest_path)
         logger.debug(f"Downloaded {src_path} to {dest_path}")
 
-    def upload_file(self, bucket: str, key: str, src: str) -> None:
+    def upload_file(self, key: str, src: str, bucket: Optional[str] = None) -> None:
         """Copy file from source to filesystem storage."""
-        dest_path = self._resolve_path(bucket, key)
+        dest_path = self._resolve_path(bucket or "", key)
         dest_path.parent.mkdir(parents=True, exist_ok=True)
         
         import shutil
@@ -135,7 +135,7 @@ class GcsStorageClient(StorageClient):
             raise ValueError("Bucket name must be provided or configured via GCS_BUCKET_NAME")
         return self.client.bucket(bucket_name)
 
-    def download_file(self, bucket: str, key: str, dest: str) -> None:
+    def download_file(self, key: str, dest: str, bucket: Optional[str] = None) -> None:
         """Download file from GCS to local destination."""
         bucket_obj = self._get_bucket(bucket)
         blob = bucket_obj.blob(key)
@@ -146,7 +146,7 @@ class GcsStorageClient(StorageClient):
         blob.download_to_filename(dest)
         logger.debug(f"Downloaded gs://{bucket_obj.name}/{key} to {dest}")
 
-    def upload_file(self, bucket: str, key: str, src: str) -> None:
+    def upload_file(self, key: str, src: str, bucket: Optional[str] = None) -> None:
         """Upload file from local source to GCS."""
         bucket_obj = self._get_bucket(bucket)
         blob = bucket_obj.blob(key)
