@@ -21,7 +21,7 @@ body = BodyClient(base_url=config.BODY_URL)
 
 # MCP ツールセットの作成 (例)
 # このツールセットは SaintGraph 内部で Agent に渡されます。
-mcp_tools = McpToolset(server_urls=[config.MCP_URL])
+mcp_tools = McpToolset(server_urls=[config.WEATHER_MCP_URL])
 
 # Agent の作成: ペルソナとツールの定義
 agent = Agent(
@@ -38,7 +38,7 @@ runner = InMemoryRunner(agent=agent)
 # SaintGraph の初期化 (BodyClient を渡す例)
 sg = SaintGraph(
     body=body,
-    mcp_url=config.MCP_URL,
+    weather_mcp_url=config.WEATHER_MCP_URL,
     system_instruction=system_instruction,
     mind_config=mind_config,
     templates=templates
@@ -55,7 +55,7 @@ sg = SaintGraph(
 
 1.  **MCP Toolset (内部生成)**:
     - 実運用で使用する外部ツール。
-    - `mcp_url` (SSE) 経由で動的に接続されます。
+    - `weather_mcp_url` (SSE) 経由で動的に接続されます。
 2.  **Custom Tools (外部注入)**:
     - `SaintGraph` 初期化時に `tools` 引数として渡されるツールのリスト。
     - **テストとモック**: 本物の MCP サーバーを起動せずにエージェントの挙動を検証するために使用。

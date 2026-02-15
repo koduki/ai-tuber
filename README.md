@@ -128,13 +128,17 @@ data/mind/{character_name}/
 | `GOOGLE_API_KEY` | (必須) | Gemini API キー |
 | `STREAMING_MODE` | `false` | `true` で YouTube 配信, `false` で録画 |
 | `RUN_MODE` | `cli` | `cli` または `streamer` |
+| `BODY_URL` | (自動設定) | Body サービスの URL |
+| `WEATHER_MCP_URL` | `http://tools-weather:8001/sse` | 天気 MCP サーバーの URL |
 | `MODEL_NAME` | `gemini-2.5-flash-lite` | 使用モデル |
+| `POLL_INTERVAL` | `1.0` | コメント取得の間隔（秒） |
 | `STREAM_TITLE` | - | 配信タイトル |
 | `STREAM_PRIVACY` | `private` | 配信公開設定 (`public`, `unlisted`, `private`) |
 | `CHARACTER_NAME` | `ren` | キャラクター名 |
 | `NEWS_DIR` | `/app/data/news` | ニュース原稿ディレクトリ |
 | `STORAGE_TYPE` | `filesystem` | ストレージ種別 (`filesystem` / `gcs`) |
 | `SECRET_PROVIDER_TYPE` | `env` | シークレット取得元 (`env` / `gcp`) |
+| `ADK_TELEMETRY` | `false` | ADK テレメトリの有効化 |
 
 ### Body（肉体）
 

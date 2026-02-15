@@ -37,7 +37,7 @@ class BroadcastContext:
 
 async def _poll_and_respond(ctx: BroadcastContext) -> bool:
     """
-    コメントをポーリングし、あれば応答します。全フェーズ共通。
+    コメントをポーリングし、あれば応答します。
 
     Returns:
         コメントがあり応答した場合 True

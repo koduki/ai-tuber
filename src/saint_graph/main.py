@@ -2,7 +2,7 @@ import asyncio
 import sys
 import os
 
-from .config import logger, BODY_URL, MCP_URL, NEWS_DIR
+from .config import logger, BODY_URL, WEATHER_MCP_URL, NEWS_DIR
 from .saint_graph import SaintGraph
 from .telemetry import setup_telemetry
 from .prompt_loader import PromptLoader
@@ -47,24 +47,24 @@ async def main():
     # SaintGraph (ADK + REST Body) の初期化
     saint_graph = SaintGraph(
         body=body_client,
-        mcp_url=MCP_URL,
+        weather_mcp_url=WEATHER_MCP_URL,
         system_instruction=system_instruction,
         mind_config=mind_config,
         templates=templates
     )
 
     # MCP URL の疎通確認（デバッグ用）
-    if MCP_URL:
+    if WEATHER_MCP_URL:
         import httpx
-        logger.info(f"Checking connectivity to MCP_URL: {MCP_URL}")
+        logger.info(f"Checking connectivity to WEATHER_MCP_URL: {WEATHER_MCP_URL}")
         try:
             async with httpx.AsyncClient(timeout=5.0) as client:
-                response = await client.get(MCP_URL)
-                logger.info(f"MCP_URL check response: {response.status_code}")
+                response = await client.get(WEATHER_MCP_URL)
+                logger.info(f"WEATHER_MCP_URL check response: {response.status_code}")
         except asyncio.TimeoutError:
-            logger.info("MCP_URL check: connection timed out as expected (SSE)")
+            logger.info("WEATHER_MCP_URL check: connection timed out as expected (SSE)")
         except Exception as e:
-            logger.warning(f"MCP_URL connectivity check failed: {e}")
+            logger.warning(f"WEATHER_MCP_URL connectivity check failed: {e}")
 
     # 配信パラメータの構築 & 配信開始
     broadcast_config = _build_broadcast_config()

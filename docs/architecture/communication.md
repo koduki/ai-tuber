@@ -163,7 +163,7 @@ AI が自律的に呼び出す外部ツールに使用します。
 
 - **Weather Tool**: `http://tools-weather:8001/sse`
 
-環境変数 `MCP_URL` で設定可能です。
+環境変数 `WEATHER_MCP_URL` で設定可能です。
 
 ---
 
@@ -221,7 +221,7 @@ result = await agent.run("東京の明日の天気を教えて")
 |--------|-------------|------|
 | `RUN_MODE` | `cli` | 動作モード（`cli` または `streamer`） |
 | `BODY_URL` | (自動設定) | Body サービスの URL（RUN_MODE により決定） |
-| `MCP_URL` | `http://tools-weather:8001/sse` | MCP サーバーの URL |
+| `WEATHER_MCP_URL` | `http://tools-weather:8001/sse` | MCP サーバーの URL |
 | `GOOGLE_API_KEY` | (必須) | Google Gemini API キー |
 | `MODEL_NAME` | `gemini-2.5-flash-lite` | 使用する Gemini モデル |
 | `ADK_TELEMETRY` | `false` | Google ADK テレメトリの有効化 |

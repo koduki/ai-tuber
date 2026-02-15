@@ -6,7 +6,7 @@ import httpx
 import logging
 from typing import Optional, List, Dict, Any
 
-from .config import MCP_URL
+from .config import BODY_URL
 
 logger = logging.getLogger(__name__)
 
@@ -23,15 +23,9 @@ class BodyClient:
         
         Args:
             base_url: Base URL for the body service. If not provided,
-                      uses the first URL from MCP_URLS (converted to REST format).
+                      uses the BODY_URL from config.
         """
-        if base_url:
-            self.base_url = base_url.rstrip("/")
-        else:
-            # Convert MCP URL (http://body-cli:8000/sse) to REST base URL
-            mcp_url = MCP_URL if MCP_URL else "http://body-cli:8000/sse"
-            self.base_url = mcp_url.replace("/sse", "")
-        
+        self.base_url = (base_url or BODY_URL).rstrip("/")
         logger.info(f"BodyClient initialized with base_url: {self.base_url}")
     
     async def speak(self, text: str, style: Optional[str] = None, speaker_id: Optional[int] = None) -> str:

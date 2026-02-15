@@ -31,13 +31,13 @@ class SaintGraph:
     外部ツール（天気など）は MCP で管理されます。
     """
 
-    def __init__(self, body: BodyClient, mcp_url: str, system_instruction: str, mind_config: Optional[dict] = None, tools: List[Any] = None, templates: Optional[dict[str, str]] = None):
+    def __init__(self, body: BodyClient, weather_mcp_url: str, system_instruction: str, mind_config: Optional[dict] = None, tools: List[Any] = None, templates: Optional[dict[str, str]] = None):
         """
         SaintGraphを初期化します。
         
         Args:
             body: BodyClient インスタンス
-            mcp_url: MCPツール用のURL（天気APIなど）
+            weather_mcp_url: MCPツール用のURL（天気APIなど）
             system_instruction: システム指示文
             mind_config: キャラクター設定辞書 (speaker_id など)
             tools: 追加のカスタムツール（モック等）
@@ -51,8 +51,8 @@ class SaintGraph:
 
         # MCP ツールセットの初期化（天気などの外部ツール用）
         self.toolsets = []
-        if mcp_url:
-            connection_params = SseConnectionParams(url=mcp_url)
+        if weather_mcp_url:
+            connection_params = SseConnectionParams(url=weather_mcp_url)
             toolset = McpToolset(connection_params=connection_params)
             self.toolsets.append(toolset)
         
@@ -66,7 +66,7 @@ class SaintGraph:
             tools=all_tools if all_tools else None
         )
         self.runner = InMemoryRunner(agent=self.agent)
-        logger.info(f"SaintGraph initialized with model {MODEL_NAME}, mcp_url={mcp_url}")
+        logger.info(f"SaintGraph initialized with model {MODEL_NAME}, weather_mcp_url={weather_mcp_url}")
 
     async def close(self):
         """ツールセットの接続を解除してクリーンアップします。"""
