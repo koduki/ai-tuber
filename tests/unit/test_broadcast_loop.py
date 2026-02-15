@@ -12,6 +12,7 @@ from saint_graph.broadcast_loop import (
     handle_idle,
     handle_closing,
 )
+from saint_graph.config import MAX_WAIT_CYCLES
 
 def _make_ctx(news_service=None, comments=None):
     mock_saint = MagicMock()
@@ -96,7 +97,7 @@ async def test_handle_idle_wait():
 @pytest.mark.asyncio
 async def test_handle_idle_timeout():
     ctx = _make_ctx()
-    ctx.idle_counter = 20  # Default MAX_WAIT_CYCLES
+    ctx.idle_counter = MAX_WAIT_CYCLES  # Set to max so next increment triggers timeout
     phase = await handle_idle(ctx)
     
     assert phase == BroadcastPhase.CLOSING

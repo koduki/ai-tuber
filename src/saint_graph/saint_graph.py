@@ -63,7 +63,7 @@ class SaintGraph:
             name="SaintGraph",
             model=Gemini(model=MODEL_NAME),
             instruction=self.system_instruction,
-            tools=all_tools if all_tools else None
+            tools=all_tools
         )
         self.runner = InMemoryRunner(agent=self.agent)
         logger.info(f"SaintGraph initialized with model {MODEL_NAME}, weather_mcp_url={weather_mcp_url}")

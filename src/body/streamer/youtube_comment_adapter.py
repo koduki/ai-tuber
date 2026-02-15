@@ -75,9 +75,8 @@ class YouTubeCommentAdapter:
             elif line.startswith("ERROR: "):
                 logger.error(f"YouTube comment subprocess: {line[7:]}")
             else:
-                # プレフィックスがない場合は基本 debug として扱う（ノイズ回避）
-                # ただし例外的な出力の可能性もあるため念のため保持
-                logger.debug(f"YouTube comment subprocess (raw): {line}")
+                # プレフィックスがない場合でも、予期せぬエラーの可能性を考慮して警告する
+                logger.warning(f"YouTube comment subprocess (unprefixed): {line}")
 
         
         # コメントを取得

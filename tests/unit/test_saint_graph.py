@@ -149,16 +149,29 @@ def test_config_cloud_run_fail_fast(monkeypatch):
     from saint_graph.config import Config
     import pytest
     
+    # Ensure GOOGLE_API_KEY is set to avoid that failure
+    monkeypatch.setenv("GOOGLE_API_KEY", "dummy_key")
+
     # Simulate Cloud Run environment without required env
     monkeypatch.setenv("K_SERVICE", "test-service")
     monkeypatch.delenv("WEATHER_MCP_URL", raising=False)
     
-    cfg = Config()
+    cfg = Config(google_api_key="dummy_key")
     with pytest.raises(SystemExit) as e:
         cfg.validate()
     assert e.value.code == 1
     
     # Now set it
     monkeypatch.setenv("WEATHER_MCP_URL", "http://ok/sse")
-    cfg = Config()
+    cfg = Config(google_api_key="dummy_key")
     cfg.validate() # Should not raise
+
+def test_config_missing_api_key(monkeypatch):
+    from saint_graph.config import Config
+    import pytest
+
+    monkeypatch.delenv("GOOGLE_API_KEY", raising=False)
+    cfg = Config(google_api_key=None)
+    with pytest.raises(SystemExit) as e:
+        cfg.validate()
+    assert e.value.code == 1

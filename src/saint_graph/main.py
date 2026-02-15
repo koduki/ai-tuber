@@ -66,17 +66,17 @@ async def main():
         except Exception as e:
             logger.warning(f"WEATHER_MCP_URL connectivity check failed: {e}")
 
-    # 配信パラメータの構築 & 配信開始
-    broadcast_config = _build_broadcast_config()
-    await _start_broadcast(body_client, broadcast_config)
-
-    # ステートマシンによるメインループ実行
-    ctx = BroadcastContext(
-        saint_graph=saint_graph,
-        news_service=news_service,
-    )
-
     try:
+        # 配信パラメータの構築 & 配信開始
+        broadcast_config = _build_broadcast_config()
+        await _start_broadcast(body_client, broadcast_config)
+
+        # ステートマシンによるメインループ実行
+        ctx = BroadcastContext(
+            saint_graph=saint_graph,
+            news_service=news_service,
+        )
+
         await run_broadcast_loop(ctx)
     finally:
         await _stop_broadcast(body_client)
@@ -101,13 +101,10 @@ async def _start_broadcast(body: BodyClient, config: dict):
         res = await body.start_broadcast(config)
         logger.info(f"Broadcast start result: {res}")
         if "エラー" in res or res.startswith("Error"):
-            logger.critical(f"Broadcast start failed: {res}")
-            sys.exit(1)
+            raise RuntimeError(f"Broadcast start failed: {res}")
     except Exception as e:
-        if isinstance(e, SystemExit):
-            raise
         logger.critical(f"Could not start broadcast: {e}")
-        sys.exit(1)
+        raise
 
 
 async def _stop_broadcast(body: BodyClient):

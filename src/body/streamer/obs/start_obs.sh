@@ -14,8 +14,8 @@ while [ ! -f "$MARKER" ]; do
     sleep 1
     WAIT_COUNT=$((WAIT_COUNT + 1))
     if [ $WAIT_COUNT -ge 120 ]; then
-        echo "ERROR: Assets not ready after 120s. Starting OBS anyway."
-        break
+        echo "ERROR: Assets not ready after 120s. Exiting."
+        exit 1
     fi
 done
 echo "Assets ready (waited ${WAIT_COUNT}s). Starting OBS..."

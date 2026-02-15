@@ -13,16 +13,6 @@ logging.basicConfig(
 )
 logger = logging.getLogger("download_assets")
 
-# キャラクターアセットの一覧
-ASSET_FILES = [
-    "ai_normal.png",
-    "ai_joyful.png",
-    "ai_fun.png",
-    "ai_angry.png",
-    "ai_sad.png",
-    "bgm.mp3",
-]
-
 def main():
     character = os.getenv("CHARACTER_NAME", "ren")
     dest_dir = os.getenv("ASSETS_DIR", "/app/assets")
@@ -43,17 +33,27 @@ def main():
     success_count = 0
     fail_count = 0
     
-    for filename in ASSET_FILES:
-        key = f"mind/{character}/assets/{filename}"
+    prefix = f"mind/{character}/assets/"
+    try:
+        asset_keys = storage.list_objects(prefix=prefix)
+    except Exception as e:
+        logger.error(f"Failed to list assets: {e}")
+        sys.exit(1)
+
+    if not asset_keys:
+        logger.warning(f"No assets found with prefix: {prefix}")
+
+    for key in asset_keys:
+        filename = os.path.basename(key)
+        if not filename:
+            continue
+
         dest = os.path.join(dest_dir, filename)
         
         try:
             storage.download_file(key=key, dest=dest)
             logger.info(f"  ✓ {filename}")
             success_count += 1
-        except FileNotFoundError:
-            logger.warning(f"  ✗ {filename} not found (key: {key})")
-            fail_count += 1
         except Exception as e:
             logger.error(f"  ✗ {filename} failed: {e}")
             fail_count += 1

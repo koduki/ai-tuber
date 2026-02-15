@@ -13,8 +13,8 @@ def test_load_mind_config_success():
     """mind.jsonが存在する場合、正しく読み込まれる"""
     with tempfile.TemporaryDirectory() as tmpdir:
         # Create temporary directory structure
-        # PromptLoader expects data/mind/{char} relative to root
-        mind_dir = Path(tmpdir) / "data" / "mind" / "test_char"
+        # PromptLoader expects mind/{char} relative to storage root
+        mind_dir = Path(tmpdir) / "mind" / "test_char"
         mind_dir.mkdir(parents=True)
         
         # Create mind.json with test data
@@ -50,7 +50,7 @@ def test_load_mind_config_missing_file():
 def test_load_mind_config_invalid_json():
     """不正なJSON形式の場合、エラーログを出して空の辞書を返す"""
     with tempfile.TemporaryDirectory() as tmpdir:
-        mind_dir = Path(tmpdir) / "data" / "mind" / "test_char"
+        mind_dir = Path(tmpdir) / "mind" / "test_char"
         mind_dir.mkdir(parents=True)
         
         # Create invalid JSON file
@@ -67,7 +67,7 @@ def test_load_mind_config_invalid_json():
 def test_load_mind_config_empty_json():
     """空のJSONオブジェクトの場合、空の辞書を返す"""
     with tempfile.TemporaryDirectory() as tmpdir:
-        mind_dir = Path(tmpdir) / "data" / "mind" / "test_char"
+        mind_dir = Path(tmpdir) / "mind" / "test_char"
         mind_dir.mkdir(parents=True)
         
         (mind_dir / "mind.json").write_text("{}")
@@ -83,7 +83,7 @@ def test_load_mind_config_empty_json():
 def test_load_mind_config_only_speaker_id():
     """speaker_idのみが定義されている場合"""
     with tempfile.TemporaryDirectory() as tmpdir:
-        mind_dir = Path(tmpdir) / "data" / "mind" / "test_char"
+        mind_dir = Path(tmpdir) / "mind" / "test_char"
         mind_dir.mkdir(parents=True)
         
         config = {"speaker_id": 58}
