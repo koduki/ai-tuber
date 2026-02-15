@@ -6,32 +6,35 @@ AI Tuber システムにおけるデータの流れと処理シーケンスを�
 
 ```mermaid
 graph TD
-    Start((1. 初期化)) --> Intro(2. 挨拶)
-    Intro --> LoopStart{3. ニュース配信ループ}
+    Start((1. 初期化)) --> Record(録画/配信開始<br/>安定化待機 3秒)
+    Record --> Intro(2. 挨拶)
+    Intro --> MainLoop{メインループ開始}
     
-    subgraph NewsLoop [ニュース配信ステップ]
-        Reading(3-1. ニュース読み上げ<br/>解説・感情付与・音声再生)
-        QA_InLoop(3-2. 質疑応答<br/>コメント取得・回答)
-        Reading --> QA_InLoop
-    end
+    MainLoop --> CheckComment{コメント確認}
+    CheckComment -- コメントあり --> Respond(コメント応答)
+    Respond --> Sleep1[1秒待機]
+    Sleep1 --> MainLoop
     
-    LoopStart --> Reading
-    QA_InLoop -- 次のニュースへ --> Reading
-    QA_InLoop -- 全ニュース終了 --> QA_Idle(4. 質疑応答 / 沈黙待機<br/>MAX_WAIT_CYCLESまで)
+    CheckComment -- コメントなし --> HasNews{ニュース残り?}
+    HasNews -- あり --> ReadNews(3. ニュース読み上げ<br/>解説・感情付与・音声再生)
+    ReadNews --> Sleep2[1秒待機]
+    Sleep2 --> MainLoop
     
-    QA_Idle --> End((5. 終了))
+    HasNews -- なし --> IsFinished{news_finished?}
+    IsFinished -- 初回 --> Finished(4. ニュース終了宣言)
+    Finished --> Sleep3[1秒待機]
+    Sleep3 --> MainLoop
+    
+    IsFinished -- 2回目以降 --> WaitCheck{沈黙カウント<br/>MAX_WAIT_CYCLES}
+    WaitCheck -- 未達 --> Sleep4[1秒待機<br/>カウント+1]
+    Sleep4 --> MainLoop
+    WaitCheck -- 到達 --> Closing(5. クロージング<br/>3秒待機)
+    Closing --> Stop(録画/配信停止)
+    Stop --> End((終了))
 
-    %% 注釈
-    subgraph Detail [詳細内容]
-        direction TB
-        D1[Saint Graph 起動 / Body・Tools 接続 / 録画開始]
-        D2[キャラクター自己紹介]
-        D3[クロージング挨拶 / 録画停止]
-    end
-
-    Start -.-> D1
-    Intro -.-> D2
-    End -.-> D3
+    style CheckComment fill:#e1f5ff
+    style HasNews fill:#fff4e1
+    style WaitCheck fill:#ffe1e1
 ```
 
 ---
