@@ -166,65 +166,61 @@ data/mind/{character_name}/
 **システム構成図**:
 ```mermaid
 graph TD
-    subgraph Schedule ["トリガー"]
+    subgraph Trigger ["トリガー"]
         CS[Cloud Scheduler]
     end
 
-    subgraph Orchestration ["Orchestration Layer (Cloud Workflows)"]
-        direction TB
-        CW1[1. News Collector]
-        CW2[2. Body Node 起動]
-        CW3[3. Health Check]
-        CW4[4. Saint Graph 起動]
-        CW5[5. Body Node 停止]
-        CW1 --> CW2 --> CW3 --> CW4 --> CW5
+    subgraph Orchestration ["制御レイヤー"]
+        CW[Cloud Workflows]
     end
 
-    subgraph Serverless ["Serverless Layer (Cloud Run)"]
-        subgraph JobLayer ["Main Pipeline (Jobs)"]
+    subgraph Serverless ["サーバーレス実行レイヤー (Cloud Run)"]
+        subgraph NC_Group ["News Collector"]
             NC[News Collector Job]
+            GCS_N[(GCS: ニュース原稿)]
+            NC --> GCS_N
+        end
+        
+        subgraph SG_Group ["Saint Graph"]
             SG[Saint Graph Job]
+            GCS_P[(GCS: プロンプト/記憶)]
+            SG --> GCS_P
         end
-        subgraph ToolsLayer ["Extensions (Tools/MCP)"]
-            TW[Tools Weather Service]
+
+        subgraph ToolsLayer ["拡張機能 (MCP)"]
+            TW[Tools Weather]
         end
-        subgraph UtilityLayer ["Infrastructure (Utility)"]
+        
+        subgraph UtilityLayer ["補助機能"]
             HP[Health Proxy]
         end
     end
 
-    subgraph BodyNode ["Computing Layer (GCE + GPU)"]
-        subgraph Containers ["Docker Compose"]
-            STR[Streamer]
-            VV[VoiceVox]
-            OBS[OBS Studio]
+    subgraph Computing ["コンピューティングレイヤー (GCE + GPU)"]
+        subgraph BodyNode ["Streamer (Body)"]
+            STR[Body Streamer]
+            GCS_M[(GCS: 音声/アセット)]
+            STR <--> GCS_M
         end
-    end
-
-    subgraph Storage ["Persistence Layer (GCS)"]
-        GCS[(Cloud Storage)]
+        VV[VoiceVox]
+        OBS[OBS Studio]
     end
 
     YT[YouTube Live]
 
     %% Flow
-    CS -- "08:00 実行" --> CW1
-    CW1 -.-> NC
-    CW2 -.-> BodyNode
-    CW3 -.-> HP
-    CW4 -.-> SG
-    CW5 -.-> BodyNode
+    CS -- "スケジュール実行" --> CW
+    CW -- "パイプライン制御" --> NC
+    CW -- "パイプライン制御" --> SG
+    CW -- "起動監視" --> HP
 
     %% Interactions
-    NC --> GCS
-    SG --> GCS
     SG -- "身体操作 (REST)" --> STR
-    SG -- "外部ツール (MCP)" --> TW
-    HP -- "VPC経由の起動監視" --> STR
+    SG -- "自律ツール利用 (MCP)" --> TW
+    HP -- "ヘルスチェック" --> STR
     STR --> VV
     STR --> OBS
-    STR <--> GCS
-    OBS -- "配信 (RTMP)" --> YT
+    OBS -- "映像配信 (RTMP)" --> YT
 ```
 
 **主な特徴**:
