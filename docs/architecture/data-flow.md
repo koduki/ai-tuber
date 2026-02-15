@@ -7,19 +7,31 @@ AI Tuber システムにおけるデータの流れと処理シーケンスを�
 ```mermaid
 stateDiagram-v2
     [*] --> INTRO: main() → run_broadcast_loop()
-
     INTRO --> NEWS: handle_intro()
-    NEWS --> NEWS: コメント応答 / ニュース読み上げ
-    NEWS --> IDLE: ニュース全消化
-    IDLE --> IDLE: コメント応答 (counter reset) / 待機 (counter++)
-    IDLE --> CLOSING: idle_counter > MAX_WAIT_CYCLES
-    CLOSING --> [*]: handle_closing() → 配信停止
 
-    note right of NEWS
-        全フェーズ共通:
-        _poll_and_respond() で
-        コメントを優先確認
-    end note
+    NEWS --> PollComments1
+    state PollComments1 <<choice>>
+    PollComments1 --> RespondComment: コメントあり
+    PollComments1 --> ReadNews: コメントなし
+    RespondComment --> NEWS: 応答完了
+    ReadNews --> CheckNews
+    
+    state CheckNews <<choice>>
+    CheckNews --> NEWS: ニュース残あり
+    CheckNews --> IDLE: ニュース全消化
+
+    IDLE --> PollComments2
+    state PollComments2 <<choice>>
+    PollComments2 --> RespondIdle: コメントあり
+    PollComments2 --> WaitSilence: コメントなし
+    RespondIdle --> IDLE: counter reset
+    WaitSilence --> CheckTimeout
+    
+    state CheckTimeout <<choice>>
+    CheckTimeout --> IDLE: counter++, 継続
+    CheckTimeout --> CLOSING: タイムアウト
+
+    CLOSING --> [*]: handle_closing() → 配信停止
 ```
 
 ---
