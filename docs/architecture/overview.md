@@ -32,7 +32,7 @@ Google ADK をベースにした意思決定エンジン。システムの思考
 
 **責任範囲**:
 - キャラクターのペルソナ定義
-- 技術設定（speaker_id など）
+- キャラクターのボイス設定（speaker_id など）
 - アセット（画像・音声）の管理
 
 ---
@@ -208,13 +208,13 @@ graph TD
 | Body (OBS + VoiceVox + Streamer) | **Compute Engine + GPU** | GPU共有、高速ファイルアクセス |
 
 **主な特徴**:
-- ✅ **自動化**: Cloud Scheduler による毎朝の自動実行
-  - 07:00: ニュース収集
-  - 07:55: GCE 起動（OBS & VoiceVox 準備）
-  - 08:00: **配信開始**（Saint Graph Job 実行）
-  - 08:40: GCE 停止（配信終了）
-- ✅ **コスト最適化**: Spot インスタンス使用で 60-90% コスト削減
-- ✅ **スケール to Zero**: Cloud Run は未使用時に課金なし
+- ✅ **自動化**: Cloud Workflows による堅牢な配信パイプライン
+  - 08:00: Cloud Scheduler がワークフローを起動
+  - Step 1: ニュース収集ジョブ（Cloud Run Job）を実行
+  - Step 2: Body Node (GCE) を起動し、**起動完了まで自動待機**
+  - Step 3: Saint Graph (Cloud Run Job) を実行し配信開始
+  - Step 4: 配信完了後、Body Node を自動停止してコスト削減
+- ✅ **Infrastructure as Code**: OpenTofu で完全に管理
 - ✅ **共有ストレージ**: Cloud Storage でニュース原稿を共有
 - ✅ **Secret Manager 統合**: API キーや YouTube 認証情報を安全に管理
 - ✅ **Git 不要**: Artifact Registry から直接イメージをプル
