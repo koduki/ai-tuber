@@ -164,48 +164,67 @@ data/mind/{character_name}/
 クラウド上で自動運用するための完全な構成です：
 
 **システム構成図**:
-```
-┌─────────────────────────────────────────────────────┐
-│           Cloud Scheduler (毎朝の自動実行)             │
-│  08:00 実行開始  →  Cloud Workflows (パイプライン制御)   │
-└─────────────────────────────────────────────────────┘
-                        ↓
-    ┌───────────────────────────────────────────┐
-    │        Orchestration Layer (Workflows)     │
-    │  1. News Collector (ニュース収集)           │
-    │  2. Body Node (GCE) 起動                   │
-    │  3. Health Check (起動完了待機)             │
-    │  4. Saint Graph (配信開始)                  │
-    │  5. Body Node (GCE) 停止                   │
-    └───────────────────────────────────────────┘
-                        ↓
-    ┌───────────────────────────────────────────┐
-    │        Serverless Layer (Cloud Run)       │
-    │  ┌──────────────────┐  ┌──────────────┐  │
-    │  │ Saint Graph (Job)│  │Tools Weather │  │
-    │  │  (配信ジョブ)      │  │ (Service)     │  │
-    │  └──────────────────┘  └──────────────┘  │
-    │  ┌──────────────────┐  ┌──────────────┐  │
-    │  │ News Collector   │  │ Health Proxy  │  │
-    │  │ (ニュース収集)     │  │ (安全な監視)   │  │
-    │  └──────────────────┘  └──────────────┘  │
-    └───────────────────────────────────────────┘
-                ↓                    ↓
-    ┌─────────────────────┐  ┌──────────────┐
-    │  Cloud Storage (GCS) │  │   Body Node  │
-    │  - news_script.md    │  │  (Compute    │
-    │  - 音声ファイル       │  │   Engine)    │
-    └─────────────────────┘  │  + GPU       │
-         ↑                   │  ┌─────────┐ │
-         └───────────────────┼─→│Streamer │ │
-                             │  │VoiceVox │ │
-                             │  │  OBS    │ │
-                             │  └─────────┘ │
-                             └──────────────┘
-                                    ↓
-                            ┌──────────────┐
-                            │ YouTube Live │
-                            └──────────────┘
+```mermaid
+graph TD
+    subgraph Schedule ["トリガー"]
+        CS[Cloud Scheduler]
+    end
+
+    subgraph Orchestration ["Orchestration Layer (Cloud Workflows)"]
+        direction TB
+        CW1[1. News Collector]
+        CW2[2. Body Node 起動]
+        CW3[3. Health Check]
+        CW4[4. Saint Graph 起動]
+        CW5[5. Body Node 停止]
+        CW1 --> CW2 --> CW3 --> CW4 --> CW5
+    end
+
+    subgraph Serverless ["Serverless Layer (Cloud Run)"]
+        subgraph JobLayer ["Main Pipeline (Jobs)"]
+            NC[News Collector Job]
+            SG[Saint Graph Job]
+        end
+        subgraph ToolsLayer ["Extensions (Tools/MCP)"]
+            TW[Tools Weather Service]
+        end
+        subgraph UtilityLayer ["Infrastructure (Utility)"]
+            HP[Health Proxy]
+        end
+    end
+
+    subgraph BodyNode ["Computing Layer (GCE + GPU)"]
+        subgraph Containers ["Docker Compose"]
+            STR[Streamer]
+            VV[VoiceVox]
+            OBS[OBS Studio]
+        end
+    end
+
+    subgraph Storage ["Persistence Layer (GCS)"]
+        GCS[(Cloud Storage)]
+    end
+
+    YT[YouTube Live]
+
+    %% Flow
+    CS -- "08:00 実行" --> CW1
+    CW1 -.-> NC
+    CW2 -.-> BodyNode
+    CW3 -.-> HP
+    CW4 -.-> SG
+    CW5 -.-> BodyNode
+
+    %% Interactions
+    NC --> GCS
+    SG --> GCS
+    SG -- "身体操作 (REST)" --> STR
+    SG -- "外部ツール (MCP)" --> TW
+    HP -- "VPC経由の起動監視" --> STR
+    STR --> VV
+    STR --> OBS
+    STR <--> GCS
+    OBS -- "配信 (RTMP)" --> YT
 ```
 
 **主な特徴**:
