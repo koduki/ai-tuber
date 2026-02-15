@@ -119,10 +119,10 @@ async def _poll_and_respond(ctx: BroadcastContext) -> bool:
 
 ```python
 _HANDLERS = {
-    BroadcastPhase.INTRO:   handle_intro,    # → NEWS
-    BroadcastPhase.NEWS:    handle_news,     # → NEWS / IDLE
-    BroadcastPhase.IDLE:    handle_idle,     # → IDLE / CLOSING
-    BroadcastPhase.CLOSING: handle_closing,  # → None (終了)
+    BroadcastPhase.INTRO:   handle_intro,    # オープニングトーク。終了後、NEWS フェーズへ移行
+    BroadcastPhase.NEWS:    handle_news,     # ニュース読み上げ。記事が残っていれば継続、なければ IDLE へ
+    BroadcastPhase.IDLE:    handle_idle,     # 雑談・コメント待機。一定時間経過で CLOSING へ
+    BroadcastPhase.CLOSING: handle_closing,  # クロージングトーク。終了後、配信ループを停止
 }
 ```
 

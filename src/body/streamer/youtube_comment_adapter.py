@@ -61,9 +61,24 @@ class YouTubeCommentAdapter:
         
         # エラー出力をチェック
         while not self.error_q.empty():
-            error_line = self.error_q.get_nowait()
-            if error_line:
-                logger.error(f"YouTube comment subprocess error: {error_line.strip()}")
+            line = self.error_q.get_nowait()
+            if not line:
+                continue
+            
+            line = line.strip()
+            if line.startswith("DEBUG: "):
+                logger.debug(f"YouTube comment subprocess: {line[7:]}")
+            elif line.startswith("INFO: "):
+                logger.info(f"YouTube comment subprocess: {line[6:]}")
+            elif line.startswith("WARNING: "):
+                logger.warning(f"YouTube comment subprocess: {line[9:]}")
+            elif line.startswith("ERROR: "):
+                logger.error(f"YouTube comment subprocess: {line[7:]}")
+            else:
+                # プレフィックスがない場合は基本 debug として扱う（ノイズ回避）
+                # ただし例外的な出力の可能性もあるため念のため保持
+                logger.debug(f"YouTube comment subprocess (raw): {line}")
+
         
         # コメントを取得
         while not self.q.empty():
