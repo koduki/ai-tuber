@@ -110,12 +110,11 @@ news_items = news_service.load_news()
 
 ```python
 # 次のニュースを取得
-next_news = news_service.get_next_news()
+next_news = news_service.get_next_item()
 
 if next_news:
-    # AI に渡す
-    prompt = f"次のニュースを読み上げてください:\n\nタイトル: {next_news.title}\n\n{next_news.content}"
-    await agent.process_turn(prompt)
+    # SaintGraph の高レベルメソッドに委譲（テンプレート適用は AI 側で実施）
+    await saint_graph.process_news_reading(title=next_news.title, content=next_news.content)
 ```
 
 ---
@@ -123,19 +122,18 @@ if next_news:
 ## メインループでの使用
 
 ```python
-# ニュース読み上げフェーズ
-while news_service.has_more_news():
-    news = news_service.get_next_news()
+# ニュース読み上げフェーズ (broadcast_loop.py 内のイメージ)
+while news_service.has_next():
+    news = news_service.get_next_item()
     
-    # AI に依頼
-    prompt = f"次のニュースを解説してください:\n\n{news.title}\n{news.content}"
-    await saint_graph.process_turn(prompt)
+    # AI に依頼（高レベルメソッドの呼び出し）
+    await saint_graph.process_news_reading(title=news.title, content=news.content)
     
     # コメント取得・質疑応答
-    await handle_comments()
+    await _poll_and_respond(ctx)
 
 # 全ニュース終了
-print("すべてのニュース配信が完了しました")
+await saint_graph.process_news_finished()
 ```
 
 ---

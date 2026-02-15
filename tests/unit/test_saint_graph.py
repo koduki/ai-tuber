@@ -97,6 +97,35 @@ async def test_process_turn_defaults_to_neutral(mock_adk):
     sg.body.change_emotion.assert_called_once_with("neutral")
     sg.body.speak.assert_called_once_with("No tag here", style="neutral", speaker_id=None)
 
+@pytest.mark.asyncio
+async def test_high_level_process_methods(mock_adk):
+    # Setup
+    mock_body = mock_adk["BodyClient"]()
+    templates = {
+        "intro": "Welcome to my stream",
+        "news_reading": "Here is {title}: {content}",
+        "news_finished": "Done with news",
+        "closing": "Bye bye"
+    }
+    sg = SaintGraph(mock_body, "", "Instruction", templates=templates)
+    sg.process_turn = AsyncMock()
+
+    # Execute & Verify process_intro
+    await sg.process_intro()
+    sg.process_turn.assert_called_with("Welcome to my stream", context="Intro")
+
+    # Execute & Verify process_news_reading
+    await sg.process_news_reading("MyTopic", "MyContent")
+    sg.process_turn.assert_called_with("Here is MyTopic: MyContent", context="News Reading: MyTopic")
+
+    # Execute & Verify process_news_finished
+    await sg.process_news_finished()
+    sg.process_turn.assert_called_with("Done with news", context="News Finished")
+
+    # Execute & Verify process_closing
+    await sg.process_closing()
+    sg.process_turn.assert_called_with("Bye bye", context="Closing")
+
 def test_config_priority(monkeypatch):
     from saint_graph.config import Config
     

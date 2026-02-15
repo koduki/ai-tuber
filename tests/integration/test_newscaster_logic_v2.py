@@ -34,27 +34,16 @@ def news_file_path():
 def _make_ctx(news_service=None, comments=None):
     mock_saint = MagicMock()
     mock_saint.process_turn = AsyncMock()
+    mock_saint.process_news_reading = AsyncMock()
+    mock_saint.process_news_finished = AsyncMock()
     mock_saint.body = MagicMock()
     mock_saint.body.get_comments = AsyncMock(return_value=comments or [])
 
     mock_news = news_service or MagicMock()
 
-    templates = {
-        "intro": "Intro",
-        "news_reading": "【システム指示：ニュース読み上げ】\n"
-                        "以下の「ニュース本文」を、一字一句省略せずに読み上げた上で、一連の発言として感想を述べてください。\n"
-                        "導入、本文、感想を**すべて1回**の `speak` ツール呼び出しにまとめて出力してください。\n"
-                        "\n"
-                        "ニュースタイトル: {title}\n"
-                        "ニュース本文:\n{content}\n",
-        "news_finished": "All news read",
-        "closing": "Goodbye",
-    }
-
     return BroadcastContext(
         saint_graph=mock_saint,
         news_service=mock_news,
-        templates=templates,
     )
 
 
@@ -73,20 +62,11 @@ async def test_full_news_content_reading(news_file_path):
     phase = await handle_news(ctx)
 
     assert phase == BroadcastPhase.NEWS
-    ctx.saint_graph.process_turn.assert_called_once()
+    ctx.saint_graph.process_news_reading.assert_called_once()
     
-    args, kwargs = ctx.saint_graph.process_turn.call_args
-    prompt_text = args[0]
-    context = kwargs.get('context')
-
-    # コンテキストの確認
-    assert context == "News Reading: Title1"
-    
-    # プロンプト内容の確認
-    assert "ニュース本文" in prompt_text
-    assert "This is the full body content." in prompt_text
-    assert "It has multiple lines." in prompt_text
-    assert "**すべて1回**の `speak` ツール呼び出し" in prompt_text
+    args, kwargs = ctx.saint_graph.process_news_reading.call_args
+    assert kwargs.get('title') == "Title1"
+    assert "This is the full body content." in kwargs.get('content')
 
 
 @pytest.mark.asyncio

@@ -49,7 +49,8 @@ async def main():
         body=body_client,
         mcp_url=MCP_URL,
         system_instruction=system_instruction,
-        mind_config=mind_config
+        mind_config=mind_config,
+        templates=templates
     )
 
     # MCP URL の疎通確認（デバッグ用）
@@ -73,7 +74,6 @@ async def main():
     ctx = BroadcastContext(
         saint_graph=saint_graph,
         news_service=news_service,
-        templates=templates,
     )
 
     try:

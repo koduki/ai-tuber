@@ -161,8 +161,11 @@ async def handle_news(ctx: BroadcastContext) -> BroadcastPhase:
     if await _poll_and_respond(ctx):   # コメント優先
         return BroadcastPhase.NEWS
     if ctx.news_service.has_next():    # ニュース読み上げ
-        ...
-    return BroadcastPhase.IDLE         # ニュース全消化
+        item = ctx.news_service.get_next_item()
+        await ctx.saint_graph.process_news_reading(title=item.title, content=item.content)
+        return BroadcastPhase.NEWS
+    await ctx.saint_graph.process_news_finished() # ニュース全消化
+    return BroadcastPhase.IDLE
 ```
 
 ### YouTube Live コメント取得（Streamer モード）

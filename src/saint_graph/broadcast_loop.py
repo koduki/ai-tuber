@@ -28,7 +28,6 @@ class BroadcastContext:
     """ハンドラ間で共有される配信コンテキスト。"""
     saint_graph: SaintGraph
     news_service: NewsService
-    templates: dict
     idle_counter: int = 0
 
 
@@ -66,7 +65,7 @@ async def _poll_and_respond(ctx: BroadcastContext) -> bool:
 
 async def handle_intro(ctx: BroadcastContext) -> BroadcastPhase:
     """INTRO: 配信開始の挨拶を行い、NEWS フェーズへ遷移する。"""
-    await ctx.saint_graph.process_turn(ctx.templates["intro"], context="Intro")
+    await ctx.saint_graph.process_intro()
     return BroadcastPhase.NEWS
 
 
@@ -84,19 +83,12 @@ async def handle_news(ctx: BroadcastContext) -> BroadcastPhase:
     if ctx.news_service.has_next():
         item = ctx.news_service.get_next_item()
         logger.info(f"Reading news item: {item.title}")
-        instruction = ctx.templates["news_reading"].format(
-            title=item.title, content=item.content
-        )
-        await ctx.saint_graph.process_turn(
-            instruction, context=f"News Reading: {item.title}"
-        )
+        await ctx.saint_graph.process_news_reading(title=item.title, content=item.content)
         return BroadcastPhase.NEWS
 
     # ニュース全消化 → IDLE へ
     logger.info("All news items read. Waiting for final comments.")
-    await ctx.saint_graph.process_turn(
-        ctx.templates["news_finished"], context="News Finished"
-    )
+    await ctx.saint_graph.process_news_finished()
     return BroadcastPhase.IDLE
 
 
@@ -122,9 +114,7 @@ async def handle_idle(ctx: BroadcastContext) -> BroadcastPhase:
 
 async def handle_closing(ctx: BroadcastContext) -> BroadcastPhase:
     """CLOSING: 締めの挨拶をしてリソースを解放する。None を返しループ終了。"""
-    await ctx.saint_graph.process_turn(
-        ctx.templates["closing"], context="Closing"
-    )
+    await ctx.saint_graph.process_closing()
     await asyncio.sleep(3)
     return None  # ループ終了のシグナル
 

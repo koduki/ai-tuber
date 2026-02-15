@@ -31,7 +31,7 @@ class SaintGraph:
     外部ツール（天気など）は MCP で管理されます。
     """
 
-    def __init__(self, body: BodyClient, mcp_url: str, system_instruction: str, mind_config: Optional[dict] = None, tools: List[Any] = None):
+    def __init__(self, body: BodyClient, mcp_url: str, system_instruction: str, mind_config: Optional[dict] = None, tools: List[Any] = None, templates: Optional[dict[str, str]] = None):
         """
         SaintGraphを初期化します。
         
@@ -41,14 +41,14 @@ class SaintGraph:
             system_instruction: システム指示文
             mind_config: キャラクター設定辞書 (speaker_id など)
             tools: 追加のカスタムツール（モック等）
+            templates: 配信フェーズごとのテンプレート辞書
         """
+        self.body = body
         self.system_instruction = system_instruction
         self.mind_config = mind_config or {}
+        self.templates = templates or {}
         self.speaker_id = self.mind_config.get("speaker_id")
-        
-        # Body REST APIクライアントを保持
-        self.body = body
-        
+
         # MCP ツールセットの初期化（天気などの外部ツール用）
         self.toolsets = []
         if mcp_url:
@@ -56,24 +56,44 @@ class SaintGraph:
             toolset = McpToolset(connection_params=connection_params)
             self.toolsets.append(toolset)
         
-        # エージェントの構成
+        # ツールの統合
         all_tools = self.toolsets + (tools if tools else [])
+
         self.agent = Agent(
             name="SaintGraph",
             model=Gemini(model=MODEL_NAME),
-            instruction=system_instruction,
+            instruction=self.system_instruction,
             tools=all_tools if all_tools else None
         )
-        
-        # ランナーの初期化
         self.runner = InMemoryRunner(agent=self.agent)
         logger.info(f"SaintGraph initialized with model {MODEL_NAME}, mcp_url={mcp_url}")
 
     async def close(self):
         """ツールセットの接続を解除してクリーンアップします。"""
-        for ts in self.toolsets:
-            if hasattr(ts, 'close'):
+        for ts in self.agent.tools:
+            if isinstance(ts, McpToolset) and hasattr(ts, 'close'):
                 await ts.close()
+
+    async def process_intro(self):
+        """開始挨拶を実行します。"""
+        template = self.templates.get("intro", "こんにちは。配信を始めます。")
+        await self.process_turn(template, context="Intro")
+
+    async def process_news_reading(self, title: str, content: str):
+        """ニュース読み上げを実行します。"""
+        template = self.templates.get("news_reading", "ニュース「{title}」を読み上げます。\n{content}")
+        instruction = template.format(title=title, content=content)
+        await self.process_turn(instruction, context=f"News Reading: {title}")
+
+    async def process_news_finished(self):
+        """ニュース全消化時の反応を実行します。"""
+        template = self.templates.get("news_finished", "全てのニュースを読み上げました。")
+        await self.process_turn(template, context="News Finished")
+
+    async def process_closing(self):
+        """締めの挨拶を実行します。"""
+        template = self.templates.get("closing", "それでは、本日の配信を終了します。ありがとうございました。")
+        await self.process_turn(template, context="Closing")
 
     # --- メインターン処理 ---
 

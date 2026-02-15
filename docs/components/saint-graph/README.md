@@ -44,6 +44,7 @@ Saint Graph は AI Tuber システムの「魂」であり、意思決定エン�
 主要機能:
 - Agent の初期化と MCP ツールセット統合
 - `process_turn()`: ターン処理と感情パース
+- **高レベルメソッド**: `process_intro()`, `process_news_reading()`, `process_news_finished()`, `process_closing()` による配信アクションの抽象化。各フェーズのテンプレート管理もここで行います。
 - セッション管理
 
 ### 4. news_service.py

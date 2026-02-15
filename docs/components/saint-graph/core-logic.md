@@ -40,9 +40,14 @@ sg = SaintGraph(
     body=body,
     mcp_url=config.MCP_URL,
     system_instruction=system_instruction,
-    mind_config=mind_config
+    mind_config=mind_config,
+    templates=templates
 )
 ```
+
+### テンプレート管理の集約
+
+`SaintGraph` は自身がどのように振る舞うべきか（テンプレート）を内部で保持します。`broadcast_loop.py` などの呼び出し側は、具体的なテンプレート文字列を意識することなく、`process_intro()` などの高レベルメソッドを呼び出すだけで AI Tuber としての適切な挙動を実現できます。
 
 ### ツール構成の設計
 
@@ -73,9 +78,12 @@ combined_prompt = f"{system_prompt}\n\n{character_prompt}"
 
 ## ターン処理 (process_turn)
 
-### 概要
-
-`process_turn()` メソッドは、`Runner` を介して AI とのやり取りを1ターン処理します。
+### 主要機能:
+- Agent の初期化と MCP ツールセット統合
+- `process_turn()`: ターン処理と感情パース
+- **高レベルメソッド**: `process_intro()`, `process_news_reading()`, `process_news_finished()`, `process_closing()` による配信アクションの抽象化
+- セッション管理
+ドは、`Runner` を介して AI とのやり取りを1ターン処理します。
 
 ---
 

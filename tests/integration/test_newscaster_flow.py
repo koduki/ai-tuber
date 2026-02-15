@@ -32,20 +32,14 @@ def news_file_path():
 def _make_ctx(news_service, comments=None):
     mock_saint = MagicMock()
     mock_saint.process_turn = AsyncMock()
+    mock_saint.process_news_reading = AsyncMock()
+    mock_saint.process_news_finished = AsyncMock()
     mock_saint.body = MagicMock()
     mock_saint.body.get_comments = AsyncMock(return_value=comments or [])
-
-    templates = {
-        "intro": "Intro",
-        "news_reading": "News: {title}\n{content}",
-        "news_finished": "All news read",
-        "closing": "Goodbye",
-    }
 
     return BroadcastContext(
         saint_graph=mock_saint,
         news_service=news_service,
-        templates=templates,
     )
 
 
@@ -61,9 +55,9 @@ async def test_news_reading_flow(news_file_path):
     phase = await handle_news(ctx)
 
     assert phase == BroadcastPhase.NEWS
-    ctx.saint_graph.process_turn.assert_called_once()
-    call_args = ctx.saint_graph.process_turn.call_args
-    assert "Weather" in call_args.args[0]
+    ctx.saint_graph.process_news_reading.assert_called_once()
+    call_args = ctx.saint_graph.process_news_reading.call_args
+    assert "Weather" == call_args.kwargs.get('title')
 
     # --- Iteration 2: コメント到着 → コメント応答（ニュースは進まない） ---
     ctx.saint_graph.body.get_comments.return_value = [
@@ -81,18 +75,19 @@ async def test_news_reading_flow(news_file_path):
 
     # --- Iteration 3: コメントなし → ニュース2本目を読む ---
     ctx.saint_graph.body.get_comments.return_value = []
-    ctx.saint_graph.process_turn.reset_mock()
+    ctx.saint_graph.process_news_reading.reset_mock()
 
     phase = await handle_news(ctx)
 
     assert phase == BroadcastPhase.NEWS
-    call_args = ctx.saint_graph.process_turn.call_args
-    assert "Economy" in call_args.args[0]
+    call_args = ctx.saint_graph.process_news_reading.call_args
+    assert "Economy" == call_args.kwargs.get('title')
 
     # --- Iteration 4: ニュース全消化 → IDLE へ ---
-    ctx.saint_graph.process_turn.reset_mock()
+    ctx.saint_graph.process_news_reading.reset_mock()
 
     phase = await handle_news(ctx)
 
     assert phase == BroadcastPhase.IDLE
+    ctx.saint_graph.process_news_finished.assert_called_once()
     assert news_service.has_next() is False
