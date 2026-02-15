@@ -28,7 +28,7 @@ class SaintGraph:
     """
     Google ADKを使用してエージェントの振る舞いを管理するコアクラス。
     Body機能はAIのレスポンス（テキスト＋感情タグ）をパースしてREST APIを実行します。
-    外部ツール（天気など）や明示的な制御（録画など）はMCPまたはローカルツールで呼び出されます。
+    外部ツール（天気など）は MCP で管理されます。
     """
 
     def __init__(self, body: BodyClient, mcp_url: str, system_instruction: str, mind_config: Optional[dict] = None, tools: List[Any] = None):
@@ -81,12 +81,21 @@ class SaintGraph:
         """
         単一のインタラクションターンを処理します。
         AIからのテキスト出力を取得し、感情タグ [emotion: ...] をパースして Body API を実行します。
-        
-        音声は並列生成し、再生は順次実行します。
         """
         logger.info(f"Turn started. Input: {user_input[:50]}..., Context: {context}")
         try:
-            await self._ensure_session()
+            # セッションの確保
+            session = await self.runner.session_service.get_session(
+                app_name=self.runner.app_name, 
+                user_id="yt_user", 
+                session_id="yt_session"
+            )
+            if not session:
+                await self.runner.session_service.create_session(
+                    app_name=self.runner.app_name, 
+                    user_id="yt_user", 
+                    session_id="yt_session"
+                )
             
             current_user_message = user_input
             if context:
@@ -110,8 +119,6 @@ class SaintGraph:
                 sentences = self._parse_response(full_text)
                 logger.info(f"Parsed {len(sentences)} sentences from AI response")
                 
-                
-                # シンプルな実装: 順次生成+再生（並列生成は次フェーズで実装）
                 current_emotion = None
                 for emotion, text in sentences:
                     # 感情が変わった場合のみ変更
@@ -119,12 +126,7 @@ class SaintGraph:
                         await self.body.change_emotion(emotion)
                         current_emotion = emotion
                     
-                    # 発話（生成+再生+完了待機）
-                    # 音声ファイル生成
-                    logger.debug(f"Generating audio for sentence: {text} (Emotion: {emotion})")
-                    # generate_and_save_audio はまだ存在しないため、speakを直接呼び出す
-                    # file_path, duration = await self.body.generate_and_save_audio(text, style=emotion, speaker_id=self.speaker_id)
-                    # audio_tasks.append((file_path, duration, emotion)) # audio_tasks は未定義
+                    # 発話（完了待機）
                     await self.body.speak(text, style=emotion, speaker_id=self.speaker_id)
                 
                 logger.info(f"Turn completed. {len(sentences)} sentences spoken")
@@ -132,7 +134,6 @@ class SaintGraph:
                 logger.warning("No text output received from AI.")
 
         except Exception as e:
-            # 追加: ExceptionGroup / TaskGroup の sub-exception を全部ログ出し
             logger.error("process_turn failed: %r (%s)", e, type(e))
             logger.error("process_turn traceback:\n%s", traceback.format_exc())
             for i, sub in enumerate(_iter_exception_group(e)):
@@ -228,40 +229,3 @@ class SaintGraph:
             result.append(sentences[-1])
         
         return result if result else [text]
-
-    # --- セッション管理 ---
-
-    async def _ensure_session(self):
-        """セッションが存在することを確認し、なければ作成します。"""
-        session = await self.runner.session_service.get_session(
-            app_name=self.runner.app_name, 
-            user_id="yt_user", 
-            session_id="yt_session"
-        )
-        if not session:
-            await self.runner.session_service.create_session(
-                app_name=self.runner.app_name, 
-                user_id="yt_user", 
-                session_id="yt_session"
-            )
-
-    async def call_tool(self, name: str, arguments: dict) -> str:
-        """
-        ツールを直接呼び出します（コメント用など）。
-        """
-        # MCPツール
-        for toolset in self.toolsets:
-            tools = await toolset.get_tools()
-            for tool in tools:
-                if tool.name == name:
-                    res = await tool.run_async(args=arguments, tool_context=None)
-                    return self._extract_mcp_text(res)
-        
-        raise Exception(f"Tool {name} not found.")
-
-    def _extract_mcp_text(self, res: Any) -> str:
-        """ツール実行結果からテキストを抽出"""
-        if hasattr(res, 'content') and res.content:
-            if isinstance(res.content, list) and len(res.content) > 0:
-                return getattr(res.content[0], 'text', str(res))
-        return str(res)

@@ -34,10 +34,14 @@ async def test_full_news_content_reading(news_file_path):
     # 2. Setup Mock SaintGraph
     mock_saint = MagicMock()
     mock_saint.process_turn = AsyncMock()
-    mock_saint.call_tool = AsyncMock(return_value="No new comments.")
+    mock_saint.body = MagicMock()
+    mock_saint.body.get_comments = AsyncMock(return_value=[])
 
     # 3. Simulate "Reading News" Logic from main.py
-    if news_service.has_next():
+    # (Checking comments as in main.py loop)
+    comments_data = await mock_saint.body.get_comments()
+    
+    if not comments_data and news_service.has_next():
         item = news_service.get_next_item()
         
         # main.py のロジックをコピー
@@ -84,17 +88,22 @@ async def test_closing_interruption_logic():
     # Mock Objects
     mock_saint = MagicMock()
     mock_saint.process_turn = AsyncMock()
+    mock_saint.body = MagicMock()
     # 1回目はコメントあり、2回目はなし
-    mock_saint.call_tool = AsyncMock(side_effect=["User Comment: Don't go!", "No new comments."])
+    mock_saint.body.get_comments = AsyncMock(side_effect=[
+        [{"author": "User", "message": "Don't go!"}],
+        []
+    ])
 
     # Loop Simulation (2 iterations)
     for _ in range(2):
         # 1. コメント確認
         has_user_interaction = False
-        comments = await mock_saint.call_tool("sys_get_comments", {})
+        comments_data = await mock_saint.body.get_comments()
         
-        if comments and comments != "No new comments.":
-            await mock_saint.process_turn(comments)
+        if comments_data:
+            comments_text = "\n".join([f"{c.get('author', 'User')}: {c.get('message', '')}" for c in comments_data])
+            await mock_saint.process_turn(comments_text)
             has_user_interaction = True
             # *** ここが重要なロジック ***
             end_wait_counter = 0 
@@ -109,12 +118,10 @@ async def test_closing_interruption_logic():
     # 検証
     # 1. 最初のループでコメントがあったため、end_wait_counter は 0 にリセットされたはず
     # 2. 次のループでコメントがなかったので、end_wait_counter は 1 になったはず
-    # つまり、Closing処理（MAX_WAIT_CYCLES超え）は呼ばれていないはず
     
-    # process_turn は "User Comment..." で1回呼ばれたのみで、"Closing message..." は呼ばれていないこと
     calls = mock_saint.process_turn.call_args_list
     assert len(calls) == 1
-    assert calls[0][0][0] == "User Comment: Don't go!"
+    assert calls[0][0][0] == "User: Don't go!"
     
     # カウンターの状態（ロジックの検証）
     assert end_wait_counter == 1

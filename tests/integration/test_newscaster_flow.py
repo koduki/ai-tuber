@@ -25,37 +25,36 @@ async def test_news_reading_flow(news_file_path):
     news_service.load_news()
 
     # 2. Setup Mock SaintGraph
-    # We mock the ADK dependencies to focus on the flow control in main.py (simulated here)
     mock_saint = MagicMock(spec=SaintGraph)
     mock_saint.process_turn = AsyncMock()
-    mock_saint.call_tool = AsyncMock(return_value="No new comments.")
+    mock_saint.body = MagicMock()
+    mock_saint.body.get_comments = AsyncMock(return_value=[])
 
     # 3. Simulate Main Loop Logic
     # Iteration 1: No comments -> Speak News Item 1
-    comments = await mock_saint.call_tool("sys_get_comments", {})
-    if comments == "No new comments." and news_service.has_next():
+    comments_data = await mock_saint.body.get_comments()
+    if not comments_data and news_service.has_next():
         item = news_service.get_next_item()
         await mock_saint.process_turn(user_input=f"news_context: {item.content}", context=f"Reading news: {item.title}")
     
     assert item.title == "Weather"
-    # Note: content logic in main.py might differ slightly in string formatting
     mock_saint.process_turn.assert_called() 
-    # Check if call args contain context
     args, kwargs = mock_saint.process_turn.call_args
     assert "Reading news: Weather" in kwargs['context']
 
     # Iteration 2: Comment arrives -> Interrupt/Commentary
-    mock_saint.call_tool.return_value = "Hello newscaster!"
-    comments = await mock_saint.call_tool("sys_get_comments", {})
-    if comments != "No new comments.":
-        await mock_saint.process_turn(user_input=comments)
+    mock_saint.body.get_comments.return_value = [{"author": "User", "message": "Hello newscaster!"}]
+    comments_data = await mock_saint.body.get_comments()
+    if comments_data:
+        comments_text = "\n".join([f"{c.get('author', 'User')}: {c.get('message', '')}" for c in comments_data])
+        await mock_saint.process_turn(user_input=comments_text)
     
-    mock_saint.process_turn.assert_called_with(user_input="Hello newscaster!")
+    mock_saint.process_turn.assert_called_with(user_input="User: Hello newscaster!")
 
     # Iteration 3: No comments -> Speak News Item 2
-    mock_saint.call_tool.return_value = "No new comments."
-    comments = await mock_saint.call_tool("sys_get_comments", {})
-    if comments == "No new comments." and news_service.has_next():
+    mock_saint.body.get_comments.return_value = []
+    comments_data = await mock_saint.body.get_comments()
+    if not comments_data and news_service.has_next():
         item = news_service.get_next_item()
         await mock_saint.process_turn(user_input=f"news_context: {item.content}", context=f"Reading news: {item.title}")
 
