@@ -5,7 +5,7 @@ ENV DISPLAY=:99
 ENV NVIDIA_VISIBLE_DEVICES=all
 ENV NVIDIA_DRIVER_CAPABILITIES=all,graphics,utility,video,display
 
-# Install basic packages, OBS PPA, and OBS Studio
+# Install basic packages, OBS PPA, OBS Studio, and Python3
 RUN apt-get update && apt-get install -y \
     software-properties-common \
     && add-apt-repository ppa:obsproject/obs-studio \
@@ -26,6 +26,9 @@ RUN apt-get update && apt-get install -y \
     dbus-x11 \
     curl \
     wget \
+    python3 \
+    python3-pip \
+    && pip3 install --no-cache-dir google-cloud-storage \
     && rm -rf /var/lib/apt/lists/*
 
 # Create directories and pre-configure OBS
@@ -33,6 +36,7 @@ RUN mkdir -p /var/run/supervisor /var/log/supervisor \
     /root/.config/obs-studio/plugin_config/obs-websocket \
     /root/.config/obs-studio/basic/profiles/Untitled \
     /root/.config/obs-studio/basic/scenes \
+    /app/assets \
     && echo '{"address": "0.0.0.0", "port": 4455, "enabled": true, "authentication_enabled": false, "server_enabled": true, "server_port": 4455, "auth_required": false, "first_load": false}' > /root/.config/obs-studio/plugin_config/obs-websocket/config.json
 
 # Copy configuration files
@@ -45,8 +49,12 @@ COPY src/body/streamer/obs/apps /root/.fluxbox/apps
 COPY src/body/streamer/obs/start_obs.sh /usr/local/bin/start_obs.sh
 RUN chmod +x /usr/local/bin/start_obs.sh
 
-# Copy character assets
-COPY data/mind/ren/assets /app/assets
+# Copy infra module and asset download script
+COPY src/infra /app/src/infra
+COPY src/body/streamer/obs/download_assets.py /app/download_assets.py
+
+# Set Python path
+ENV PYTHONPATH=/app/src
 
 # Expose ports
 # 8080: noVNC web interface
@@ -55,3 +63,4 @@ EXPOSE 8080 4455
 
 # Start supervisor
 CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]
+
