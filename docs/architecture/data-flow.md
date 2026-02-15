@@ -5,40 +5,27 @@ AI Tuber システムにおけるデータの流れと処理シーケンスを�
 ---
 
 ```mermaid
-graph TD
-    subgraph Init [1. 初期化]
-        I1[プロンプト・テンプレートロード]
-        I2[ニュースサービス初期化]
-        I3[キャラクター設定ロード]
-        I4[SaintGraph 初期化<br/>Body・MCP接続]
-        I1 --> I2 --> I3 --> I4
-    end
-    
-    Init --> Record(録画/配信開始)
-    Record --> Intro(2. 挨拶)
-    Intro --> Loop{メインループ}
-    
-    Loop --> Comment{コメントあり?}
-    Comment -- あり --> Respond[コメント応答]
-    Respond --> Loop
-    
-    Comment -- なし --> News{ニュース残り?}
-    News -- あり --> ReadNews[3. ニュース読み上げ]
-    ReadNews --> Loop
-    
-    News -- なし --> First{初回?}
-    First -- yes --> Announce[4. 終了宣言]
-    Announce --> Loop
-    
-    First -- no --> Wait{沈黙タイムアウト?}
-    Wait -- no --> Loop
-    Wait -- yes --> Close[5. クロージング]
-    Close --> Stop(録画/配信停止)
-    Stop --> End((終了))
+stateDiagram-v2
+    [*] --> Init: main()
+    Init --> INTRO: run_broadcast_loop()
 
-    style Comment fill:#e1f5ff
-    style News fill:#fff4e1
-    style Wait fill:#ffe1e1
+    state "BroadcastPhase" as SM {
+        INTRO --> NEWS: handle_intro()
+        NEWS --> NEWS: コメント応答 / ニュース読み上げ
+        NEWS --> IDLE: ニュース全消化
+        IDLE --> IDLE: コメント応答 (counter reset) / 待機 (counter++)
+        IDLE --> CLOSING: idle_counter > MAX_WAIT_CYCLES
+        CLOSING --> [*]: handle_closing()
+    }
+
+    SM --> Stop: ループ終了
+    Stop --> [*]: 配信停止・リソース解放
+
+    note right of NEWS
+        全フェーズ共通:
+        _poll_and_respond() で
+        コメントを優先確認
+    end note
 ```
 
 ---
@@ -149,16 +136,27 @@ await body_client.speak(text, style=emotion)
 
 ### ポーリングループ
 
+各フェーズハンドラの冒頭で共通関数 `_poll_and_respond()` を呼び出し、コメントを優先的に処理します。
+
 ```python
-while True:
-    # 1.0秒ごとにコメントをポーリング
-    comments = await body_client.get_comments()
-    
-    if comments:
-        # 新しいコメントがあれば AI に渡す
-        response = await agent.process_turn(comments)
-    
-    await asyncio.sleep(1.0)
+async def _poll_and_respond(ctx: BroadcastContext) -> bool:
+    """コメントをポーリングし、あれば応答。全フェーズ共通。"""
+    comments_data = await ctx.saint_graph.body.get_comments()
+    if comments_data:
+        comments_text = "\n".join(
+            f"{c['author']}: {c['message']}" for c in comments_data
+        )
+        await ctx.saint_graph.process_turn(comments_text)
+        return True
+    return False
+
+# 各ハンドラでの使用例 (handle_news)
+async def handle_news(ctx: BroadcastContext) -> BroadcastPhase:
+    if await _poll_and_respond(ctx):   # コメント優先
+        return BroadcastPhase.NEWS
+    if ctx.news_service.has_next():    # ニュース読み上げ
+        ...
+    return BroadcastPhase.IDLE         # ニュース全消化
 ```
 
 ### YouTube Live コメント取得（Streamer モード）

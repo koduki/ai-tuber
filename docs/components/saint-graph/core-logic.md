@@ -77,6 +77,51 @@ combined_prompt = f"{system_prompt}\n\n{character_prompt}"
 
 `process_turn()` メソッドは、`Runner` を介して AI とのやり取りを1ターン処理します。
 
+---
+
+## 配信ステートマシン (broadcast_loop.py)
+
+### 概要
+
+配信のライフサイクルは `broadcast_loop.py` の軽量ステートマシンで管理されます。
+`BroadcastPhase` (Enum) と各フェーズのハンドラ関数で構成され、`main.py` から `run_broadcast_loop()` として呼び出されます。
+
+### フェーズ遷移
+
+```
+INTRO → NEWS → (NEWS を繰り返し) → IDLE → (待機) → CLOSING → 終了
+            ↑                         ↑
+            コメント応答で留まる        コメント応答でカウンタリセット
+```
+
+### コメント処理の共通化
+
+全フェーズのハンドラ冒頭で `_poll_and_respond()` を呼び出し、コメントが来ていれば優先的に応答します。これにより、ニュースの合間でも視聴者との対話が可能です。
+
+```python
+async def _poll_and_respond(ctx: BroadcastContext) -> bool:
+    comments = await ctx.saint_graph.body.get_comments()
+    if comments:
+        await ctx.saint_graph.process_turn(formatted_comments)
+        return True
+    return False
+```
+
+### ディスパッチテーブル
+
+```python
+_HANDLERS = {
+    BroadcastPhase.INTRO:   handle_intro,    # → NEWS
+    BroadcastPhase.NEWS:    handle_news,     # → NEWS / IDLE
+    BroadcastPhase.IDLE:    handle_idle,     # → IDLE / CLOSING
+    BroadcastPhase.CLOSING: handle_closing,  # → None (終了)
+}
+```
+
+### 拡張性
+
+新しいフェーズを追加する場合は、`BroadcastPhase` に値を追加し、対応するハンドラ関数を `_HANDLERS` に登録するだけで対応できます。
+
 ### 処理フロー
 
 #### 1. エージェントの実行

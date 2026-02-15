@@ -2,12 +2,13 @@ import asyncio
 import sys
 import os
 
-from .config import logger, BODY_URL, MCP_URL, POLL_INTERVAL, MAX_WAIT_CYCLES, NEWS_DIR
+from .config import logger, BODY_URL, MCP_URL, NEWS_DIR
 from .saint_graph import SaintGraph
 from .telemetry import setup_telemetry
 from .prompt_loader import PromptLoader
 from .news_service import NewsService
 from .body_client import BodyClient
+from .broadcast_loop import BroadcastContext, run_broadcast_loop
 
 
 async def main():
@@ -57,7 +58,6 @@ async def main():
         logger.info(f"Checking connectivity to MCP_URL: {MCP_URL}")
         try:
             async with httpx.AsyncClient(timeout=5.0) as client:
-                # SSEなのでGETはぶら下がる可能性があるが、まずは疎通を見たいので5秒で切る前提
                 response = await client.get(MCP_URL)
                 logger.info(f"MCP_URL check response: {response.status_code}")
         except asyncio.TimeoutError:
@@ -65,65 +65,22 @@ async def main():
         except Exception as e:
             logger.warning(f"MCP_URL connectivity check failed: {e}")
 
-    # メインループ
-    await _run_newscaster_loop(saint_graph, news_service, templates)
-
-
-async def _run_newscaster_loop(saint_graph: SaintGraph, news_service: NewsService, templates: dict):
-    """ニュースキャスターのメインループを実行します。"""
-    logger.info("Entering Newscaster Loop...")
-
-    finished_news = False
-    end_wait_counter = 0
-
-    # 配信パラメータの構築
+    # 配信パラメータの構築 & 配信開始
     broadcast_config = _build_broadcast_config()
+    await _start_broadcast(body_client, broadcast_config)
 
-    # 録画・配信開始
-    await _start_broadcast(saint_graph.body, broadcast_config)
+    # ステートマシンによるメインループ実行
+    ctx = BroadcastContext(
+        saint_graph=saint_graph,
+        news_service=news_service,
+        templates=templates,
+    )
 
-    # 配信開始の挨拶
-    await saint_graph.process_turn(templates["intro"], context="Intro")
-
-    while True:
-        try:
-            # ユーザーからのコメント確認
-            has_user_interaction = await _check_comments(saint_graph)
-            if has_user_interaction:
-                end_wait_counter = 0
-                await asyncio.sleep(POLL_INTERVAL)
-                continue
-
-            # ニュース読み上げまたは終了処理
-            if news_service.has_next():
-                item = news_service.get_next_item()
-                logger.info(f"Reading news item: {item.title}")
-                instruction = templates["news_reading"].format(title=item.title, content=item.content)
-                await saint_graph.process_turn(instruction, context=f"News Reading: {item.title}")
-            elif not finished_news:
-                finished_news = True
-                logger.info("All news items read. Waiting for final comments.")
-                await saint_graph.process_turn(templates["news_finished"], context="News Finished")
-            else:
-                end_wait_counter += 1
-                if end_wait_counter > MAX_WAIT_CYCLES:
-                    logger.info(f"Silence timeout ({MAX_WAIT_CYCLES}s) reached. Finishing broadcast.")
-                    await saint_graph.process_turn(templates["closing"], context="Closing")
-                    await asyncio.sleep(3)
-                    
-                    await _stop_broadcast(saint_graph.body)
-                        
-                    await saint_graph.close()
-                    break
-
-            await asyncio.sleep(POLL_INTERVAL)
-
-        except Exception as e:
-            logger.error(f"Unexpected error in Chat Loop: {e}", exc_info=True)
-            await asyncio.sleep(5)
-        except BaseException as e:
-            logger.critical(f"Critical System Error: {e}", exc_info=True)
-            raise
+    try:
+        await run_broadcast_loop(ctx)
+    finally:
+        await _stop_broadcast(body_client)
+        await saint_graph.close()
 
 
 def _build_broadcast_config() -> dict:
@@ -162,23 +119,6 @@ async def _stop_broadcast(body: BodyClient):
         logger.warning(f"Failed to stop broadcast cleanly: {e}")
 
 
-async def _check_comments(saint_graph: SaintGraph) -> bool:
-    """コメントをポーリングし、あれば応答します。インタラクションがあればTrueを返します。"""
-    try:
-        comments_data = await saint_graph.body.get_comments()
-        
-        if comments_data:
-            # 共通の形式（List[Dict[str, str]]）で処理
-            comments_text = "\n".join([f"{c.get('author', 'User')}: {c.get('message', '')}" for c in comments_data])
-            if comments_text:
-                logger.info(f"Comments received: {comments_text}")
-                await saint_graph.process_turn(comments_text)
-                return True
-    except Exception as e:
-        logger.error(f"Error in polling/turn: {e}")
-    return False
-
-
 if __name__ == "__main__":
     import traceback
     try:
@@ -186,5 +126,4 @@ if __name__ == "__main__":
     except Exception:
         traceback.print_exc()
         sys.stderr.flush()
-        sys.stdout.flush()
         sys.stdout.flush()

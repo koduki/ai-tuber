@@ -289,14 +289,15 @@ Mind (精神)
 
 ## 配信フロー
 
-1. **初期化**: Saint Graph が Body と MCP Tools に接続
-2. **挨拶**: キャラクターが自己紹介
-3. **ニュース配信ループ**:
-   - ニュース原稿を読み上げ
-   - AI が感情を付与してテキスト生成
-   - センテンス単位で音声合成・再生
-   - コメントを取得して質疑応答
-4. **終了**: クロージング挨拶
+`broadcast_loop.py` のステートマシンにより制御されます。
+
+1. **初期化** (`main.py`): Saint Graph が Body と MCP Tools に接続、配信開始
+2. **INTRO**: キャラクターが自己紹介
+3. **NEWS**: コメント優先確認 → ニュース原稿を 1 本ずつ読み上げ
+4. **IDLE**: ニュース終了後、コメント待機（タイムアウトで CLOSING へ）
+5. **CLOSING**: クロージング挨拶 → 配信停止
+
+各フェーズでコメントに応答できるため、ニュースの合間に視聴者とのインタラクションが可能です。
 
 詳細は [data-flow.md](./data-flow.md) を参照してください。
 
@@ -313,6 +314,7 @@ Mind (精神)
 ```
 tests/
 ├── unit/              # ユニットテスト
+│   ├── test_broadcast_loop.py     # 配信ステートマシン
 │   ├── test_prompt_loader.py      # mind.json 読み込み
 │   ├── test_saint_graph.py        # AI 応答パース・感情制御
 │   ├── test_obs_recording.py      # OBS 録画制御

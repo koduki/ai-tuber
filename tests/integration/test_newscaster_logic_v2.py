@@ -1,17 +1,27 @@
+"""
+ニュースキャスターロジック v2 テスト。
+
+broadcast_loop のハンドラを使って、以下を検証します:
+1. ニュース本文が省略されずに process_turn に渡されること
+2. IDLE フェーズでコメントが来た場合に idle_counter がリセットされること
+"""
 import pytest
-from unittest.mock import MagicMock, AsyncMock, patch, call
-import asyncio
 import os
 import tempfile
-from saint_graph.news_service import NewsService, NewsItem
+from unittest.mock import MagicMock, AsyncMock, patch
 
-# main.py のロジックをシミュレーションするためのテスト
-# 実際の main.py は無限ループを含むため、ロジックを模倣してテストします。
+from saint_graph.news_service import NewsService, NewsItem
+from saint_graph.broadcast_loop import (
+    BroadcastPhase,
+    BroadcastContext,
+    handle_news,
+    handle_idle,
+)
+
 
 @pytest.fixture
 def news_file_path():
     with tempfile.NamedTemporaryFile(mode='w+', delete=False, encoding='utf-8') as tmp:
-        # Markdown形式でニュースを作成
         tmp.write("# News\n\n## Title1\nThis is the full body content.\nIt has multiple lines.\n\n## Title2\nSecond news body.")
         tmp_path = tmp.name
     
@@ -20,6 +30,34 @@ def news_file_path():
     if os.path.exists(tmp_path):
         os.unlink(tmp_path)
 
+
+def _make_ctx(news_service=None, comments=None):
+    mock_saint = MagicMock()
+    mock_saint.process_turn = AsyncMock()
+    mock_saint.body = MagicMock()
+    mock_saint.body.get_comments = AsyncMock(return_value=comments or [])
+
+    mock_news = news_service or MagicMock()
+
+    templates = {
+        "intro": "Intro",
+        "news_reading": "【システム指示：ニュース読み上げ】\n"
+                        "以下の「ニュース本文」を、一字一句省略せずに読み上げた上で、一連の発言として感想を述べてください。\n"
+                        "導入、本文、感想を**すべて1回**の `speak` ツール呼び出しにまとめて出力してください。\n"
+                        "\n"
+                        "ニュースタイトル: {title}\n"
+                        "ニュース本文:\n{content}\n",
+        "news_finished": "All news read",
+        "closing": "Goodbye",
+    }
+
+    return BroadcastContext(
+        saint_graph=mock_saint,
+        news_service=mock_news,
+        templates=templates,
+    )
+
+
 @pytest.mark.asyncio
 async def test_full_news_content_reading(news_file_path):
     """
@@ -27,39 +65,17 @@ async def test_full_news_content_reading(news_file_path):
     process_turn に渡される指示(instruction)に、ニュースの本文が
     「一字一句省略せずに」という指示と共に含まれているか。
     """
-    # 1. Setup Mock NewsService
     news_service = NewsService(news_file_path)
     news_service.load_news()
+    ctx = _make_ctx(news_service=news_service)
 
-    # 2. Setup Mock SaintGraph
-    mock_saint = MagicMock()
-    mock_saint.process_turn = AsyncMock()
-    mock_saint.body = MagicMock()
-    mock_saint.body.get_comments = AsyncMock(return_value=[])
+    # handle_news を呼び出し → 1本目のニュースを読み上げ
+    phase = await handle_news(ctx)
 
-    # 3. Simulate "Reading News" Logic from main.py
-    # (Checking comments as in main.py loop)
-    comments_data = await mock_saint.body.get_comments()
+    assert phase == BroadcastPhase.NEWS
+    ctx.saint_graph.process_turn.assert_called_once()
     
-    if not comments_data and news_service.has_next():
-        item = news_service.get_next_item()
-        
-        # main.py のロジックをコピー
-        instruction = (
-            f"【システム指示：ニュース読み上げ】\n"
-            f"以下の「ニュース本文」を、一字一句省略せずに読み上げた上で、一連の発言として感想を述べてください。\n"
-            f"導入、本文、感想を**すべて1回**の `speak` ツール呼び出しにまとめて出力してください。\n"
-            f"\n"
-            f"ニュースタイトル: {item.title}\n"
-            f"ニュース本文:\n{item.content}\n"
-        )
-        
-        await mock_saint.process_turn(instruction, context=f"News Reading: {item.title}")
-
-    # 4. Assertions
-    # process_turn が呼ばれたか
-    assert mock_saint.process_turn.called
-    args, kwargs = mock_saint.process_turn.call_args
+    args, kwargs = ctx.saint_graph.process_turn.call_args
     prompt_text = args[0]
     context = kwargs.get('context')
 
@@ -77,52 +93,31 @@ async def test_full_news_content_reading(news_file_path):
 async def test_closing_interruption_logic():
     """
     検証項目:
-    ニュース終了後、ユーザーコメントがあった場合に
-    終了カウントダウンがリセットされるか（ロジックシミュレーション）。
+    IDLE フェーズでコメントが来た場合に idle_counter がリセットされ、
+    CLOSING に遷移しないこと。
     """
-    # 状態変数の初期化
-    finished_news = True
-    end_wait_counter = 5 # すでに少しカウントが進んでいるとする
-    MAX_WAIT_CYCLES = 20
-    
-    # Mock Objects
-    mock_saint = MagicMock()
-    mock_saint.process_turn = AsyncMock()
-    mock_saint.body = MagicMock()
-    # 1回目はコメントあり、2回目はなし
-    mock_saint.body.get_comments = AsyncMock(side_effect=[
-        [{"author": "User", "message": "Don't go!"}],
-        []
-    ])
+    # --- ループ1: コメントあり → counter リセット ---
+    ctx = _make_ctx(
+        comments=[{"author": "User", "message": "Don't go!"}]
+    )
+    ctx.idle_counter = 5  # すでにカウントが進んでいる
 
-    # Loop Simulation (2 iterations)
-    for _ in range(2):
-        # 1. コメント確認
-        has_user_interaction = False
-        comments_data = await mock_saint.body.get_comments()
-        
-        if comments_data:
-            comments_text = "\n".join([f"{c.get('author', 'User')}: {c.get('message', '')}" for c in comments_data])
-            await mock_saint.process_turn(comments_text)
-            has_user_interaction = True
-            # *** ここが重要なロジック ***
-            end_wait_counter = 0 
-        
-        # 2. ニュースなし＆終了モード
-        if not has_user_interaction and finished_news:
-            end_wait_counter += 1
-            if end_wait_counter > MAX_WAIT_CYCLES:
-                await mock_saint.process_turn("Closing message...", context="Closing")
-                break
+    phase = await handle_idle(ctx)
 
-    # 検証
-    # 1. 最初のループでコメントがあったため、end_wait_counter は 0 にリセットされたはず
-    # 2. 次のループでコメントがなかったので、end_wait_counter は 1 になったはず
-    
-    calls = mock_saint.process_turn.call_args_list
-    assert len(calls) == 1
-    assert calls[0][0][0] == "User: Don't go!"
-    
-    # カウンターの状態（ロジックの検証）
-    assert end_wait_counter == 1
-    assert end_wait_counter < MAX_WAIT_CYCLES
+    assert phase == BroadcastPhase.IDLE
+    assert ctx.idle_counter == 0  # リセットされた
+    ctx.saint_graph.process_turn.assert_called_once()
+    assert "User: Don't go!" in ctx.saint_graph.process_turn.call_args.args[0]
+
+    # --- ループ2: コメントなし → counter インクリメント ---
+    ctx.saint_graph.body.get_comments.return_value = []
+    ctx.saint_graph.process_turn.reset_mock()
+
+    phase = await handle_idle(ctx)
+
+    assert phase == BroadcastPhase.IDLE
+    assert ctx.idle_counter == 1
+    ctx.saint_graph.process_turn.assert_not_called()
+
+    # CLOSING にはまだ遷移していない
+    assert ctx.idle_counter < 20  # MAX_WAIT_CYCLES のデフォルト値
