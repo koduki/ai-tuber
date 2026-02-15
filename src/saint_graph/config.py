@@ -29,7 +29,7 @@ class Config:
     
     # システム定数
     poll_interval: float = field(default_factory=lambda: float(os.getenv("POLL_INTERVAL", "1.0")))
-    news_dir: str = field(default_factory=lambda: os.getenv("NEWS_DIR", "/app/data/news"))
+    news_dir: str = field(default_factory=lambda: os.getenv("NEWS_DIR", "news"))
     max_wait_cycles: int = field(default_factory=lambda: int(os.getenv("MAX_WAIT_CYCLES", "30")))
     
     # 動作モード

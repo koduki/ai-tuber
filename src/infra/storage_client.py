@@ -37,16 +37,23 @@ class FileSystemStorageClient(StorageClient):
 
     def __init__(self, base_path: Optional[str] = None):
         """
-        Initialize FileSystem storage client.
+        FileSystem ストレージクライアントを初期化。
         
         Args:
-            base_path: Base directory path. If None, uses project root.
+            base_path: 基底ディレクトリ。None の場合は /app/data またはプロジェクトルート/data。
         """
         if base_path is None:
-            # Default to project root
-            self.base_path = Path(__file__).resolve().parent.parent.parent
+            # プロジェクトルートの data ディレクトリをデフォルトとする
+            self.base_path = Path(__file__).resolve().parent.parent.parent / "data"
         else:
             self.base_path = Path(base_path)
+        
+        # 開発環境（dataディレクトリがない場合）への対応
+        if not self.base_path.exists() and "site-packages" not in str(self.base_path):
+            old_base = self.base_path
+            self.base_path = Path(__file__).resolve().parent.parent.parent
+            logger.warning(f"Data root {old_base} not found, falling back to project root: {self.base_path}")
+
         logger.info(f"FileSystemStorageClient initialized with base_path: {self.base_path}")
 
     def _resolve_path(self, bucket: str, key: str) -> Path:
