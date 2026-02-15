@@ -45,7 +45,8 @@ class Config:
                 sys.exit(1)
         
         if not self.google_api_key:
-            logger.warning("GOOGLE_API_KEY is not set. ADK Agent may fail to initialize.")
+            logger.error("CRITICAL: GOOGLE_API_KEY is not set. The application cannot function.")
+            sys.exit(1)
 
     def log_config(self):
         """安全な範囲で設定をログ出力します。"""

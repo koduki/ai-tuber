@@ -181,7 +181,7 @@ graph TD
     subgraph SaintGraph ["Saint Graph (魂)"]
         SG[Saint Graph Job]
         GCS_P[(GCS: プロンプト/記憶)]
-        SG --> GCS_P
+        GCS_P --> SG
     end
 
     subgraph Tools ["拡張機能 (MCP)"]

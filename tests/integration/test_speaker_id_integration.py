@@ -30,7 +30,7 @@ async def test_speaker_id_passed_to_body_client():
         
         sg = SaintGraph(
             body=mock_body,
-            mcp_url="",
+            weather_mcp_url="",
             system_instruction="Test instruction",
             mind_config=mind_config
         )
@@ -70,7 +70,7 @@ async def test_no_speaker_id_defaults_to_none():
         # mind_configなしでSaintGraphを初期化
         sg = SaintGraph(
             body=mock_body,
-            mcp_url="",
+            weather_mcp_url="",
             system_instruction="Test instruction"
         )
         
@@ -108,7 +108,7 @@ async def test_speaker_id_zero_is_valid():
         
         sg = SaintGraph(
             body=mock_body,
-            mcp_url="",
+            weather_mcp_url="",
             system_instruction="Test instruction",
             mind_config=mind_config
         )
@@ -147,7 +147,7 @@ async def test_multiple_sentences_use_same_speaker_id():
         
         sg = SaintGraph(
             body=mock_body,
-            mcp_url="",
+            weather_mcp_url="",
             system_instruction="Test instruction",
             mind_config=mind_config
         )

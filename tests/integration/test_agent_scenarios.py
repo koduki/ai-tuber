@@ -74,7 +74,7 @@ async def test_weather_scenario():
         # Initialize SaintGraph with mock body client, empty mcp_urls and custom tools
         sg = SaintGraph(
             body=mock_body_client,
-            mcp_url="",
+            weather_mcp_url="",
             system_instruction=system_instruction,
             tools=[weather_tool]
         )
