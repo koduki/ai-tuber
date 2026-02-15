@@ -35,12 +35,12 @@ class PromptLoader:
         # System prompts (src/saint_graph/system_prompts) are always local (in container)
         from infra.storage_client import FileSystemStorageClient
         self.system_storage = FileSystemStorageClient()
-        self.bucket = os.getenv("GCS_BUCKET_NAME", "")
         self._is_gcs = os.getenv("STORAGE_TYPE") == "gcs"
         
         # ストレージのパス構成
         self._saint_graph_prompts_path = "src/saint_graph/system_prompts"
         # GCS: gsutil rsync data/mind/ gs://bucket/mind/ → GCS key は mind/{character}
+        # Local: プロジェクトルートからの相対パス → data/mind/{character}
         # Local: プロジェクトルートからの相対パス → data/mind/{character}
         if self._is_gcs:
             self._mind_base_path = f"mind/{self.character_name}"
@@ -49,10 +49,6 @@ class PromptLoader:
         
         logger.info(f"PromptLoader initialized for character: {self.character_name}")
 
-    def _mind_bucket(self) -> str:
-        """mind データ読み込み用のバケット名を返す。ローカルの場合は空文字。"""
-        return self.bucket if self._is_gcs else ""
-
     def load_system_instruction(self) -> str:
         """
         core_instructions.md と persona.md を結合してシステム指示を返します。
@@ -60,13 +56,12 @@ class PromptLoader:
         try:
             # core_instructions.md を読み込み（共通プロンプト） - Always from source code (Local FS)
             core_content = self.system_storage.read_text(
-                bucket="",
                 key=f"{self._saint_graph_prompts_path}/core_instructions.md"
             )
             
             # persona.md を読み込み（キャラクター固有） - From Storage (GCS or Local)
+            # Default bucket is handled by storage client
             persona_content = self.storage.read_text(
-                bucket=self._mind_bucket(),
                 key=f"{self._mind_base_path}/persona.md"
             )
             
@@ -87,7 +82,6 @@ class PromptLoader:
             try:
                 # Templates are always from source code (Local FS)
                 content = self.system_storage.read_text(
-                    bucket="",
                     key=f"{self._saint_graph_prompts_path}/{name}.md"
                 )
                 templates[name] = content
@@ -108,7 +102,6 @@ class PromptLoader:
         """
         try:
             content = self.storage.read_text(
-                bucket=self._mind_bucket(),
                 key=f"{self._mind_base_path}/mind.json"
             )
             return json.loads(content)
