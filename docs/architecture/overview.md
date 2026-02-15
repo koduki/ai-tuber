@@ -120,9 +120,11 @@ Google ADK をベースにした意思決定エンジン。システムの思考
 | `saint-graph` | 思考・対話エンジン（魂） | - | REST Client / MCP Client |
 | `body-streamer` | ストリーミング制御ハブ（肉体） | 8002 | REST API Server |
 | `body-cli` | 開発用 CLI 入出力（肉体） | 8000 | REST API Server |
-| `tools-weather` | 天気情報取得ツール（環境） | 8001 | MCP Server (SSE) |
+| `tools-weather` | 天気情報取得ツール（AI自律ツール） | 8001 | MCP Server (SSE) |
+| `health-proxy` | システム監視・疎通確認プロキシ | 8080 | REST API |
 | `obs-studio` | 配信・映像合成 | 8080, 4455 | VNC / WebSocket |
 | `voicevox` | 音声合成エンジン | 50021 | HTTP API |
+| `news-collector` | ニュース自動収集バッチ | - | Cloud Run Job |
 
 ### システムマップ
 
@@ -135,7 +137,12 @@ graph TD
     NewsScript["data/news/news_script.md"]
   end
 
-  subgraph Tools ["Tools / Scripts"]
+  subgraph Tools ["Tools (Autonomous AI Tools)"]
+    WeatherMcp["src/tools/weather/"]
+    NoteTools["AIが自律判断で使用するツール(MCP等)のみを配置"]
+  end
+
+  subgraph Scripts ["Scripts & Internal Jobs"]
     NewsCollector["scripts/news_collector/news_agent.py"]
   end
 
