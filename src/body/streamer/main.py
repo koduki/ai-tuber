@@ -6,7 +6,7 @@ from starlette.applications import Starlette
 from starlette.responses import JSONResponse
 from starlette.requests import Request
 from starlette.routing import Route
-from .tools import speak, change_emotion, get_comments, start_obs_recording, stop_obs_recording, play_audio_file, start_streaming, stop_streaming, get_streaming_comments
+from .tools import speak, change_emotion, get_comments, start_broadcast, stop_broadcast, play_audio_file, start_obs_recording, stop_obs_recording
 from .utils import ensure_youtube_secrets
 from .youtube import start_comment_polling
 
@@ -122,62 +122,31 @@ async def play_audio_file_api(request: Request) -> JSONResponse:
         return JSONResponse({"status": "error", "message": str(e)}, status_code=500)
 
 
-async def start_streaming_api(request: Request) -> JSONResponse:
+async def start_broadcast_api(request: Request) -> JSONResponse:
     """
-    YouTube Live配信開始API
-    POST /api/streaming/start
-    Body: {
-        "title": "配信タイトル",
-        "description": "配信説明",
-        "scheduled_start_time": "2024-12-31T00:00:00.000Z",
-        "thumbnail_path": "/path/to/thumbnail.png",
-        "privacy_status": "private"
-    }
+    配信/録画開始API (統一エンドポイント)
+    POST /api/broadcast/start
+    Body: {"title": "...", "description": "...", "scheduled_start_time": "...", "privacy_status": "..."}
     """
     try:
-        body = await request.json()
-        title = body.get("title", "AI Tuber Live Stream")
-        description = body.get("description", "")
-        scheduled_start_time = body.get("scheduled_start_time")
-        thumbnail_path = body.get("thumbnail_path")
-        privacy_status = body.get("privacy_status", "private")
-        
-        if not scheduled_start_time:
-            return JSONResponse({"status": "error", "message": "scheduled_start_time is required"}, status_code=400)
-        
-        result = await start_streaming(title, description, scheduled_start_time, thumbnail_path, privacy_status)
+        body = await request.json() if request.headers.get("content-type") == "application/json" else {}
+        result = await start_broadcast(body)
         return JSONResponse({"status": "ok", "result": result})
     except Exception as e:
-        logger.error(f"Error in start_streaming API: {e}")
+        logger.error(f"Error in start_broadcast API: {e}")
         return JSONResponse({"status": "error", "message": str(e)}, status_code=500)
 
 
-async def stop_streaming_api(request: Request) -> JSONResponse:
+async def stop_broadcast_api(request: Request) -> JSONResponse:
     """
-    YouTube Live配信停止API
-    POST /api/streaming/stop
+    配信/録画停止API (統一エンドポイント)
+    POST /api/broadcast/stop
     """
     try:
-        result = await stop_streaming()
+        result = await stop_broadcast()
         return JSONResponse({"status": "ok", "result": result})
     except Exception as e:
-        logger.error(f"Error in stop_streaming API: {e}")
-        return JSONResponse({"status": "error", "message": str(e)}, status_code=500)
-
-
-async def get_streaming_comments_api(request: Request) -> JSONResponse:
-    """
-    YouTube Live配信コメント取得API
-    GET /api/streaming/comments
-    """
-    try:
-        result = await get_streaming_comments()
-        # JSON文字列をパースしてリストとして返す
-        import json
-        comments = json.loads(result) if result else []
-        return JSONResponse({"status": "ok", "comments": comments})
-    except Exception as e:
-        logger.error(f"Error in get_streaming_comments API: {e}")
+        logger.error(f"Error in stop_broadcast API: {e}")
         return JSONResponse({"status": "error", "message": str(e)}, status_code=500)
 
 
@@ -188,11 +157,11 @@ routes = [
     Route("/api/change_emotion", change_emotion_api, methods=["POST"]),
     Route("/api/play_audio_file", play_audio_file_api, methods=["POST"]),
     Route("/api/comments", get_comments_api, methods=["GET"]),
+    Route("/api/broadcast/start", start_broadcast_api, methods=["POST"]),
+    Route("/api/broadcast/stop", stop_broadcast_api, methods=["POST"]),
+    # 後方互換 (直接操作用)
     Route("/api/recording/start", start_recording_api, methods=["POST"]),
     Route("/api/recording/stop", stop_recording_api, methods=["POST"]),
-    Route("/api/streaming/start", start_streaming_api, methods=["POST"]),
-    Route("/api/streaming/stop", stop_streaming_api, methods=["POST"]),
-    Route("/api/streaming/comments", get_streaming_comments_api, methods=["GET"]),
 ]
 
 app = Starlette(routes=routes)

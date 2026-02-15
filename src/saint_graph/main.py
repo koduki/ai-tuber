@@ -7,6 +7,7 @@ from .saint_graph import SaintGraph
 from .telemetry import setup_telemetry
 from .prompt_loader import PromptLoader
 from .news_service import NewsService
+from .body_client import BodyClient
 
 
 async def main():
@@ -39,9 +40,12 @@ async def main():
     mind_config = loader.load_mind_config()
     logger.info(f"Loaded mind config: {mind_config}")
 
+    # BodyClient の初期化
+    body_client = BodyClient(base_url=BODY_URL)
+
     # SaintGraph (ADK + REST Body) の初期化
     saint_graph = SaintGraph(
-        body_url=BODY_URL,
+        body=body_client,
         mcp_url=MCP_URL,
         system_instruction=system_instruction,
         mind_config=mind_config
@@ -72,39 +76,11 @@ async def _run_newscaster_loop(saint_graph: SaintGraph, news_service: NewsServic
     finished_news = False
     end_wait_counter = 0
 
-    # 録画・配信開始の試行 (REST API)
-    streaming_mode = os.getenv("STREAMING_MODE", "false").lower() == "true"
-    try:
-        if streaming_mode:
-            from datetime import datetime
-            now_iso = datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ')
-            title = os.getenv("STREAM_TITLE", f"AI Tuber Live Stream - {now_iso}")
-            description = os.getenv("STREAM_DESCRIPTION", "AI Tuber Live Stream")
-            
-            res = await saint_graph.body.start_streaming(
-                title=title,
-                description=description,
-                scheduled_start_time=now_iso,
-                privacy_status=os.getenv("STREAM_PRIVACY", "private")
-            )
-            logger.info(f"Automatic Streaming Start result: {res}")
-            if "エラー" in res or res.startswith("Error"):
-                logger.critical(f"Streaming start failed: {res}")
-                sys.exit(1)
-        else:
-            res = await saint_graph.body.start_recording()
-            logger.info(f"Automatic Recording Start result: {res}")
-            if "エラー" in res or res.startswith("Error"):
-                logger.critical(f"Recording start failed: {res}")
-                sys.exit(1)
+    # 配信パラメータの構築
+    broadcast_config = _build_broadcast_config()
 
-            # OBS録画開始後の安定化待機
-            await asyncio.sleep(3)
-    except Exception as e:
-        if isinstance(e, SystemExit):
-            raise
-        logger.critical(f"Could not automatically start due to unexpected error: {e}")
-        sys.exit(1)
+    # 録画・配信開始
+    await _start_broadcast(saint_graph.body, broadcast_config)
 
     # 配信開始の挨拶
     await saint_graph.process_turn(templates["intro"], context="Intro")
@@ -112,7 +88,7 @@ async def _run_newscaster_loop(saint_graph: SaintGraph, news_service: NewsServic
     while True:
         try:
             # ユーザーからのコメント確認
-            has_user_interaction = await _check_comments(saint_graph, streaming_mode)
+            has_user_interaction = await _check_comments(saint_graph)
             if has_user_interaction:
                 end_wait_counter = 0
                 await asyncio.sleep(POLL_INTERVAL)
@@ -135,14 +111,7 @@ async def _run_newscaster_loop(saint_graph: SaintGraph, news_service: NewsServic
                     await saint_graph.process_turn(templates["closing"], context="Closing")
                     await asyncio.sleep(3)
                     
-                    # 停止の試行
-                    try:
-                        if streaming_mode:
-                            await saint_graph.body.stop_streaming()
-                        else:
-                            await saint_graph.body.stop_recording()
-                    except:
-                        pass
+                    await _stop_broadcast(saint_graph.body)
                         
                     await saint_graph.close()
                     break
@@ -157,27 +126,50 @@ async def _run_newscaster_loop(saint_graph: SaintGraph, news_service: NewsServic
             raise
 
 
-async def _check_comments(saint_graph: SaintGraph, streaming_mode: bool = False) -> bool:
+def _build_broadcast_config() -> dict:
+    """環境変数から配信パラメータを構築します。"""
+    from datetime import datetime
+    now_iso = datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ')
+    return {
+        "title": os.getenv("STREAM_TITLE", f"AI Tuber Live Stream - {now_iso}"),
+        "description": os.getenv("STREAM_DESCRIPTION", "AI Tuber Live Stream"),
+        "scheduled_start_time": now_iso,
+        "privacy_status": os.getenv("STREAM_PRIVACY", "private"),
+    }
+
+
+async def _start_broadcast(body: BodyClient, config: dict):
+    """配信または録画を開始します。"""
+    try:
+        res = await body.start_broadcast(config)
+        logger.info(f"Broadcast start result: {res}")
+        if "エラー" in res or res.startswith("Error"):
+            logger.critical(f"Broadcast start failed: {res}")
+            sys.exit(1)
+    except Exception as e:
+        if isinstance(e, SystemExit):
+            raise
+        logger.critical(f"Could not start broadcast: {e}")
+        sys.exit(1)
+
+
+async def _stop_broadcast(body: BodyClient):
+    """配信または録画を停止します。"""
+    try:
+        res = await body.stop_broadcast()
+        logger.info(f"Broadcast stop result: {res}")
+    except Exception as e:
+        logger.warning(f"Failed to stop broadcast cleanly: {e}")
+
+
+async def _check_comments(saint_graph: SaintGraph) -> bool:
     """コメントをポーリングし、あれば応答します。インタラクションがあればTrueを返します。"""
     try:
-        # BodyClient経由でコメント取得 (REST API)
-        if streaming_mode:
-            comments_data = await saint_graph.body.get_streaming_comments()
-        else:
-            comments_data = await saint_graph.body.get_comments()
+        comments_data = await saint_graph.body.get_comments()
         
         if comments_data:
-            # コメントの整形（リストから文字列へ）
-            if isinstance(comments_data, list):
-                # body-streamerの場合の形式
-                if comments_data and isinstance(comments_data[0], dict):
-                    comments_text = "\n".join([f"{c['author']}: {c['message']}" for c in comments_data])
-                else:
-                    # body-cliの場合の形式
-                    comments_text = "\n".join(comments_data)
-            else:
-                comments_text = str(comments_data)
-                
+            # 共通の形式（List[Dict[str, str]]）で処理
+            comments_text = "\n".join([f"{c.get('author', 'User')}: {c.get('message', '')}" for c in comments_data])
             if comments_text:
                 logger.info(f"Comments received: {comments_text}")
                 await saint_graph.process_turn(comments_text)

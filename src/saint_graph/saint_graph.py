@@ -7,7 +7,7 @@ from typing import List, Optional, Any, Iterable
 from google.adk import Agent
 from google.adk.runners import InMemoryRunner
 from google.adk.models import Gemini
-from google.adk.tools import McpToolset, FunctionTool
+from google.adk.tools import McpToolset
 from google.adk.tools.mcp_tool.mcp_toolset import SseConnectionParams
 from google.adk.events.event import Event
 
@@ -31,12 +31,12 @@ class SaintGraph:
     外部ツール（天気など）や明示的な制御（録画など）はMCPまたはローカルツールで呼び出されます。
     """
 
-    def __init__(self, body_url: str, mcp_url: str, system_instruction: str, mind_config: Optional[dict] = None, tools: List[Any] = None):
+    def __init__(self, body: BodyClient, mcp_url: str, system_instruction: str, mind_config: Optional[dict] = None, tools: List[Any] = None):
         """
         SaintGraphを初期化します。
         
         Args:
-            body_url: Body REST APIのベースURL (例: http://body-cli:8000)
+            body: BodyClient インスタンス
             mcp_url: MCPツール用のURL（天気APIなど）
             system_instruction: システム指示文
             mind_config: キャラクター設定辞書 (speaker_id など)
@@ -46,8 +46,8 @@ class SaintGraph:
         self.mind_config = mind_config or {}
         self.speaker_id = self.mind_config.get("speaker_id")
         
-        # Body REST APIクライアントの初期化
-        self.body = BodyClient(base_url=body_url)
+        # Body REST APIクライアントを保持
+        self.body = body
         
         # MCP ツールセットの初期化（天気などの外部ツール用）
         self.toolsets = []
@@ -56,17 +56,10 @@ class SaintGraph:
             toolset = McpToolset(connection_params=connection_params)
             self.toolsets.append(toolset)
         
-        # 明示的な制御ツール（AIが自発的に呼べるもの）
-        self.local_tools = [
-            FunctionTool(self.start_recording),
-            FunctionTool(self.stop_recording)
-        ]
-        
         # エージェントの構成
-        # speak/change_emotion はツールとして登録せず、レスポンスパースで対応
-        all_tools = self.local_tools + self.toolsets + (tools if tools else [])
+        all_tools = self.toolsets + (tools if tools else [])
         self.agent = Agent(
-            name="SaintV2",
+            name="SaintGraph",
             model=Gemini(model=MODEL_NAME),
             instruction=system_instruction,
             tools=all_tools if all_tools else None
@@ -74,23 +67,13 @@ class SaintGraph:
         
         # ランナーの初期化
         self.runner = InMemoryRunner(agent=self.agent)
-        logger.info(f"SaintGraph initialized with model {MODEL_NAME}, body_url={body_url}, mcp_url={mcp_url}")
+        logger.info(f"SaintGraph initialized with model {MODEL_NAME}, mcp_url={mcp_url}")
 
     async def close(self):
         """ツールセットの接続を解除してクリーンアップします。"""
         for ts in self.toolsets:
             if hasattr(ts, 'close'):
                 await ts.close()
-
-    # --- 録画制御ツール (AIが呼べる) ---
-
-    async def start_recording(self) -> str:
-        """OBSの録画を開始します。"""
-        return await self.body.start_recording()
-
-    async def stop_recording(self) -> str:
-        """OBSの録画を停止します。"""
-        return await self.body.stop_recording()
 
     # --- メインターン処理 ---
 
@@ -266,12 +249,6 @@ class SaintGraph:
         """
         ツールを直接呼び出します（コメント用など）。
         """
-        # ローカルツール
-        if name == "start_recording":
-            return await self.start_recording()
-        if name == "stop_recording":
-            return await self.stop_recording()
-
         # MCPツール
         for toolset in self.toolsets:
             tools = await toolset.get_tools()

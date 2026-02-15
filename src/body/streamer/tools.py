@@ -1,4 +1,5 @@
 """MCP tools for body-streamer service"""
+import os
 from typing import Optional
 import logging
 import json
@@ -81,14 +82,19 @@ async def change_emotion(emotion: str) -> str:
 
 async def get_comments() -> str:
     """
-    ユーザーからのコメントを取得します。
-    システム内部用ツールとして設計されており、エージェントによる直接呼び出しは想定していません。
+    コメントを取得します。
+    STREAMING_MODE に応じて、YouTube Live チャットまたは内部キューから取得します。
     
     Returns:
         コメントリスト (JSON形式)
     """
+    streaming_mode = os.getenv("STREAMING_MODE", "false").lower() == "true"
+    
     try:
-        comments = await youtube.get_new_comments()
+        if streaming_mode and _youtube_comment_adapter:
+            comments = _youtube_comment_adapter.get()
+        else:
+            comments = await youtube.get_new_comments()
         
         if not comments:
             return json.dumps([])
@@ -146,123 +152,108 @@ _youtube_comment_adapter = None
 _current_broadcast_id = None
 
 
-async def start_streaming(title: str, description: str, scheduled_start_time: str, 
-                         thumbnail_path: Optional[str] = None, privacy_status: str = "private") -> str:
+async def _start_streaming(config: dict) -> str:
+    """YouTube Live 配信を開始する内部関数。"""
+    global _youtube_live_adapter, _youtube_comment_adapter, _current_broadcast_id
+    
+    from .youtube_live_adapter import YoutubeLiveAdapter
+    
+    _youtube_live_adapter = YoutubeLiveAdapter()
+    youtube_client, _ = _youtube_live_adapter.authenticate_youtube()
+    
+    title = config.get("title", "AI Tuber Live Stream")
+    description = config.get("description", "")
+    scheduled_start_time = config.get("scheduled_start_time", "")
+    thumbnail_path = config.get("thumbnail_path")
+    privacy_status = config.get("privacy_status", "private")
+    
+    logger.info(f"Creating YouTube Live broadcast: {title}")
+    live_response = _youtube_live_adapter.create_live(
+        youtube_client, title, description, scheduled_start_time,
+        thumbnail_path, privacy_status
+    )
+    
+    stream_key = live_response['stream']['cdn']['ingestionInfo']['streamName']
+    _current_broadcast_id = live_response['broadcast']['id']
+    
+    logger.info("Starting OBS streaming with YouTube stream key")
+    success = await obs.start_streaming(stream_key)
+    
+    if not success:
+        return "OBSストリーミングの開始に失敗しました。"
+    
+    from .youtube_comment_adapter import YouTubeCommentAdapter
+    _youtube_comment_adapter = YouTubeCommentAdapter(_current_broadcast_id)
+    
+    logger.info(f"[start_streaming] Success - Broadcast ID: {_current_broadcast_id}")
+    return f"YouTube Live配信を開始しました。ブロードキャストID: {_current_broadcast_id}"
+
+
+async def _stop_streaming() -> str:
+    """YouTube Live 配信を停止する内部関数。"""
+    global _youtube_live_adapter, _youtube_comment_adapter, _current_broadcast_id
+    
+    logger.info("Stopping OBS streaming")
+    await obs.stop_streaming()
+    
+    if _youtube_live_adapter and _current_broadcast_id:
+        youtube_client, _ = _youtube_live_adapter.authenticate_youtube()
+        _youtube_live_adapter.stop_live(youtube_client, _current_broadcast_id)
+        logger.info(f"Stopped YouTube broadcast: {_current_broadcast_id}")
+    
+    if _youtube_comment_adapter:
+        _youtube_comment_adapter.close()
+        _youtube_comment_adapter = None
+    
+    _current_broadcast_id = None
+    
+    logger.info("[stop_streaming] Success")
+    return "YouTube Live配信を停止しました。"
+
+
+async def start_broadcast(config: Optional[dict] = None) -> str:
     """
-    YouTube Live配信を開始します。
+    配信または録画を開始します。
+    STREAMING_MODE 環境変数に基づいて自動判定します。
     
     Args:
-        title: 配信タイトル
-        description: 配信説明
-        scheduled_start_time: 開始予定時刻 (ISO 8601形式)
-        thumbnail_path: サムネイル画像パス (オプション)
-        privacy_status: 公開設定 (private, unlisted, public)
-        
+        config: 配信設定 (title, description, scheduled_start_time, privacy_status 等)
+    
     Returns:
         実行結果メッセージ
     """
-    global _youtube_live_adapter, _youtube_comment_adapter, _current_broadcast_id
+    streaming_mode = os.getenv("STREAMING_MODE", "false").lower() == "true"
+    config = config or {}
     
     try:
-        # Import YouTube Live adapter
-        from .youtube_live_adapter import YoutubeLiveAdapter
-        
-        # Create YouTube Live adapter
-        _youtube_live_adapter = YoutubeLiveAdapter()
-        
-        # Authenticate
-        youtube_client, _ = _youtube_live_adapter.authenticate_youtube()
-        
-        # Create live broadcast
-        logger.info(f"Creating YouTube Live broadcast: {title}")
-        live_response = _youtube_live_adapter.create_live(
-            youtube_client, 
-            title, 
-            description, 
-            scheduled_start_time,
-            thumbnail_path,
-            privacy_status
-        )
-        
-        # Extract stream key and broadcast ID
-        stream_key = live_response['stream']['cdn']['ingestionInfo']['streamName']
-        _current_broadcast_id = live_response['broadcast']['id']
-        
-        # Start OBS streaming
-        logger.info("Starting OBS streaming with YouTube stream key")
-        success = await obs.start_streaming(stream_key)
-        
-        if not success:
-            return "OBSストリーミングの開始に失敗しました。"
-        
-        # Start comment polling using YouTube Comment Adapter
-        from .youtube_comment_adapter import YouTubeCommentAdapter
-        _youtube_comment_adapter = YouTubeCommentAdapter(_current_broadcast_id)
-        
-        logger.info(f"[start_streaming] Success - Broadcast ID: {_current_broadcast_id}")
-        return f"YouTube Live配信を開始しました。ブロードキャストID: {_current_broadcast_id}"
-        
+        if streaming_mode:
+            return await _start_streaming(config)
+        else:
+            result = await start_obs_recording()
+            # OBS録画開始後の安定化待機
+            await asyncio.sleep(3)
+            return result
     except Exception as e:
-        logger.error(f"Error in start_streaming tool: {e}")
+        logger.error(f"Error in start_broadcast: {e}")
         return f"配信開始エラー: {str(e)}"
 
 
-async def stop_streaming() -> str:
+async def stop_broadcast() -> str:
     """
-    YouTube Live配信を停止します。
+    配信または録画を停止します。
+    STREAMING_MODE 環境変数に基づいて自動判定します。
     
     Returns:
         実行結果メッセージ
     """
-    global _youtube_live_adapter, _youtube_comment_adapter, _current_broadcast_id
+    streaming_mode = os.getenv("STREAMING_MODE", "false").lower() == "true"
     
     try:
-        # Stop OBS streaming
-        logger.info("Stopping OBS streaming")
-        await obs.stop_streaming()
-        
-        # Stop YouTube broadcast
-        if _youtube_live_adapter and _current_broadcast_id:
-            youtube_client, _ = _youtube_live_adapter.authenticate_youtube()
-            _youtube_live_adapter.stop_live(youtube_client, _current_broadcast_id)
-            logger.info(f"Stopped YouTube broadcast: {_current_broadcast_id}")
-        
-        # Close comment adapter
-        if _youtube_comment_adapter:
-            _youtube_comment_adapter.close()
-            _youtube_comment_adapter = None
-        
-        _current_broadcast_id = None
-        
-        logger.info("[stop_streaming] Success")
-        return "YouTube Live配信を停止しました。"
-        
+        if streaming_mode:
+            return await _stop_streaming()
+        else:
+            return await stop_obs_recording()
     except Exception as e:
-        logger.error(f"Error in stop_streaming tool: {e}")
+        logger.error(f"Error in stop_broadcast: {e}")
         return f"配信停止エラー: {str(e)}"
 
-
-async def get_streaming_comments() -> str:
-    """
-    YouTube Live配信のコメントを取得します（Comment Adapterから）。
-    
-    Returns:
-        コメントリスト (JSON形式)
-    """
-    global _youtube_comment_adapter
-    
-    try:
-        if not _youtube_comment_adapter:
-            return json.dumps([])
-        
-        comments = _youtube_comment_adapter.get()
-        
-        if not comments:
-            return json.dumps([])
-        
-        logger.info(f"[get_streaming_comments] Retrieved {len(comments)} comments")
-        return json.dumps(comments, ensure_ascii=False)
-        
-    except Exception as e:
-        logger.error(f"Error in get_streaming_comments tool: {e}")
-        return json.dumps([])

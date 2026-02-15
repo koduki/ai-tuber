@@ -31,16 +31,16 @@ def mock_adk():
 @pytest.mark.asyncio
 async def test_saint_graph_initialization(mock_adk):
     # Setup
-    body_url = "http://body-cli:8000"
     mcp_url = "http://weather:8001/sse"
     system_instruction = "Test instruction"
+    mock_body = mock_adk["BodyClient"]()
     
     # Execute
-    sg = SaintGraph(body_url, mcp_url, system_instruction)
+    sg = SaintGraph(mock_body, mcp_url, system_instruction)
     
     # Verify
     assert sg.system_instruction == system_instruction
-    mock_adk["BodyClient"].assert_called_once_with(base_url=body_url)
+    assert sg.body == mock_body
     mock_adk["McpToolset"].assert_called_once()
     mock_adk["Agent"].assert_called_once()
     mock_adk["InMemoryRunner"].assert_called_once_with(agent=sg.agent)
@@ -48,8 +48,8 @@ async def test_saint_graph_initialization(mock_adk):
 @pytest.mark.asyncio
 async def test_process_turn_parses_emotion_tag(mock_adk):
     # Setup
-    body_url = "http://body-cli:8000"
-    sg = SaintGraph(body_url, "", "Instruction")
+    mock_body = mock_adk["BodyClient"]()
+    sg = SaintGraph(mock_body, "", "Instruction")
     sg.body.change_emotion = AsyncMock()
     sg.body.speak = AsyncMock()
     
@@ -74,8 +74,8 @@ async def test_process_turn_parses_emotion_tag(mock_adk):
 @pytest.mark.asyncio
 async def test_process_turn_defaults_to_neutral(mock_adk):
     # Setup
-    body_url = "http://body-cli:8000"
-    sg = SaintGraph(body_url, "", "Instruction")
+    mock_body = mock_adk["BodyClient"]()
+    sg = SaintGraph(mock_body, "", "Instruction")
     sg.body.change_emotion = AsyncMock()
     sg.body.speak = AsyncMock()
     

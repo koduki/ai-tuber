@@ -94,66 +94,35 @@ Saint Graph から Body への指令送信に使用します。
 
 直近のユーザーコメントを取得します（ポーリング用）。
 
-**Response (CLI モード)**:
-```json
-{
-  "status": "ok",
-  "comments": ["コメント1", "コメント2"]
-}
-```
-
-**Response (Streamer モード)**:
+**Response (共通)**:
 ```json
 {
   "status": "ok",
   "comments": [
     {
-      "author": "@username",
+      "author": "User",
       "message": "コメント内容",
-      "timestamp": "2026-02-02T17:00:00+00:00"
+      "timestamp": "2026-02-02T17:00:00+00:00"  // CLIモードでは省略される場合があります
     }
   ]
 }
 ```
 
-### 5. POST /api/recording/start (Streamer 固有)
+### 5. POST /api/broadcast/start
 
-OBS の録画を開始します。
+配信または録画を開始します。Body サービスが `STREAMING_MODE` 環境変数に基づいて、YouTube Live 配信か OBS 録画かを自動判定します。
 
-**Response**:
-```json
-{
-  "status": "ok",
-  "result": "録画を開始しました"
-}
-```
-
-### 6. POST /api/recording/stop (Streamer 固有)
-
-OBS の録画を停止します。
-
-**Response**:
-```json
-{
-  "status": "ok",
-  "result": "録画を停止しました"
-}
-```
-
-### 7. POST /api/streaming/start (Streamer 固有)
-
-YouTube Live 配信を作成・開始します。
-
-**Request Body**:
+**Request Body** (オプション):
 ```json
 {
   "title": "配信タイトル",
   "description": "配信の説明",
   "scheduled_start_time": "2024-12-31T00:00:00.000Z",
-  "thumbnail_path": "/path/to/thumbnail.png",  // オプション
-  "privacy_status": "private"  // private, unlisted, public
+  "privacy_status": "private"
 }
 ```
+
+> CLIモードでは Body は空実装（No-op）として成功を返します。
 
 **Response**:
 ```json
@@ -163,35 +132,26 @@ YouTube Live 配信を作成・開始します。
 }
 ```
 
-### 8. POST /api/streaming/stop (Streamer 固有)
+### 6. POST /api/broadcast/stop
 
-YouTube Live 配信を停止します。
-
-**Response**:
-```json
-{
-  "status": "ok",
-  "result": "YouTube Live配信を停止しました"
-}
-```
-
-### 9. GET /api/streaming/comments (Streamer 固有)
-
-YouTube Live 配信のリアルタイムチャットコメントを取得します。
+配信または録画を停止します。
 
 **Response**:
 ```json
 {
   "status": "ok",
-  "comments": [
-    {
-      "author": "@username",
-      "message": "コメント内容",
-      "timestamp": "2026-02-02T17:00:00+00:00"
-    }
-  ]
+  "result": "配信を停止しました"
 }
 ```
+
+### 7. POST /api/recording/start (後方互換・直接操作用)
+
+OBS の録画を直接開始します。通常は `/api/broadcast/start` を使用してください。
+
+### 8. POST /api/recording/stop (後方互換・直接操作用)
+
+OBS の録画を直接停止します。通常は `/api/broadcast/stop` を使用してください。
+
 
 ---
 

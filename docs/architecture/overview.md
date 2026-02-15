@@ -142,9 +142,9 @@ graph TD
   subgraph SaintGraph ["Saint Graph (魂)"]
     Agent["ADK Agent"]
     Runner["InMemoryRunner"]
-    Parser["Output Parser ([emotion: type])"]
-    BodyClient["REST BodyClient"]
-    Toolset["McpToolset"]
+- [emotion: type])"]
+    BodyClient["REST BodyClient (System Logic)"]
+    Toolset["McpToolset (Autonomous Extension)"]
   end
 
   subgraph BodyServices ["Body (肉体 / REST API)"]
@@ -170,11 +170,11 @@ graph TD
   MindJson -- "Settings" --> Agent
   Assets -- "Resources" --> Agent
   Agent -- "Text Output" --> Parser
-  Parser -- "REST (HTTP)" --> BodyClient
-  BodyClient -- "REST (HTTP)" --> ServerStreamer
-  BodyClient -- "REST (HTTP)" --> ServerCLI
+  Parser -- "REST/身体操作" --> BodyClient
+  BodyClient -- "REST/身体操作" --> ServerStreamer
+  BodyClient -- "REST/身体操作" --> ServerCLI
   
-  Agent -- "Autonomous Tool Call" --> Toolset
+  Agent -- "自律的ツール利用 (MCP)" --> Toolset
   Toolset -- "MCP (SSE)" --> ServerWeather
   
   ServerStreamer -- "HTTP API" --> VoiceVox
@@ -236,7 +236,7 @@ graph TD
 
 ### REST API（Body 操作用）
 
-**用途**: 確実に実行しなければならない「身体操作」
+**用途**: 確実に実行しなければならない、**「アプリケーション・ワークフロー」としての身体操作**
 
 - 発話（speak）
 - 表情変更（change_emotion）
@@ -244,20 +244,20 @@ graph TD
 - 録画・配信制御（recording/streaming）
 
 **特徴**:
+- アプリケーション側のロジック（`main.py` 等）によって一律に制御される
 - 同期的な実行保証
 - エラーハンドリングが容易
-- 低レイテンシ
 
 ### MCP（外部ツール用）
 
-**用途**: AI が自律的に判断して使う「情報取得ツール」
+**用途**: **AI（LLM）が自律的に判断して使う**「情報取得ツール」
 
 - 天気予報（get_weather）
 - 将来的に追加される知識検索など
 
 **特徴**:
+- AI の判断に基づき、必要に応じて呼び出される
 - 動的なツール発見
-- AI が必要に応じて呼び出し
 - スキーマ駆動
 
 ---

@@ -78,42 +78,30 @@ comments = await body_client.get_comments()
 
 ### start_recording() / stop_recording()
 
-録画を開始・停止します（Streamer モードのみ）。
+録画を開始・停止します。これらは**配信全体のライフサイクル管理**として、`main.py` などの上位層から直接呼び出されます。
 
 ```python
-# 録画開始
+# 録画開始 (main.py 等で使用)
 await body_client.start_recording()
 
-# ... 配信処理 ...
+# ... 配信処理（SaintGraph による対話） ...
 
-# 録画停止
+# 録画停止 (main.py 等で使用)
 await body_client.stop_recording()
 ```
 
 ---
 
-## 実装例
+## 依存性の注入 (Dependency Injection)
 
-### 基本的な使用
+`SaintGraph`（魂）は自ら `BodyClient` を生成せず、初期化時に外部からインスタンスを受け取ります。これにより、Body の実装やモード（CLI/Streamer）を意識することなく、対話と表現に専念できます。
 
 ```python
-import asyncio
-from saint_graph.body_client import BodyClient
-from saint_graph.config import config
+# 1. Body インスタンスを作成
+body = BodyClient(base_url=config.BODY_URL)
 
-async def main():
-    body_client = BodyClient(base_url=config.BODY_URL)
-    
-    # 挨拶
-    await body_client.change_emotion("joyful")
-    await body_client.speak("おはようございます！", style="joyful")
-    
-    # コメント確認
-    comments = await body_client.get_comments()
-    if comments:
-        print(f"コメント: {comments}")
-
-asyncio.run(main())
+# 2. SaintGraph に渡す
+sg = SaintGraph(body=body, ...)
 ```
 
 ### エラーハンドリング

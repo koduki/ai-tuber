@@ -8,24 +8,53 @@ Saint Graph の中核となる AI ターン処理と感情パース処理につ�
 
 ### Google ADK 統合
 
+Google ADK (Agent Development Kit) を使用して、LLM、ツール、および実行エンジンを統合します。
+
 ```python
-from google.genai import Client
 from google.adk import Agent
-from google.adk.tools import McpToolset
+from google.adk.runners import InMemoryRunner
+from google.adk.models import Gemini
 
-# Gemini クライアント
-client = Client(api_key=config.GOOGLE_API_KEY)
+# Body クライアントの初期化
+# SaintGraph は外部から注入された BodyClient を使用します。
+body = BodyClient(base_url=config.BODY_URL)
 
-# MCP ツールセットの作成
-tools = McpToolset(server_urls=[config.MCP_URL])
+# MCP ツールセットの作成 (例)
+# このツールセットは SaintGraph 内部で Agent に渡されます。
+mcp_tools = McpToolset(server_urls=[config.MCP_URL])
 
-# Agent の作成
+# Agent の作成: ペルソナとツールの定義
 agent = Agent(
-    model=config.MODEL_NAME,
-    system_instruction=combined_prompt,  # システム + キャラクタープロンプト
-    tools=tools
+    name="SaintGraph",
+    model=Gemini(model="gemini-2.0-flash-exp"),
+    instruction=system_instruction,
+    tools=all_tools  # MCP Toolset + 外部注入ツールの結合
+)
+
+# Runner の作成: 実行エンジン
+# InMemoryRunner は、対話履歴や中間状態をメモリ上で管理します。
+runner = InMemoryRunner(agent=agent)
+
+# SaintGraph の初期化 (BodyClient を渡す例)
+sg = SaintGraph(
+    body=body,
+    mcp_url=config.MCP_URL,
+    system_instruction=system_instruction,
+    mind_config=mind_config
 )
 ```
+
+### ツール構成の設計
+
+`SaintGraph` は、以下の2系統のツールを結合して `Agent` に提供します。
+
+1.  **MCP Toolset (内部生成)**:
+    - 実運用で使用する外部ツール。
+    - `mcp_url` (SSE) 経由で動的に接続されます。
+2.  **Custom Tools (外部注入)**:
+    - `SaintGraph` 初期化時に `tools` 引数として渡されるツールのリスト。
+    - **テストとモック**: 本物の MCP サーバーを起動せずにエージェントの挙動を検証するために使用。
+    - **一時的な拡張**: MCP サーバー化するほどではない小規模な Python 機能を迅速に追加。
 
 ### プロンプトの結合
 
@@ -46,64 +75,27 @@ combined_prompt = f"{system_prompt}\n\n{character_prompt}"
 
 ### 概要
 
-`process_turn()` メソッドは AI とのやり取りを1ターン処理します。
-
-**入力**: ユーザー入力（ニュース原稿 or 視聴者コメント）  
-**出力**: なし（Body への指令送信が完了）
+`process_turn()` メソッドは、`Runner` を介して AI とのやり取りを1ターン処理します。
 
 ### 処理フロー
 
-#### 1. AI にユーザー入力を送信
+#### 1. エージェントの実行
+
+`runner.run_async` を使用して、セッション（履歴）を維持しながらエージェントを実行します。
 
 ```python
-async def process_turn(user_input: str) -> None:
-    # AI にメッセージを送る
-    response = await agent.send_message_async(user_input)
+async for event in runner.run_async(
+    new_message=types.Content(role="user", parts=[types.Part(text=user_input)]), 
+    user_id="yt_user", 
+    session_id="yt_session"
+):
+    # テキストパートを抽出して結合
+    full_text += extract_text(event)
 ```
 
-#### 2. ストリーミングレスポンスの受信
+#### 2. レスポンスのパースと Body 連携
 
-```python
-    # AI からの応答をストリーミングで受信
-    full_text = ""
-    async for chunk in response:
-        if chunk.text:
-            full_text += chunk.text
-```
-
-#### 3. センテンス分割
-
-```python
-    # 文単位で分割（。！？.!?）
-    import re
-    sentences = re.split(r'([。！？.!?]+)', full_text)
-    
-    # 区切り文字を元に戻す
-    combined_sentences = []
-    for i in range(0, len(sentences) - 1, 2):
-        sentence = sentences[i] + sentences[i + 1]
-        if sentence.strip():
-            combined_sentences.append(sentence)
-```
-
-#### 4. 各センテンスの処理（順次実行）
-
-```python
-    previous_emotion = None
-    
-    for sentence in combined_sentences:
-        # 感情タグのパース
-        emotion, text = parse_emotion_tag(sentence)
-        
-        # 感情変更（必要な場合）
-        if emotion and emotion != previous_emotion:
-            await body_client.change_emotion(emotion)
-            previous_emotion = emotion
-        
-        # 発話（再生完了まで待機）
-        if text.strip():
-            await body_client.speak(text, style=emotion or "neutral")
-```
+受信した `full_text` をセンテンス単位で分割し、感情タグに基づいて Body API を叩きます。
 
 ---
 
