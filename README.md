@@ -11,6 +11,74 @@ Ren Studioは「AITuber 紅月れん」を動かすためのシステムです�
 - **AIの自律判断とワークフローの併用**: MCPなどでAI自身に判断させるところと、システム的な固定の振る舞いであるワークフローの使い分け
 - **OBSを含む自律配信の対応**: OAuth 認証、配信作成、リアルタイムコメント取得
 
+クラウド上で自動運用するための完全な構成です：
+
+## システム構成図
+
+本番環境はGCP上にデプロイをし、OBSでの配信開始を含めて自動でCloud Schdulerにより実行されます。
+
+```mermaid
+graph TD
+    subgraph Trigger ["トリガー"]
+        CS[Cloud Scheduler]
+    end
+
+    subgraph Orchestration ["制御レイヤー"]
+        CW[Cloud Workflows]
+    end
+
+    subgraph News ["News Collector"]
+        NC[News Collector Job]
+        GCS_N[(GCS: ニュース原稿)]
+        NC --> GCS_N
+    end
+    
+    subgraph SaintGraph ["Saint Graph (魂)"]
+        SG[Saint Graph Job]
+        GCS_P[(GCS: プロンプト/記憶)]
+        GCS_P --> SG
+    end
+
+    subgraph Tools ["拡張機能 (MCP)"]
+        TW[Tools Weather Service]
+    end
+
+    subgraph Body ["Body (肉体 / GCE + GPU)"]
+        STR[Body Streamer]
+        VV[VoiceVox]
+        OBS[OBS Studio]
+        GCS_M[(GCS: 音声/アセット)]
+        STR <--> GCS_M
+        STR --> VV
+        STR --> OBS
+    end
+
+    YT[YouTube Live]
+
+    %% Flow
+    CS -- "スケジュール実行" --> CW
+    CW -- "パイプライン制御" --> News
+    CW -- "パイプライン制御" --> SaintGraph
+    CW -- "インスタンス起動/停止" --> Body
+
+    %% Interactions
+    SaintGraph -- "身体操作 (REST)" --> STR
+    SaintGraph -- "自律ツール利用 (MCP)" --> Tools
+    OBS -- "映像配信 (RTMP)" --> YT
+```
+
+**インフラ概要**:
+- ✅ **自動化**: Cloud Workflows による堅牢な配信パイプライン
+  - 08:00: Cloud Scheduler がワークフローを起動
+  - Step 1: ニュース収集ジョブを実行
+  - Step 2: Body Node (GCE) を起動し、ヘルスチェックプロキシで **起動完了まで自動待機**（約5〜10分）
+  - Step 3: Saint Graph (Cloud Run Job) を実行し配信開始
+  - Step 4: 配信完了後、Body Node を自動停止
+- ✅ **堅牢な監視**: 専用の Health Proxy により、VPC 内のサービス状態をセキュアに確認
+- ✅ **コスト最適化**: Spot インスタンス使用で 60-90% コスト削減
+- ✅ **スケール to Zero**: 使用していない時間は課金なし
+- ✅ **Infrastructure as Code**: OpenTofu で完全に管理
+  
 ## Quick Start
 
 ### 1. 動作モードの選択
@@ -150,81 +218,6 @@ data/mind/{character_name}/
 | `YOUTUBE_TOKEN_JSON` | - | OAuth トークン |
 
 詳細: [通信プロトコル](docs/architecture/communication.md)
-
-## デプロイ
-
-### ローカル開発
-
-上記の Quick Start を参照してください。
-
-### GCP 本番環境
-
-クラウド上で自動運用するための完全な構成です：
-
-**システム構成図**:
-```mermaid
-graph TD
-    subgraph Trigger ["トリガー"]
-        CS[Cloud Scheduler]
-    end
-
-    subgraph Orchestration ["制御レイヤー"]
-        CW[Cloud Workflows]
-    end
-
-    subgraph News ["News Collector"]
-        NC[News Collector Job]
-        GCS_N[(GCS: ニュース原稿)]
-        NC --> GCS_N
-    end
-    
-    subgraph SaintGraph ["Saint Graph (魂)"]
-        SG[Saint Graph Job]
-        GCS_P[(GCS: プロンプト/記憶)]
-        GCS_P --> SG
-    end
-
-    subgraph Tools ["拡張機能 (MCP)"]
-        TW[Tools Weather Service]
-    end
-
-    subgraph Body ["Body (肉体 / GCE + GPU)"]
-        STR[Body Streamer]
-        VV[VoiceVox]
-        OBS[OBS Studio]
-        GCS_M[(GCS: 音声/アセット)]
-        STR <--> GCS_M
-        STR --> VV
-        STR --> OBS
-    end
-
-    YT[YouTube Live]
-
-    %% Flow
-    CS -- "スケジュール実行" --> CW
-    CW -- "パイプライン制御" --> News
-    CW -- "パイプライン制御" --> SaintGraph
-    CW -- "インスタンス起動/停止" --> Body
-
-    %% Interactions
-    SaintGraph -- "身体操作 (REST)" --> STR
-    SaintGraph -- "自律ツール利用 (MCP)" --> Tools
-    OBS -- "映像配信 (RTMP)" --> YT
-```
-
-**主な特徴**:
-- ✅ **自動化**: Cloud Workflows による堅牢な配信パイプライン
-  - 08:00: Cloud Scheduler がワークフローを起動
-  - Step 1: ニュース収集ジョブを実行
-  - Step 2: Body Node (GCE) を起動し、ヘルスチェックプロキシで **起動完了まで自動待機**（約5〜10分）
-  - Step 3: Saint Graph (Cloud Run Job) を実行し配信開始
-  - Step 4: 配信完了後、Body Node を自動停止
-- ✅ **堅牢な監視**: 専用の Health Proxy により、VPC 内のサービス状態をセキュアに確認
-- ✅ **コスト最適化**: Spot インスタンス使用で 60-90% コスト削減
-- ✅ **スケール to Zero**: 使用していない時間は課金なし
-- ✅ **Infrastructure as Code**: OpenTofu で完全に管理
-
-**デプロイガイド**: **[opentofu/README.md](opentofu/README.md)**
 
 ## ドキュメント
 
