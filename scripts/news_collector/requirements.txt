@@ -2,3 +2,6 @@ duckduckgo-search
 google-adk
 google-genai
 google-cloud-storage
+google-cloud-secret-manager
+httpx
+mcp
