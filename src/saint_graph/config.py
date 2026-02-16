@@ -41,8 +41,8 @@ class Config:
         # Cloud Run 環境での必須チェック
         if self.is_cloud_run:
             if not os.getenv("WEATHER_MCP_URL"):
-                logger.error("CRITICAL: WEATHER_MCP_URL is not set in Cloud Run environment!")
-                sys.exit(1)
+                # ニュース収集ジョブなど、MCPを必要としない場合もあるため、警告に留める
+                logger.warning("WEATHER_MCP_URL is not set in Cloud Run environment. MCP features will be disabled.")
         
         if not self.google_api_key:
             logger.error("CRITICAL: GOOGLE_API_KEY is not set. The application cannot function.")
