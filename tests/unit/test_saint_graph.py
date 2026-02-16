@@ -145,9 +145,9 @@ def test_config_env_override(monkeypatch):
     assert cfg.weather_mcp_url == "http://new-weather:8001/sse"
     assert cfg.body_url == "http://new-body:8000"
 
-def test_config_cloud_run_fail_fast(monkeypatch):
+def test_config_cloud_run_warn_only(monkeypatch, caplog):
     from saint_graph.config import Config
-    import pytest
+    import logging
     
     # Ensure GOOGLE_API_KEY is set to avoid that failure
     monkeypatch.setenv("GOOGLE_API_KEY", "dummy_key")
@@ -157,10 +157,14 @@ def test_config_cloud_run_fail_fast(monkeypatch):
     monkeypatch.delenv("WEATHER_MCP_URL", raising=False)
     
     cfg = Config(google_api_key="dummy_key")
-    with pytest.raises(SystemExit) as e:
+
+    # Should not raise SystemExit, but log a warning
+    with caplog.at_level(logging.WARNING):
         cfg.validate()
-    assert e.value.code == 1
     
+    assert "WEATHER_MCP_URL is not set in Cloud Run environment" in caplog.text
+    assert "MCP features will be disabled" in caplog.text
+
     # Now set it
     monkeypatch.setenv("WEATHER_MCP_URL", "http://ok/sse")
     cfg = Config(google_api_key="dummy_key")
