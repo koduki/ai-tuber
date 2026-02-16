@@ -1,7 +1,9 @@
 import pytest
 import re
+import logging
 from unittest.mock import AsyncMock, MagicMock, patch
 from saint_graph.saint_graph import SaintGraph
+from saint_graph.config import Config
 from google.adk.runners import InMemoryRunner
 from google.genai import types
 
@@ -127,8 +129,6 @@ async def test_high_level_process_methods(mock_adk):
     sg.process_turn.assert_called_with("Bye bye", context="Closing")
 
 def test_config_defaults(monkeypatch):
-    from saint_graph.config import Config
-    
     # Defaults
     monkeypatch.delenv("WEATHER_MCP_URL", raising=False)
     monkeypatch.delenv("BODY_URL", raising=False)
@@ -137,8 +137,6 @@ def test_config_defaults(monkeypatch):
     assert cfg.body_url == "http://localhost:8000"
     
 def test_config_env_override(monkeypatch):
-    from saint_graph.config import Config
-    
     monkeypatch.setenv("WEATHER_MCP_URL", "http://new-weather:8001/sse")
     monkeypatch.setenv("BODY_URL", "http://new-body:8000")
     cfg = Config()
@@ -146,9 +144,6 @@ def test_config_env_override(monkeypatch):
     assert cfg.body_url == "http://new-body:8000"
 
 def test_config_cloud_run_warn_only(monkeypatch, caplog):
-    from saint_graph.config import Config
-    import logging
-    
     # Ensure GOOGLE_API_KEY is set to avoid that failure
     monkeypatch.setenv("GOOGLE_API_KEY", "dummy_key")
 
@@ -171,9 +166,6 @@ def test_config_cloud_run_warn_only(monkeypatch, caplog):
     cfg.validate() # Should not raise
 
 def test_config_missing_api_key(monkeypatch):
-    from saint_graph.config import Config
-    import pytest
-
     monkeypatch.delenv("GOOGLE_API_KEY", raising=False)
     cfg = Config(google_api_key=None)
     with pytest.raises(SystemExit) as e:
