@@ -25,6 +25,7 @@ def _make_ctx(news_service=None, comments=None):
     
     mock_saint.body = MagicMock()
     mock_saint.body.get_comments = AsyncMock(return_value=comments or [])
+    mock_saint.body.wait_for_queue = AsyncMock()
 
     mock_news = news_service or MagicMock()
 
@@ -62,6 +63,7 @@ async def test_handle_news_reading():
     item = MagicMock()
     item.title = "Title"
     item.content = "Content"
+    news_service.peek_current_item.return_value = item
     news_service.get_next_item.return_value = item
     
     ctx = _make_ctx(news_service=news_service)

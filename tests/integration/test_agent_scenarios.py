@@ -70,6 +70,7 @@ async def test_weather_scenario():
         mock_body_client = mock_body_class.return_value
         mock_body_client.speak = AsyncMock(side_effect=speak)
         mock_body_client.change_emotion = AsyncMock(side_effect=change_emotion)
+        mock_body_client.wait_for_queue = AsyncMock()
         
         # Initialize SaintGraph with mock body client, empty mcp_urls and custom tools
         sg = SaintGraph(

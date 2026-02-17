@@ -5,7 +5,6 @@ import uvicorn
 from starlette.applications import Starlette
 from .service import body_service
 from .utils import ensure_youtube_secrets
-from .youtube import start_comment_polling
 from ..rest import BodyApp
 
 # ログ設定
@@ -31,9 +30,7 @@ if __name__ == "__main__":
     # 環境変数からポートを取得（デフォルトは8000）
     port = int(os.getenv("PORT", "8000"))
     
-    # YouTube コメントポーリングを開始
-    logger.info("Starting YouTube comment polling...")
-    start_comment_polling()
+    # YouTube コメントポーリングは配信開始時にAdapter経由で行われるため、ここでは何もしません
     
     # OBS初期化用のダミーファイル作成
     try:

@@ -6,6 +6,14 @@
 
 Streamer コンポーネントは、AI の「思考（Mind）」と視覚的・聴覚的な表現との間を仲介する役割を果たします。[`BodyServiceBase`](../../../src/body/service.py) インターフェースに準拠した抽象化されたアーキテクチャで実装されています。
 
+## 設計思想: なぜ外部連携を分離しているのか
+
+本コンポーネントでは、YouTube や OBS との通信に「アダプター形式」と「サブプロセス」を併用しています。
+
+1. **メインプロセスの保護 (非ブロッキング)**: YouTube のコメント取得などは通信待ちや API のレート制限による待機が発生します。これらをメインの REST API プロセスで行うと、AI の表情変更や音声再生の指示が遅延するため、独立したサブプロセスとして実行しています。
+2. **一貫した命名規則 (`*_adapter.py`)**: 外部システム（VOICEVOX, OBS, YouTube）との境界には必ず `adapter` を介することで、内部ロジックと外部仕様の変更を切り離しています。
+3. **認証の統合**: 以前は簡易的な API キーによる取得もありましたが、現在はよりセキュアで多機能な OAuth 2.0 ベースの連携に一本化されています。
+
 ## アーキテクチャ
 
 Standard Streamer モードの構成図：
@@ -19,6 +27,14 @@ graph TD
     Service -->|Data API| YouTube[YouTube API]
     Service -->|Polling| YouTubeChat[YouTube Live Chat]
 ```
+
+## 各モジュールの詳細
+Streamer コンポーネントは、以下の専門モジュールによって構成されています。
+
+- **[音声合成 (voice_adapter.py)](./voice.md)**: VOICEVOX 連携、音声生成、共有保存。
+- **[OBS 制御 (obs_adapter.py)](./obs.md)**: 表情切り替え、音声再生、配信/録画の操作。
+- **[YouTube 配信管理 (youtube_live_adapter.py)](./youtube_live.md)**: 配信枠作成、OAuth 認証。
+- **[YouTube コメント取得](./youtube_comments.md)**: サブプロセスによる効率的なチャット取得。
 
 ## API リファレンス
 

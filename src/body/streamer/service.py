@@ -4,7 +4,7 @@ from typing import Optional, Dict, Any
 import logging
 import json
 import asyncio
-from . import voice, obs, youtube
+from . import voice_adapter, obs_adapter
 from ..service import BodyServiceBase
 
 logger = logging.getLogger(__name__)
@@ -52,7 +52,7 @@ class StreamerBodyService(BodyServiceBase):
                     
                     # 実際に音声生成と再生を行う
                     try:
-                        file_path, duration = await voice.generate_and_save(text, style, speaker_id)
+                        file_path, duration = await voice_adapter.generate_and_save(text, style, speaker_id)
                         await self.play_audio_file(file_path, duration)
                         logger.info(f"[Worker:speak] Completed: {text[:30]}...")
                     except Exception as e:
@@ -61,7 +61,7 @@ class StreamerBodyService(BodyServiceBase):
                 elif task_type == "change_emotion":
                     emotion = task.get("emotion")
                     try:
-                        await obs.set_visible_source(emotion)
+                        await obs_adapter.set_visible_source(emotion)
                         logger.info(f"[Worker:emotion] Changed to {emotion}")
                     except Exception as e:
                         logger.error(f"Error in worker emotion task: {e}")
@@ -101,7 +101,8 @@ class StreamerBodyService(BodyServiceBase):
             if streaming_mode and self._youtube_comment_adapter:
                 comments = self._youtube_comment_adapter.get()
             else:
-                comments = await youtube.get_new_comments()
+                # 配信モードでない場合やアダプターがない場合は空リストを返す
+                comments = []
             
             if not comments:
                 return json.dumps([])
@@ -157,8 +158,8 @@ class StreamerBodyService(BodyServiceBase):
     async def play_audio_file(self, file_path: str, duration: float) -> str:
         """事前生成された音声ファイルを再生し、完了まで待機します。"""
         try:
-            await obs.set_source_visibility("voice", True)
-            await obs.refresh_media_source("voice", file_path)
+            await obs_adapter.set_source_visibility("voice", True)
+            await obs_adapter.refresh_media_source("voice", file_path)
             
             # 再生完了まで待機（バッファとして0.2秒追加）
             await asyncio.sleep(duration + 0.2)
@@ -172,7 +173,7 @@ class StreamerBodyService(BodyServiceBase):
     async def start_obs_recording(self) -> str:
         """OBSの録画を開始します。"""
         try:
-            success = await obs.start_recording()
+            success = await obs_adapter.start_recording()
             if success:
                 logger.info("[start_obs_recording] Success")
                 return "OBS録画を開始しました。"
@@ -186,7 +187,7 @@ class StreamerBodyService(BodyServiceBase):
     async def stop_obs_recording(self) -> str:
         """OBSの録画を停止します。"""
         try:
-            success = await obs.stop_recording()
+            success = await obs_adapter.stop_recording()
             if success:
                 logger.info("[stop_obs_recording] Success")
                 return "OBS録画を停止しました。"
@@ -220,7 +221,7 @@ class StreamerBodyService(BodyServiceBase):
         self._current_broadcast_id = live_response['broadcast']['id']
         
         logger.info("Starting OBS streaming with YouTube stream key")
-        success = await obs.start_streaming(stream_key)
+        success = await obs_adapter.start_streaming(stream_key)
         
         if not success:
             return "OBSストリーミングの開始に失敗しました。"
@@ -234,7 +235,7 @@ class StreamerBodyService(BodyServiceBase):
     async def _stop_streaming(self) -> str:
         """YouTube Live 配信を停止する内部関数。"""
         logger.info("Stopping OBS streaming")
-        await obs.stop_streaming()
+        await obs_adapter.stop_streaming()
         
         if self._youtube_live_adapter and self._current_broadcast_id:
             youtube_client, _ = self._youtube_live_adapter.authenticate_youtube()

@@ -54,6 +54,7 @@ async def test_process_turn_parses_emotion_tag(mock_adk):
     sg = SaintGraph(mock_body, "", "Instruction")
     sg.body.change_emotion = AsyncMock()
     sg.body.speak = AsyncMock()
+    sg.body.wait_for_queue = AsyncMock()
     
     mock_run_async = MagicMock()
     async def mock_iter(*args, **kwargs):
@@ -80,6 +81,7 @@ async def test_process_turn_defaults_to_neutral(mock_adk):
     sg = SaintGraph(mock_body, "", "Instruction")
     sg.body.change_emotion = AsyncMock()
     sg.body.speak = AsyncMock()
+    sg.body.wait_for_queue = AsyncMock()
     
     mock_run_async = MagicMock()
     async def mock_iter(*args, **kwargs):

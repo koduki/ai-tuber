@@ -27,6 +27,7 @@ async def test_speaker_id_passed_to_body_client():
         mock_body = mock_body_class.return_value
         mock_body.speak = AsyncMock()
         mock_body.change_emotion = AsyncMock()
+        mock_body.wait_for_queue = AsyncMock()
         
         sg = SaintGraph(
             body=mock_body,
@@ -66,6 +67,7 @@ async def test_no_speaker_id_defaults_to_none():
         mock_body = mock_body_class.return_value
         mock_body.speak = AsyncMock()
         mock_body.change_emotion = AsyncMock()
+        mock_body.wait_for_queue = AsyncMock()
         
         # mind_configなしでSaintGraphを初期化
         sg = SaintGraph(
@@ -105,6 +107,7 @@ async def test_speaker_id_zero_is_valid():
         mock_body = mock_body_class.return_value
         mock_body.speak = AsyncMock()
         mock_body.change_emotion = AsyncMock()
+        mock_body.wait_for_queue = AsyncMock()
         
         sg = SaintGraph(
             body=mock_body,
@@ -144,6 +147,7 @@ async def test_multiple_sentences_use_same_speaker_id():
         mock_body = mock_body_class.return_value
         mock_body.speak = AsyncMock()
         mock_body.change_emotion = AsyncMock()
+        mock_body.wait_for_queue = AsyncMock()
         
         sg = SaintGraph(
             body=mock_body,
