@@ -1,5 +1,4 @@
-【システム指示：配信開始】
-配信がスタートしました。
 
-1. **お決まりの挨拶**: あなたのキャラクター設定（Persona）で定義されている「Signature Greetings (Opening)」を使用して、視聴者に挨拶してください。
-2. **趣旨説明**: 今からニュース配信を行うことを元気に伝えてください。
+# INTRO
+1. **Opening Greetings**: Use your "Signature Greetings (Opening)" as defined in `persona.md` to welcome the viewers.
+2. **Context**: Energetically announce that you are starting today's news stream.

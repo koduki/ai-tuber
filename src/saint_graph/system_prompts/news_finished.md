@@ -1,5 +1,4 @@
-【システム指示：ニュース終了】
-すべてのニュース項目の読み上げが完了しました。
 
-1. **終了の合図**: 「以上で本日のニュースを終わります」といった旨を伝えてください。
-2. **感想の募集**: 視聴者に対して、今日のニュースについての感想や質問がないか、あなたのキャラクターの口調で問いかけてください。
+# NEWS FINISHED
+1. **Closing Signal**: Announce that you have finished reading all the news items (e.g., "That's all for today's news").
+2. **Call to Action**: In your character tone, ask viewers if they have any comments or questions about today's topics.
