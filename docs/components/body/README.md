@@ -45,7 +45,7 @@ Body は AI Tuber システムの「肉体」であり、物理的な入出力�
 src/body/
 ├── streamer/
 │   ├── main.py                    # REST API サーバー
-│   ├── tools.py                   # ビジネスロジック
+│   ├── service.py                 # ビジネスロジック
 │   ├── voice.py                   # VoiceVox アダプター
 │   ├── obs.py                     # OBS WebSocket アダプター
 │   ├── youtube_live_adapter.py    # YouTube Live API
@@ -55,7 +55,7 @@ src/body/
 │   └── obs/config/                # OBS 設定ファイル
 ├── cli/
 │   ├── main.py                    # REST API サーバー
-│   ├── tools.py                   # ビジネスロジック
+│   ├── service.py                 # ビジネスロジック
 │   └── io_adapter.py              # 標準入出力アダプター
 └── __init__.py
 ```
@@ -95,11 +95,8 @@ src/body/
 
 ### Streamer 固有エンドポイント
 
-- `POST /api/recording/start` - 録画開始
-- `POST /api/recording/stop` - 録画停止
-- `POST /api/streaming/start` - 配信開始
-- `POST /api/streaming/stop` - 配信停止
-- `GET /api/streaming/comments` - YouTube コメント取得
+- `POST /api/broadcast/start` - 配信/録画開始（統合）
+- `POST /api/broadcast/stop` - 配信/録画停止（統合）
 
 詳細は [通信プロトコル](../../architecture/communication.md) を参照してください。
 
@@ -109,6 +106,6 @@ src/body/
 
 - [アーキテクチャ](./architecture.md) - Body 全体設計
 - [GCE プロビジョニング](./provisioning.md) - startup.sh の振る舞い
-- [Streamer 概要](./streamer/overview.md) - Streamerモード
-- [CLI 概要](./cli/overview.md) - CLI モード
+- [Streamer 概要](./streamer/README.md) - Streamerモード
+- [CLI 概要](./cli/README.md) - CLI モード
 - [システム概要](../../architecture/overview.md) - 全体アーキテクチャ

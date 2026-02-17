@@ -47,11 +47,11 @@ ai-tuber/
 │   ├── body/
 │   │   ├── cli/           # Body CLI (開発用)
 │   │   │   ├── main.py
-│   │   │   └── server.py
+│   │   │   └── service.py
 │   │   └── streamer/      # Body Streamer (本番用)
 │   │       ├── main.py
-│   │       ├── server.py
-│   │       ├── obs_client.py
+│   │       ├── service.py
+│   │       ├── obs.py
 │   │       ├── voice.py
 │   │       └── youtube_comment_adapter.py
 │   └── tools/
@@ -223,7 +223,7 @@ def load_system_prompt(character_name: str, scene: str) -> str:
 **編集例**: 新しい感情を追加
 
 ```python
-# src/body/streamer/obs_client.py
+# src/body/streamer/obs.py
 EMOTION_TO_IMAGE = {
     "neutral": "ai_neutral.png",
     "joyful": "ai_joyful.png",
@@ -304,7 +304,7 @@ logging.basicConfig(level=logging.DEBUG)
 1. `src/tools/` に新しいディレクトリを作成
 2. MCP サーバーを実装
 3. `docker-compose.yml` にサービスを追加
-4. `src/saint_graph/tools.py` で登録
+4. `src/saint_graph/` の環境設定（`config.py` 等）に URL を追加して `SaintGraph` クラスで登録
 
 ### ニュース原稿の追加
 
@@ -432,4 +432,4 @@ pytest tests/integration/test_rest_body_cli.py
 
 ---
 
-**最終更新**: 2026-02-02
+**最終更新**: 2026-02-18

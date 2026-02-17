@@ -1,7 +1,7 @@
 import pytest
 from body.cli.main import app
-from body.cli.tools import io_adapter
-from unittest.mock import patch
+from body.cli.service import body_service
+from unittest.mock import patch, AsyncMock
 from starlette.testclient import TestClient
 import json
 
@@ -13,17 +13,17 @@ def test_health_check():
     assert response.json() == {"status": "ok"}
 
 def test_speak_api():
-    with patch("body.cli.main.speak") as mock_speak:
+    with patch.object(body_service, "speak", new_callable=AsyncMock) as mock_speak:
         mock_speak.return_value = "Speaking completed"
         response = client.post("/api/speak", json={"text": "Hello Test", "style": "happy"})
         
         assert response.status_code == 200
         assert response.json()["status"] == "ok"
         assert response.json()["result"] == "Speaking completed"
-        mock_speak.assert_called_once_with("Hello Test", "happy", speaker_id=None)
+        mock_speak.assert_called_once_with("Hello Test", "happy", None)
 
 def test_change_emotion_api():
-    with patch("body.cli.main.change_emotion") as mock_change:
+    with patch.object(body_service, "change_emotion", new_callable=AsyncMock) as mock_change:
         mock_change.return_value = "Emotion changed to angry"
         response = client.post("/api/change_emotion", json={"emotion": "angry"})
         
@@ -33,7 +33,7 @@ def test_change_emotion_api():
         mock_change.assert_called_once_with("angry")
 
 def test_get_comments_api():
-    with patch("body.cli.main.get_comments") as mock_get:
+    with patch.object(body_service, "get_comments", new_callable=AsyncMock) as mock_get:
         mock_get.return_value = json.dumps([
             {"author": "User", "message": "Test comment 1"},
             {"author": "User", "message": "Test comment 2"}
@@ -49,7 +49,7 @@ def test_get_comments_api():
         mock_get.assert_called_once()
 
 def test_get_comments_empty_api():
-    with patch("body.cli.main.get_comments") as mock_get:
+    with patch.object(body_service, "get_comments", new_callable=AsyncMock) as mock_get:
         mock_get.return_value = json.dumps([])
         response = client.get("/api/comments")
         
@@ -59,7 +59,7 @@ def test_get_comments_empty_api():
         mock_get.assert_called_once()
 
 def test_start_broadcast_api():
-    with patch("body.cli.main.start_broadcast") as mock_start:
+    with patch.object(body_service, "start_broadcast", new_callable=AsyncMock) as mock_start:
         mock_start.return_value = "CLI mode: broadcast start skipped"
         response = client.post("/api/broadcast/start", json={})
         
@@ -68,7 +68,7 @@ def test_start_broadcast_api():
         assert "CLI mode" in response.json()["result"]
 
 def test_stop_broadcast_api():
-    with patch("body.cli.main.stop_broadcast") as mock_stop:
+    with patch.object(body_service, "stop_broadcast", new_callable=AsyncMock) as mock_stop:
         mock_stop.return_value = "CLI mode: broadcast stop skipped"
         response = client.post("/api/broadcast/stop")
         

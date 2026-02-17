@@ -103,65 +103,82 @@ class SaintGraph:
         AIからのテキスト出力を取得し、感情タグ [emotion: ...] をパースして Body API を実行します。
         """
         logger.info(f"Turn started. Input: {user_input[:50]}..., Context: {context}")
-        try:
-            # セッションの確保
-            session = await self.runner.session_service.get_session(
-                app_name=self.runner.app_name, 
-                user_id="yt_user", 
-                session_id="yt_session"
-            )
-            if not session:
-                await self.runner.session_service.create_session(
+        max_retries = 3
+        for attempt in range(max_retries):
+            try:
+                # セッションの確保
+                session = await self.runner.session_service.get_session(
                     app_name=self.runner.app_name, 
                     user_id="yt_user", 
                     session_id="yt_session"
                 )
-            
-            current_user_message = user_input
-            if context:
-                current_user_message = f"[{context}]\n{user_input}"
-            
-            # AIからの全テキストを蓄積
-            full_text = ""
-            
-            async for event in self.runner.run_async(
-                new_message=types.Content(role="user", parts=[types.Part(text=current_user_message)]), 
-                user_id="yt_user", 
-                session_id="yt_session"
-            ):
-                # テキストパートを抽出
-                t = self._extract_text_from_event(event)
-                if t:
-                    full_text += t
-
-            # センテンス単位でパース
-            if full_text:
-                sentences = self._parse_response(full_text)
-                logger.info(f"Parsed {len(sentences)} sentences from AI response")
+                if not session:
+                    await self.runner.session_service.create_session(
+                        app_name=self.runner.app_name, 
+                        user_id="yt_user", 
+                        session_id="yt_session"
+                    )
                 
-                current_emotion = None
-                for emotion, text in sentences:
-                    # 感情が変わった場合のみ変更
-                    if emotion != current_emotion:
-                        await self.body.change_emotion(emotion)
-                        current_emotion = emotion
+                current_user_message = user_input
+                if context:
+                    current_user_message = f"[{context}]\n{user_input}"
+                
+                # AIからの全テキストを蓄積
+                full_text = ""
+                
+                async for event in self.runner.run_async(
+                    new_message=types.Content(role="user", parts=[types.Part(text=current_user_message)]), 
+                    user_id="yt_user", 
+                    session_id="yt_session"
+                ):
+                    # テキストパートを抽出
+                    t = self._extract_text_from_event(event)
+                    if t:
+                        full_text += t
+
+                # センテンス単位でパース
+                if full_text:
+                    sentences = self._parse_response(full_text)
+                    logger.info(f"Parsed {len(sentences)} sentences from AI response")
                     
-                    # 発話（完了待機）
-                    await self.body.speak(text, style=emotion, speaker_id=self.speaker_id)
+                    current_emotion = None
+                    for emotion, text in sentences:
+                        # 感情が変わった場合のみ変更
+                        if emotion != current_emotion:
+                            await self.body.change_emotion(emotion)
+                            current_emotion = emotion
+                        
+                        # 発話（キューに追加）
+                        await self.body.speak(text, style=emotion, speaker_id=self.speaker_id)
+                    
+                    # このターンで投げた内容を全て話し終えるまで待機（配信のリズム維持のため）
+                    logger.info("Waiting for speech to finish before completing turn...")
+                    await self.body.wait_for_queue()
+                    
+                    logger.info(f"Turn completed. {len(sentences)} sentences spoken")
+                else:
+                    logger.warning("No text output received from AI.")
                 
-                logger.info(f"Turn completed. {len(sentences)} sentences spoken")
-            else:
-                logger.warning("No text output received from AI.")
+                # 成功したらループを抜ける
+                return
 
-        except Exception as e:
-            logger.error("process_turn failed: %r (%s)", e, type(e))
-            logger.error("process_turn traceback:\n%s", traceback.format_exc())
-            for i, sub in enumerate(_iter_exception_group(e)):
-                logger.error("ExceptionGroup sub[%d]: %r (%s)", i, sub, type(sub))
-                logger.error("ExceptionGroup sub[%d] traceback:\n%s", i, "".join(traceback.format_exception(sub)))
+            except Exception as e:
+                # 503 Service Unavailable または Resource Exhausted の場合はリトライ
+                error_msg = str(e).upper()
+                if ("503" in error_msg or "UNAVAILABLE" in error_msg or "429" in error_msg or "EXHAUSTED" in error_msg) and attempt < max_retries - 1:
+                    wait_time = (attempt + 1) * 5
+                    logger.warning(f"Transient error in process_turn: {e}. Retrying in {wait_time}s... ({attempt + 1}/{max_retries})")
+                    await asyncio.sleep(wait_time)
+                    continue
 
-            logger.exception("Error in process_turn: %s", e)
-            raise
+                logger.error("process_turn failed: %r (%s)", e, type(e))
+                logger.error("process_turn traceback:\n%s", traceback.format_exc())
+                for i, sub in enumerate(_iter_exception_group(e)):
+                    logger.error("ExceptionGroup sub[%d]: %r (%s)", i, sub, type(sub))
+                    logger.error("ExceptionGroup sub[%d] traceback:\n%s", i, "".join(traceback.format_exception(sub)))
+
+                logger.exception("Error in process_turn: %s", e)
+                raise
 
     def _extract_text_from_event(self, event) -> Optional[str]:
         """ADKイベントからテキストを抽出します。"""
