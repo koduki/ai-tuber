@@ -41,19 +41,15 @@ graph TB
             OBS[obs-studio<br/>配信 / noVNC]
             Volume[(voice_share<br/>共有ボリューム)]
             
-            BodyStreamer -- "HTTP" --> VoiceVox
-            BodyStreamer -- "WebSocket" --> OBS
-            BodyStreamer -. "/app/shared/voice" .-> Volume
-            OBS -. "/app/shared/voice" .-> Volume
+            BodyStreamer -- "1. 生成要求 (HTTP)" --> VoiceVox
+            VoiceVox -- "2. 音声データ" --> BodyStreamer
+            BodyStreamer -. "3. 保存" .-> Volume
+            BodyStreamer -- "4. 再生指示 (WS)" --> OBS
+            OBS -. "5. 読込" .-> Volume
         end
-        
-        GPU{{"NVIDIA GPU"}}
-        GPU --> VoiceVox
-        GPU --> OBS
     end
 
     Mind[saint-graph / Mind] -->|port 8000| BodyStreamer
-    User((ユーザー)) -->|port 8080| OBS
 ```
 
 ## 各モジュールの詳細
