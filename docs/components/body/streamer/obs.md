@@ -141,7 +141,7 @@ flowchart TD
     B --> D[StorageClient 初期化\nSTORAGE_TYPE: filesystem / gcs]
     D --> E{初期化成功?}
     E -- 失敗 --> F([exit 1])
-    E -- 成功 --> G[アセット一覧取得\nprefix: mind/{CHARACTER_NAME}/assets/]
+    E -- 成功 --> G["アセット一覧取得\nprefix: mind/CHARACTER_NAME/assets/"]
     G --> H{アセットが存在?}
     H -- なし --> I[警告ログ出力]
     H -- あり --> J[各ファイルを /app/assets/ にダウンロード]
