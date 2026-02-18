@@ -16,7 +16,7 @@ Streamer コンポーネントは、AI の「思考（Mind）」と視覚的・�
 
 ## アーキテクチャ
 
-Standard Streamer モードの構成図：
+Standard Streamer モードの論理構成：
 
 ```mermaid
 graph TD
@@ -26,6 +26,34 @@ graph TD
     Service -->|WebSocket| OBS[OBS Studio]
     Service -->|Data API| YouTube[YouTube API]
     Service -->|Polling| YouTubeChat[YouTube Live Chat]
+```
+
+### GCE コンテナ構成 (docker-compose.gce.yml)
+
+GCE 上で実行される際の物理的なコンテナ構造とリソース連携：
+
+```mermaid
+graph TB
+    subgraph GCE_Instance [GCE インスタンス]
+        subgraph Network [Docker ネットワーク]
+            BodyStreamer[body-streamer<br/>REST API / 制御]
+            VoiceVox[voicevox<br/>GPU 音声合成]
+            OBS[obs-studio<br/>配信 / noVNC]
+            Volume[(voice_share<br/>共有ボリューム)]
+            
+            BodyStreamer -- "HTTP" --> VoiceVox
+            BodyStreamer -- "WebSocket" --> OBS
+            BodyStreamer -. "/app/shared/voice" .-> Volume
+            OBS -. "/app/shared/voice" .-> Volume
+        end
+        
+        GPU{{"NVIDIA GPU"}}
+        GPU --> VoiceVox
+        GPU --> OBS
+    end
+
+    Mind[saint-graph / Mind] -->|port 8000| BodyStreamer
+    User((ユーザー)) -->|port 8080| OBS
 ```
 
 ## 各モジュールの詳細
