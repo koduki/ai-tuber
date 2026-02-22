@@ -4,12 +4,17 @@ YouTube のライブチャットからリアルタイムにコメントを取得
 
 ## 構成モジュール
 
-### 1. `youtube_comment_fetcher.py` (サブプロセス)
+### 1. `youtube_auth.py` (共通認証)
+YouTube Data API v3 を利用するための認証基盤です。
+- **役割**: 環境変数やファイルから認証情報を読み込み、API クライアント（Service）を生成します。
+- **機能**: トークンの自動リフレッシュや OAuth フローの管理を一括して行い、他のモジュールが認証の詳細を気にせずに済むように抽象化します。
+
+### 2. `youtube_comment_fetcher.py` (サブプロセス)
 YouTube API を叩き続ける「作業員」です。
-- **特徴**: OAuth トークンを使用して API を呼び出し、新しいコメントを見つけたら標準出力に JSON 形式で出力します。
+- **特徴**: `YouTubeAuth` を使用して API を呼び出し、新しいコメントを見つけたら標準出力に JSON 形式で出力します。
 - **API 最適化**: YouTube が推奨するポーリング間隔 (`pollingIntervalMillis`) を動的に取得し、API 制限にかからないよう自動調節します。
 
-### 2. `youtube_comment_adapter.py` (アダプタークラス)
+### 3. `youtube_comment_adapter.py` (アダプタークラス)
 上記サブプロセスを管理する「マネージャー」です。
 - **管理**: `StreamerBodyService` から利用され、裏側で `youtube_comment_fetcher.py` を起動・監視します。
 - **非同期処理**: 標準出力から流れてくるコメントを別スレッドで読み取り、キューに溜め込みます。

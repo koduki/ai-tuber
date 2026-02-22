@@ -3,9 +3,8 @@ import sys
 import json
 import time
 import os
-from google.oauth2.credentials import Credentials
-from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
+from body.streamer.youtube_auth import YouTubeAuth
 
 
 def fetch_comments(video_id: str):
@@ -15,39 +14,15 @@ def fetch_comments(video_id: str):
     Args:
         video_id: YouTube broadcast/video ID
     """
-    # YouTube OAuth configuration from environment
-    youtube_token_json = os.getenv("YOUTUBE_TOKEN_JSON", "")
-    
-    if not youtube_token_json:
-        error_msg = "YOUTUBE_TOKEN_JSON not set"
-        print(json.dumps({"error": error_msg}), flush=True)
-        print(f"ERROR: {error_msg}", file=sys.stderr, flush=True)
-        return
-    
-    print(f"DEBUG: Starting comment fetch for video {video_id} using OAuth", file=sys.stderr, flush=True)
+    print(f"DEBUG: Starting comment fetch for video {video_id} using YouTubeAuth", file=sys.stderr, flush=True)
     
     try:
-        # Parse OAuth credentials from JSON string
-        token_info = json.loads(youtube_token_json)
+        # Build YouTube API client using centralized auth
+        youtube = YouTubeAuth.get_service()
+        print(f"DEBUG: Successfully authenticated with YouTubeAuth", file=sys.stderr, flush=True)
         
-        # Use the scopes from the existing token to avoid refresh errors
-        # The token was granted with 'youtube' scope which includes read access
-        creds = Credentials.from_authorized_user_info(
-            token_info,
-            scopes=token_info.get('scopes', ["https://www.googleapis.com/auth/youtube"])
-        )
-        
-        # Build YouTube API client with OAuth credentials
-        youtube = build('youtube', 'v3', credentials=creds)
-        print(f"DEBUG: Successfully authenticated with OAuth", file=sys.stderr, flush=True)
-        
-    except json.JSONDecodeError as e:
-        error_msg = f"Failed to parse YOUTUBE_TOKEN_JSON: {e}"
-        print(json.dumps({"error": error_msg}), flush=True)
-        print(f"ERROR: {error_msg}", file=sys.stderr, flush=True)
-        return
     except Exception as e:
-        error_msg = f"Failed to create OAuth credentials: {e}"
+        error_msg = f"YouTube authentication failed: {e}"
         print(json.dumps({"error": error_msg}), flush=True)
         print(f"ERROR: {error_msg}", file=sys.stderr, flush=True)
         return

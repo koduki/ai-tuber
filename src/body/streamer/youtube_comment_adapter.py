@@ -20,9 +20,9 @@ class YouTubeCommentAdapter:
         Args:
             video_id: YouTube video/broadcast ID
         """
-        script_path = os.path.join(os.path.dirname(__file__), 'youtube_comment_fetcher.py')
+        # Run the fetcher as a module to handle imports correctly
         self.process = subprocess.Popen(
-            ['python', script_path, video_id], 
+            ['python', '-m', 'body.streamer.youtube_comment_fetcher', video_id], 
             stdout=subprocess.PIPE, 
             stderr=subprocess.PIPE, 
             text=True, 
