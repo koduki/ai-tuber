@@ -242,7 +242,7 @@ ERROR: Could not retrieve activeLiveChatId after 10 attempts
 
 1. システムは自動的にリトライします（10回、10秒間隔）。通常、数分以内に解消されます。
 2. YouTube Studio で対象の配信が「ライブ配信」として正しく作成されているか確認してください。
-3. リトライ上限を調整する必要がある場合は、`body.streamer.fetch_comments.py` の `max_retries` を変更してください。
+3. リトライ上限を調整する必要がある場合は、`body.streamer.youtube_comment_fetcher.py` の `max_retries` を変更してください。
 
 ```bash
 # Body Streamer のログを確認してリトライ状況を把握
@@ -254,10 +254,10 @@ docker compose logs -f body-streamer
 ### サブプロセスで認証情報が読み込めない
 
 **症状**:
-`body-streamer` は正常に動いているが、`fetch_comments.py`（コメント取得プロセス）が `YOUTUBE_TOKEN_JSON is not set` と出力して終了する。
+`body-streamer` は正常に動いているが、`youtube_comment_fetcher.py`（コメント取得プロセス）が `YOUTUBE_TOKEN_JSON is not set` と出力して終了する。
 
 **原因**: 
-`body-streamer` から `fetch_comments.py` を起動する際に、環境変数が正しく引き継がれていない。
+`body-streamer` から `youtube_comment_fetcher.py` を起動する際に、環境変数が正しく引き継がれていない。
 
 **解決方法**:
 
@@ -286,13 +286,13 @@ self.process = subprocess.Popen(
 
 ```bash
 # コメント取得プロセスのログを確認
-docker compose exec body-streamer tail -f /tmp/fetch_comments.log
+docker compose exec body-streamer tail -f /tmp/youtube_comment_fetcher.log
 
 # プロセスの状態を確認
-docker compose exec body-streamer ps aux | grep fetch_comments
+docker compose exec body-streamer ps aux | grep youtube_comment_fetcher
 
 # 手動でコメント取得をテスト
-docker compose exec body-streamer python -m body.streamer.scripts.fetch_comments
+docker compose exec body-streamer python -m body.streamer.scripts.youtube_comment_fetcher
 ```
 
 **注意**: `STREAM_PRIVACY=private` の場合、コメント投稿にはチャンネルのメンバーである必要があります。

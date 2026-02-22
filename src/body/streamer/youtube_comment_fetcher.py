@@ -143,7 +143,7 @@ def fetch_comments(video_id: str):
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
-        print(json.dumps({"error": "Usage: fetch_comments.py <video_id>"}), flush=True)
+        print(json.dumps({"error": "Usage: youtube_comment_fetcher.py <video_id>"}), flush=True)
         sys.exit(1)
     
     video_id = sys.argv[1]
