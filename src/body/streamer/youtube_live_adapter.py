@@ -1,5 +1,6 @@
 """YouTube Live API adapter for creating and managing live streams"""
 import os
+import json
 import logging
 from typing import Dict, Optional
 from google.oauth2.credentials import Credentials
@@ -26,47 +27,95 @@ class YoutubeLiveAdapter:
         scopes = ["https://www.googleapis.com/auth/youtube"]
 
         creds = None
-        # The file token.json stores the user's access and refresh tokens, and is
-        # created automatically when the authorization flow completes for the first time.
-        if os.path.exists(YOUTUBE_TOKEN_PATH):
+        
+        # 1. Try to load from environment variable (JSON string) first
+        token_json_str = os.getenv("YOUTUBE_TOKEN_JSON")
+        if token_json_str:
+            try:
+                # Remove UTF-8 BOM if present
+                if token_json_str.startswith('\ufeff'):
+                    token_json_str = token_json_str[1:]
+                token_info = json.loads(token_json_str)
+                creds = Credentials.from_authorized_user_info(token_info, scopes)
+                logger.info("Loaded YouTube credentials from YOUTUBE_TOKEN_JSON environment variable")
+            except Exception as e:
+                logger.error(f"Failed to load credentials from YOUTUBE_TOKEN_JSON: {e}")
+
+        # 2. Fallback to file if not loaded from env
+        if not creds and os.path.exists(YOUTUBE_TOKEN_PATH):
             creds = Credentials.from_authorized_user_file(YOUTUBE_TOKEN_PATH, scopes)
+            logger.info(f"Loaded YouTube credentials from {YOUTUBE_TOKEN_PATH}")
         
         # If there are no (valid) credentials available, let the user log in.
-        if not creds or not creds.valid:
-            if creds and creds.expired and creds.refresh_token:
-                logger.info("Refreshing YouTube credentials...")
+        needs_new_flow = True
+        if creds and creds.expired and creds.refresh_token:
+            logger.info("Refreshing YouTube credentials...")
+            try:
                 creds.refresh(Request())
-            else:
-                logger.info("Starting new YouTube OAuth flow...")
-                flow = Flow.from_client_secrets_file(
-                    YOUTUBE_CLIENT_SECRET_PATH,
-                    scopes=scopes,
-                    redirect_uri='urn:ietf:wg:oauth:2.0:oob')
-                auth_url, _ = flow.authorization_url(prompt='consent')
-                
-                print('\n' + '='*60)
-                print('AUTHORIZATION REQUIRED FOR YOUTUBE LIVE')
-                print('Please go to this URL in your browser:')
-                print(f'{auth_url}')
-                print('='*60 + '\n')
-                
-                logger.warning(f"Authorization required. Please check container logs and use 'docker attach' to enter the code.")
-                
-                code = input('Enter the authorization code: ')
-                credential = flow.fetch_token(code=code)
-                creds = Credentials(
-                    token=credential['access_token'],
-                    refresh_token=credential['refresh_token'],
-                    token_uri=flow.client_config['token_uri'],
-                    client_id=flow.client_config['client_id'],
-                    client_secret=flow.client_config['client_secret'],
-                    scopes=scopes
-                )
+                needs_new_flow = False
+            except Exception as e:
+                logger.warning(f"Failed to refresh YouTube credentials: {e}")
+        
+        if not creds or not creds.valid or needs_new_flow:
+            logger.info("Starting new YouTube OAuth flow...")
+            
+            flow = None
+            # Try to initialize flow from environment variable first
+            client_secret_json_str = os.getenv("YOUTUBE_CLIENT_SECRET_JSON")
+            if client_secret_json_str:
+                try:
+                    if client_secret_json_str.startswith('\ufeff'):
+                        client_secret_json_str = client_secret_json_str[1:]
+                    client_config = json.loads(client_secret_json_str)
+                    flow = Flow.from_client_config(
+                        client_config,
+                        scopes=scopes,
+                        redirect_uri='urn:ietf:wg:oauth:2.0:oob')
+                    logger.info("Initialized YouTube OAuth flow from YOUTUBE_CLIENT_SECRET_JSON")
+                except Exception as e:
+                    logger.error(f"Failed to initialize flow from YOUTUBE_CLIENT_SECRET_JSON: {e}")
 
-            # Save the credentials for the next run
-            os.makedirs(os.path.dirname(YOUTUBE_TOKEN_PATH), exist_ok=True)
-            with open(YOUTUBE_TOKEN_PATH, 'w') as token:
-                token.write(creds.to_json())
+            # Fallback to file for flow
+            if not flow:
+                if os.path.exists(YOUTUBE_CLIENT_SECRET_PATH):
+                    flow = Flow.from_client_secrets_file(
+                        YOUTUBE_CLIENT_SECRET_PATH,
+                        scopes=scopes,
+                        redirect_uri='urn:ietf:wg:oauth:2.0:oob')
+                    logger.info(f"Initialized YouTube OAuth flow from {YOUTUBE_CLIENT_SECRET_PATH}")
+                else:
+                    raise FileNotFoundError(f"YouTube client secret not found in env or at {YOUTUBE_CLIENT_SECRET_PATH}")
+            
+            auth_url, _ = flow.authorization_url(prompt='consent')
+            
+            print('\n' + '='*60)
+            print('AUTHORIZATION REQUIRED FOR YOUTUBE LIVE')
+            print('Please go to this URL in your browser:')
+            print(f'{auth_url}')
+            print('='*60 + '\n')
+            
+            logger.warning(f"Authorization required. Please check container logs and use 'docker attach' to enter the code.")
+            
+            code = input('Enter the authorization code: ')
+            credential = flow.fetch_token(code=code)
+            creds = Credentials(
+                token=credential['access_token'],
+                refresh_token=credential['refresh_token'],
+                token_uri=flow.client_config['token_uri'],
+                client_id=flow.client_config['client_id'],
+                client_secret=flow.client_config['client_secret'],
+                scopes=scopes
+            )
+
+            # Save the credentials for the next run if a path is provided
+            if YOUTUBE_TOKEN_PATH:
+                try:
+                    os.makedirs(os.path.dirname(YOUTUBE_TOKEN_PATH), exist_ok=True)
+                    with open(YOUTUBE_TOKEN_PATH, 'w') as token:
+                        token.write(creds.to_json())
+                    logger.info(f"Saved refreshed/new credentials to {YOUTUBE_TOKEN_PATH}")
+                except Exception as e:
+                    logger.warning(f"Could not save tokens to {YOUTUBE_TOKEN_PATH} (continuing anyway): {e}")
 
         youtube = build('youtube', 'v3', credentials=creds)
         return youtube, creds
