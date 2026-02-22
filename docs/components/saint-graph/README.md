@@ -62,7 +62,7 @@ Saint Graph は AI Tuber システムの「魂」であり、意思決定エン�
 - Google Search を使用した自律的検索
 - Markdown 形式への構造化と要約
 - ポストプロセス（断り書きの除去等）
-- [詳細ドキュメント](./news-collector.md)
+- [詳細ドキュメント](../scripts/news-collector.md)
 
 ### 6. body_client.py
 **Body REST クライアント**: Body への HTTP リクエスト送信
@@ -124,8 +124,8 @@ src/saint_graph/
 ## 関連ドキュメント
 
 - [コアロジック](./core-logic.md) - Agent とターン処理
-- [ニュース収集](./news-collector.md) - ニュースエージェント
-- [ニュース配信](./news-service.md) - ニュース管理
+- [ニュース収集エージェント](../scripts/news-collector.md) - ニュースエージェント（scripts/配下）
+- [ニュース配信サービス](./news-delivery.md) - ニュース管理
 - [Body クライアント](./body-client.md) - REST クライアント
 - [プロンプト設計](./prompts.md) - プロンプトシステム
 - [システム概要](../../architecture/overview.md) - 全体アーキテクチャ

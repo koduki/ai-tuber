@@ -130,6 +130,6 @@ await saint_graph.process_news_finished()
 ## 関連ドキュメント
 
 - [README](./README.md) - Saint Graph 概要
-- [ニュース収集](./news-collector.md) - ニュースエージェント
+- [ニュース収集エージェント](../scripts/news-collector.md) - ニュースエージェント
 - [コアロジック](./core-logic.md) - ターン処理
 - [データフロー](../../architecture/data-flow.md) - 配信フロー

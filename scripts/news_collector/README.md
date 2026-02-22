@@ -3,7 +3,7 @@
 ニュース収集エージェントのスクリプトです。
 
 詳細な使いかたや仕様については、以下のドキュメントを参照してください：
-- [docs/components/saint-graph/news-collector.md](../../docs/components/saint-graph/news-collector.md)
+- [docs/components/scripts/news-collector.md](../../docs/components/scripts/news-collector.md)
 
 ## クイックスタート
 
