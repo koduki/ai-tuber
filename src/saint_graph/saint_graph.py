@@ -155,6 +155,9 @@ class SaintGraph:
                     logger.info("Waiting for speech to finish before completing turn...")
                     await self.body.wait_for_queue()
                     
+                    # 話し終わったら「無言」状態に切り替える
+                    await self.body.change_emotion("silent")
+                    
                     logger.info(f"Turn completed. {len(sentences)} sentences spoken")
                 else:
                     logger.warning("No text output received from AI.")
