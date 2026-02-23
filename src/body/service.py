@@ -30,6 +30,6 @@ class BodyServiceBase(ABC):
         ...
 
     @abstractmethod
-    async def stop_broadcast(self) -> str:
-        """録画または配信を停止します。"""
+    async def wait_for_queue(self) -> str:
+        """すべての処理が完了するまで待機します。"""
         ...

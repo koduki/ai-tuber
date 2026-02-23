@@ -241,12 +241,13 @@ graph TD
 - 発話（speak）
 - 表情変更（change_emotion）
 - コメント取得（get_comments）
-- 録画・配信制御（recording/streaming）
+- 録画・配信制御（broadcast/start, broadcast/stop）
 
 **特徴**:
 - アプリケーション側のロジック（`main.py` 等）によって一律に制御される
-- 同期的な実行保証
-- エラーハンドリングが容易
+- **Streamer モード**: 内部キューによる順次実行（API 呼び出し自体は非ブロッキング）
+- 他のモード: 同期的な実行
+- エラーハンドリングの統一
 
 ### MCP（外部ツール用）
 

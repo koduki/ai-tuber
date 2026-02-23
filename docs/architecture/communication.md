@@ -21,7 +21,7 @@ Saint Graph から Body への指令送信に使用します。
 
 ### 1. POST /api/speak
 
-アバターに発話させます。
+アバターに発話させます（キューに追加して即時復帰）。
 
 **Request Body**:
 ```json
@@ -43,10 +43,11 @@ Saint Graph から Body への指令送信に使用します。
 **注意**:
 - `speaker_id` が指定された場合、`style` は無視されます
 - VoiceVox の話者ID を直接指定できます
+- **Streamer モード**: 指定された発話内容は内部キューに追加され、順次再生されます。
 
 ### 2. POST /api/change_emotion
 
-アバターの表情を変更します。
+アバターの表情を変更します（キューに追加して即時復帰）。
 
 **Request Body**:
 ```json
@@ -65,32 +66,10 @@ Saint Graph から Body への指令送信に使用します。
 
 **注意**:
 - API レベルでは `neutral` を使用（内部的に OBS のソース名 `normal` にマッピングされます）
+- **Streamer モード**: 表情変更は内部キューに追加され、発話と同期して処理されます。
 
-### 3. POST /api/play_audio_file
 
-事前生成された音声ファイルを再生し、完了まで待機します（センテンス順次再生用）。
-
-**Request Body**:
-```json
-{
-  "file_path": "/app/shared/voice/speech_1234.wav",
-  "duration": 5.2
-}
-```
-
-**Response**:
-```json
-{
-  "status": "ok",
-  "result": "再生完了 (5.2s)"
-}
-```
-
-**説明**:
-- `duration` (秒) の間、再生完了を待機してから応答を返します
-- 前の音声が完了するまで次の音声が始まらないことを保証
-
-### 4. GET /api/comments
+### 3. GET /api/comments
 
 直近のユーザーコメントを取得します（ポーリング用）。
 
@@ -108,7 +87,7 @@ Saint Graph から Body への指令送信に使用します。
 }
 ```
 
-### 5. POST /api/broadcast/start
+### 4. POST /api/broadcast/start
 
 配信または録画を開始します。Body サービスが `STREAMING_MODE` 環境変数に基づいて、YouTube Live 配信か OBS 録画かを自動判定します。
 
@@ -132,7 +111,7 @@ Saint Graph から Body への指令送信に使用します。
 }
 ```
 
-### 6. POST /api/broadcast/stop
+### 5. POST /api/broadcast/stop
 
 配信または録画を停止します。
 
@@ -143,15 +122,6 @@ Saint Graph から Body への指令送信に使用します。
   "result": "配信を停止しました"
 }
 ```
-
-### 7. POST /api/recording/start (後方互換・直接操作用)
-
-OBS の録画を直接開始します。通常は `/api/broadcast/start` を使用してください。
-
-### 8. POST /api/recording/stop (後方互換・直接操作用)
-
-OBS の録画を直接停止します。通常は `/api/broadcast/stop` を使用してください。
-
 
 ---
 

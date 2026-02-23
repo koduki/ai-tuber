@@ -216,7 +216,7 @@ docker compose up --build
 docker compose logs -f body-streamer
 
 # YouTube コメント取得のログを確認
-docker compose exec body-streamer tail -f /tmp/fetch_comments.log
+docker compose exec body-streamer tail -f /tmp/youtube_comment_fetcher.log
 ```
 
 ---

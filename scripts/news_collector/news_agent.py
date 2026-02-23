@@ -40,120 +40,21 @@ logging.basicConfig(
 )
 logger = logging.getLogger("news_agent")
 
-def clean_news_script(text: str) -> str:
-    """
-    ニュース原稿のポストプロセス：
-    - Markdownコードブロックの除去
-    - 重複出力の防止
-    - 「見つかりませんでした」等の言い訳フレーズの除去
-    """
-    cleaned = text.strip()
-    
-    # markdownコードブロックがある場合は削除
-    if cleaned.startswith("```markdown"):
-        cleaned = cleaned[11:]
-    elif cleaned.startswith("```"):
-        cleaned = cleaned[3:]
-
-    if cleaned.endswith("```"):
-        cleaned = cleaned[:-3]
-
-    cleaned = cleaned.strip()
-
-    # 重複出力対策：最初の "# News Script" から開始し、もし2つ目があればそれ以降を削除
-    if "# News Script" in cleaned:
-        parts = cleaned.split("# News Script")
-        if len(parts) > 2:
-            cleaned = "# News Script" + parts[1]
-        else:
-            cleaned = "# News Script" + "".join(parts[1:])
-    
-    cleaned = cleaned.strip()
-
-    # 「見つかりませんでした」系のフレーズをプログラムレベルで削除
-    ignore_patterns = [
-        r"^.*見つかりませんでした。?.*$",
-        r"^.*は見つかりませんでしたが、?.*$",
-        r"^.*に関するデータはありません。?.*$",
-        r"^.*具体的な.*は見つかりませんでした。?.*$",
-    ]
-    lines = cleaned.split("\n")
-    processed_lines = []
-    for line in lines:
-        is_ignored = False
-        for pattern in ignore_patterns:
-            if re.search(pattern, line):
-                if "。しかし、" in line or "が、" in line:
-                    parts = re.split(r"。しかし、|が、", line, maxsplit=1)
-                    if len(parts) > 1:
-                        line = parts[1].strip()
-                        if not line:
-                            is_ignored = True
-                    else:
-                        is_ignored = True
-                else:
-                    is_ignored = True
-                break
-        if not is_ignored and line.strip():
-            processed_lines.append(line)
-    
-    result = "\n".join(processed_lines)
-    return result.strip()
-
 async def run_agent(themes: list[str], target_date: str):
     logger.info(f"エージェントを初期化中: 日付={target_date}")
 
     # ツール定義
     tools = [GoogleSearchTool(bypass_multi_tools_limit=True)]
 
-    # システム指示定義
-    system_instruction = """
-あなたはバーチャルキャラクターのためのプロのニュース編集者です。
-特定のテーマと対象日に基づいてニュース原稿を編集するのがあなたの仕事です。
-必ず 'google_search' ツールを使用して、最新の情報および過去の正確な情報を検索してください。
-
-提供された各テーマについて:
-1. 関連するニュース更新をウェブで検索します。クエリに対象日を含めて、最近の情報を探してください。
-2. 情報をフィルタリングし、対象日に関連するものであることを確認します。
-3. 要点を日本語で簡潔にまとめます。
-
-出力形式は、'# News Script' で始まるクリーンなMarkdownファイルである必要があります。
-必ず提供されたテーマの順番通りに出力してください。特に「気になるアニメやVTuberの話題」は、天気予報よりも前に配置してください。
-見つかった情報の範囲内で、最も関連性の高い内容を断定的に記述してください。
-以下の内容やフレーズを含めることは**厳禁**です。含まれていた場合は失敗とみなします：
-- 「...は見つかりませんでした」「...は不明です」「...に関するデータはありません」
-- 「検索した結果...」「...とされていますが、代わりに...」
-- 「終値データは見つかりませんでしたが」などの言い訳や背景説明
-
-もし特定の日付の正確なデータがどうしても見つからない場合は、以下のいずれかで対処してください：
-1. その項目（箇条書きの1行やセクション全体）を丸ごと削除して出力しない。
-2. 確信の持てる直近の傾向や関連ニュースのみを、断り書きなしで記述する。
-
-サブカルチャー関連（アニメ・VTuber等）の話題については、以下の点に注意してください：
-- ジャンプ系（週刊少年ジャンプ、少年ジャンプ＋等）の話題、およびその連載作品（例：銀魂、呪術廻戦、ONE PIECE、僕のヒーローアカデミア、チェンソーマン等）は一切含めないでください。
-- 内容は非常に簡潔に、**1〜3項目厳守**（全体のボリュームの1/3以下）に抑えててください。
-
-「国内の政治経済ニュース」については、以下の点に注意してください：
-- 他のセクションよりも重点的に、少し多めのボリューム（**3〜5項目程度**）で、日本国内の話題を中心に記述してください。
-
-事実のみをニュース原稿として自然に記述してください。
-「...でしたが、代わりに...」といったつなぎ文句も避け、あたかもその情報が今日（または対象日）のニュースであるかのように構成してください。
-言い訳をするくらいなら、何も書かない方がマシです。
-
-以下の構造に従ってください:
-
-# News Script
-
-## [テーマ名]
-[要約テキスト...]
-
-## [テーマ名]
-[要約テキスト...]
-
-...
-
-「ニュースをお伝えします」などの会話的なフィラーは含めないでください。Markdownの内容のみを出力してください。
-"""
+    # システム指示をファイルから読み込む
+    prompt_path = os.path.join(current_dir, "system_prompt.md")
+    try:
+        with open(prompt_path, "r", encoding="utf-8") as f:
+            system_instruction = f.read()
+    except Exception as e:
+        logger.error(f"システムプロンプトの読み込みに失敗しました: {e}")
+        # フォールバック（最低限の指示）
+        system_instruction = "あなたはプロのニュース編集者です。Markdown形式でニュース原稿を作成してください。"
 
     # エージェント初期化
     agent = Agent(
@@ -187,14 +88,15 @@ async def run_agent(themes: list[str], target_date: str):
     else:
         logger.info("Using existing session.")
 
-    # プロンプト
-    prompt_text = f"""
-対象日: {target_date}
-テーマ: {', '.join(themes)}
-
-この日付のこれらのテーマに関するニュースを見つけて、レポートを作成してください。
-「見つかりませんでした」という断り書きは不要です。検索結果から得られる最善の情報を提供してください。
-"""
+    # ユーザープロンプトをファイルから読み込んでフォーマット
+    user_prompt_path = os.path.join(current_dir, "user_prompt.md")
+    try:
+        with open(user_prompt_path, "r", encoding="utf-8") as f:
+            prompt_template = f.read()
+        prompt_text = prompt_template.format(target_date=target_date, themes=', '.join(themes))
+    except Exception as e:
+        logger.error(f"ユーザープロンプトの読み込みまたはフォーマットに失敗しました: {e}")
+        prompt_text = f"対象日: {target_date}, テーマ: {', '.join(themes)} に関するニュースをレポートしてください。"
 
     logger.info("エージェントにプロンプトを送信中...")
     full_response = ""
@@ -242,8 +144,73 @@ async def run_agent(themes: list[str], target_date: str):
         logger.error(f"保存/アップロードエラー: {e}")
         print(f"警告: 保存に失敗しました: {e}")
 
+def remove_apologetic_phrases(text: str) -> str:
+    """
+    「見つかりませんでした」系の言い訳フレーズを削除する。
+    """
+    ignore_patterns = [
+        r"^.*見つかりませんでした。?.*$",
+        r"^.*は見つかりませんでしたが、?.*$",
+        r"^.*に関するデータはありません。?.*$",
+        r"^.*具体的な.*は見つかりませんでした。?.*$",
+    ]
+    lines = text.split("\n")
+    processed_lines = []
+    for line in lines:
+        is_ignored = False
+        for pattern in ignore_patterns:
+            if re.search(pattern, line):
+                if "。しかし、" in line or "が、" in line:
+                    parts = re.split(r"。しかし、|が、", line, maxsplit=1)
+                    if len(parts) > 1:
+                        line = parts[1].strip()
+                        if not line:
+                            is_ignored = True
+                    else:
+                        is_ignored = True
+                else:
+                    is_ignored = True
+                break
+        if not is_ignored and line.strip():
+            processed_lines.append(line)
+            
+    return "\n".join(processed_lines).strip()
 
+def clean_news_script(text: str) -> str:
+    """
+    ニュース原稿のポストプロセス：
+    - Markdownコードブロックの除去
+    - 重複出力の防止
+    - 「見つかりませんでした」等の言い訳フレーズの除去
+    """
+    cleaned = text.strip()
+    
+    # markdownコードブロックがある場合は削除
+    if cleaned.startswith("```markdown"):
+        cleaned = cleaned[11:]
+    elif cleaned.startswith("```"):
+        cleaned = cleaned[3:]
 
+    if cleaned.endswith("```"):
+        cleaned = cleaned[:-3]
+
+    cleaned = cleaned.strip()
+
+    # 重複出力対策：最初の "# News Script" から開始し、もし2つ目があればそれ以降を削除
+    if "# News Script" in cleaned:
+        parts = cleaned.split("# News Script")
+        if len(parts) > 2:
+            cleaned = "# News Script" + parts[1]
+        else:
+            cleaned = "# News Script" + "".join(parts[1:])
+    
+    cleaned = cleaned.strip()
+
+    cleaned = cleaned.strip()
+
+    # 「見つかりませんでした」系のフレーズをプログラムレベルで削除
+    result = remove_apologetic_phrases(cleaned)
+    return result
 
 def main():
     parser = argparse.ArgumentParser(description="ニュース収集エージェント")

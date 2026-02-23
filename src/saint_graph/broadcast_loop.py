@@ -81,10 +81,14 @@ async def handle_news(ctx: BroadcastContext) -> BroadcastPhase:
 
     # 次のニュースを読み上げ
     if ctx.news_service.has_next():
-        item = ctx.news_service.get_next_item()
-        logger.info(f"Reading news item: {item.title}")
-        await ctx.saint_graph.process_news_reading(title=item.title, content=item.content)
-        return BroadcastPhase.NEWS
+        # peek して使う（成功した場合にのみ進める）
+        item = ctx.news_service.peek_current_item()
+        if item:
+            logger.info(f"Reading news item: {item.title}")
+            await ctx.saint_graph.process_news_reading(title=item.title, content=item.content)
+            # 成功したのでインデックスを進める
+            ctx.news_service.get_next_item()
+            return BroadcastPhase.NEWS
 
     # ニュース全消化 → IDLE へ
     logger.info("All news items read. Waiting for final comments.")
@@ -115,7 +119,11 @@ async def handle_idle(ctx: BroadcastContext) -> BroadcastPhase:
 async def handle_closing(ctx: BroadcastContext) -> BroadcastPhase:
     """CLOSING: 締めの挨拶をしてリソースを解放する。None を返しループ終了。"""
     await ctx.saint_graph.process_closing()
-    await asyncio.sleep(3)
+    
+    # すべての発話が完了するまで待機（キューの消化待機）
+    logger.info("Waiting for final speech to complete...")
+    await ctx.saint_graph.body.wait_for_queue()
+    
     return None  # ループ終了のシグナル
 
 

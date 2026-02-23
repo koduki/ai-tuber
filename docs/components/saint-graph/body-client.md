@@ -7,6 +7,7 @@ Saint Graph から Body へ指令を送信する REST クライアントにつ�
 ## 役割
 
 `body_client.py` は Body サービスへの HTTP リクエストをカプセル化し、シンプルな API を提供します。
+内部的に共通の `_request` メソッドを使用することで、通信処理とエラーハンドリングを一元管理しています。
 
 ---
 
@@ -20,14 +21,14 @@ from saint_graph.body_client import BodyClient
 # RUN_MODE に応じて自動的に URL が設定される
 body_client = BodyClient(base_url=config.BODY_URL)
 # CLI モード: http://body-cli:8000
-# Streamer モード: http://body-streamer:8000
+# Streamer モード: http://body-streamer:8002
 ```
 
 ---
 
 ## メソッド
 
-### speak(text, style)
+### speak(text, style, speaker_id=None)
 
 テキストを発話させます。
 
@@ -41,12 +42,12 @@ await body_client.speak(
 **パラメータ**:
 - `text` (str): 発話させるテキスト
 - `style` (str): 発話スタイル（neutral, joyful, fun, angry, sad）
+- `speaker_id` (int, Optional): 声の ID（style より優先）
 
 **内部処理** (Streamer モード):
-1. VoiceVox で音声合成
-2. WAV ファイル保存
-3. OBS で再生
-4. 再生完了まで待機
+1. リクエストを送信し、Body 側で内部キューに追加
+2. キューにより、前後の発話や表情変更と順次実行される
+3. **非ブロッキング**: 本メソッドはキューへの追加が完了した時点で即時復帰します（Mind 側で待機する必要がありません）。
 
 ### change_emotion(emotion)
 
@@ -60,7 +61,7 @@ await body_client.change_emotion("joyful")
 - `emotion` (str): 感情（neutral, joyful, fun, angry, sad）
 
 **内部処理** (Streamer モード):
-- OBS のイメージソースを切り替え
+- 表情変更リクエストを内部キューに追加し、発話と同期して順次処理されます。
 
 ### get_comments()
 
@@ -68,95 +69,56 @@ await body_client.change_emotion("joyful")
 
 ```python
 comments = await body_client.get_comments()
-# CLI モード: ["コメント1", "コメント2"]
-# Streamer モード: [{"author": "...", "message": "...", "timestamp": "..."}]
+# [{"author": "...", "message": "...", "timestamp": "..."}]
 ```
 
 **戻り値**:
-- CLI モード: `List[str]`
-- Streamer モード: `List[Dict[str, str]]`
+- `List[Dict[str, Any]]`: コメントのリスト。CLI モードでも Streamer モードと互換性のある形式で返されます。
 
-### start_recording() / stop_recording()
+### start_broadcast(config) / stop_broadcast()
 
-録画を開始・停止します。これらは**配信全体のライフサイクル管理**として、`main.py` などの上位層から直接呼び出されます。
+配信または録画を開始・停止します。
 
 ```python
-# 録画開始 (main.py 等で使用)
-await body_client.start_recording()
+# 配信開始
+await body_client.start_broadcast({"title": "Live Stream"})
 
-# ... 配信処理（SaintGraph による対話） ...
+# ... 配信処理 ...
 
-# 録画停止 (main.py 等で使用)
-await body_client.stop_recording()
+# 配信停止
+await body_client.stop_broadcast()
 ```
+
+- **概要**: 録画と配信を統合したエンドポイントです。環境変数 `STREAMING_MODE` に基づき、Body 側で自動的に OBS 録画か YouTube Live 配信かを判定します。
+- **補足**: `stop_broadcast` は、キュー内のすべての発話が完了するのを待機してから停止処理を行いますが、呼び出し側でも必要に応じて `wait_for_queue` を使用できます。
+
+### wait_for_queue(timeout=300.0)
+
+キュー内のすべての処理（発話、表情変更）が完了するまで待機します。
+
+```python
+await body_client.wait_for_queue()
+```
+
+- **用途**: 配信のリズムを整えるために、1つのフェーズやターンが終わる際に AI が最後まで話し終えるのを待つために使用します。通信による「間」を詰めつつ、対話のリズムを維持するための「いいとこ取り」構成の要となります。
 
 ---
 
-## 依存性の注入 (Dependency Injection)
+## 設計の詳細
 
-`SaintGraph`（魂）は自ら `BodyClient` を生成せず、初期化時に外部からインスタンスを受け取ります。これにより、Body の実装やモード（CLI/Streamer）を意識することなく、対話と表現に専念できます。
+### 共通リクエスト処理 (`_request`)
+
+`BodyClient` 内部では、重複を避けるために共通のプライベートメソッドを使用しています。
 
 ```python
-# 1. Body インスタンスを作成
-body = BodyClient(base_url=config.BODY_URL)
-
-# 2. SaintGraph に渡す
-sg = SaintGraph(body=body, ...)
+async def _request(self, method, path, payload=None, timeout=DEFAULT_TIMEOUT):
+    # httpx.AsyncClient による送信と共通のエラーハンドリング
+    ...
 ```
 
 ### エラーハンドリング
 
-```python
-import httpx
-
-try:
-    await body_client.speak("こんにちは")
-except httpx.RequestError as e:
-    logger.error(f"Body への接続エラー: {e}")
-except httpx.HTTPStatusError as e:
-    logger.error(f"Body がエラーを返しました: {e.response.status_code}")
-```
-
----
-
-## HTTP リクエストの詳細
-
-### POST /api/speak
-
-```python
-# リクエスト
-POST http://body-streamer:8000/api/speak
-Content-Type: application/json
-
-{
-  "text": "こんにちは",
-  "style": "joyful"
-}
-
-# レスポンス
-{
-  "status": "ok",
-  "result": "発話完了"
-}
-```
-
-### POST /api/change_emotion
-
-```python
-# リクエスト
-POST http://body-streamer:8000/api/change_emotion
-Content-Type: application/json
-
-{
-  "emotion": "joyful"
-}
-
-# レスポンス
-{
-  "status": "ok",
-  "result": "表情を joyful に変更しました"
-}
-```
+`BodyClient` の各メソッドは内部で例外をキャッチし、エラー発生時は "Error: ..." という文字列を返すか、空のリストを返します。呼び出し側の `Mind` ロジックが通信エラーによってクラッシュするのを防いでいます。
 
 ---
 

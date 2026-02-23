@@ -7,12 +7,12 @@ import os
 # appディレクトリをパスに追加
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../src')))
 
-from body.streamer import obs
+from body.streamer import obs_adapter as obs
 
 class TestOBSRecording(unittest.IsolatedAsyncioTestCase):
-    @patch('body.streamer.obs.obs_requests')
-    @patch('body.streamer.obs.obsws')
-    @patch('body.streamer.obs.connect')
+    @patch('body.streamer.obs_adapter.obs_requests')
+    @patch('body.streamer.obs_adapter.obsws')
+    @patch('body.streamer.obs_adapter.connect')
     async def test_start_recording(self, mock_connect, mock_obsws, mock_requests):
         mock_connect.return_value = True
         obs.ws_client = MagicMock()
@@ -23,9 +23,9 @@ class TestOBSRecording(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(result)
         obs.ws_client.call.assert_called()
 
-    @patch('body.streamer.obs.obs_requests')
-    @patch('body.streamer.obs.obsws')
-    @patch('body.streamer.obs.connect')
+    @patch('body.streamer.obs_adapter.obs_requests')
+    @patch('body.streamer.obs_adapter.obsws')
+    @patch('body.streamer.obs_adapter.connect')
     async def test_stop_recording(self, mock_connect, mock_obsws, mock_requests):
         mock_connect.return_value = True
         obs.ws_client = MagicMock()
@@ -36,9 +36,9 @@ class TestOBSRecording(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(result)
         obs.ws_client.call.assert_called()
 
-    @patch('body.streamer.obs.obs_requests')
-    @patch('body.streamer.obs.obsws')
-    @patch('body.streamer.obs.connect')
+    @patch('body.streamer.obs_adapter.obs_requests')
+    @patch('body.streamer.obs_adapter.obsws')
+    @patch('body.streamer.obs_adapter.connect')
     async def test_get_record_status(self, mock_connect, mock_obsws, mock_requests):
         mock_connect.return_value = True
         obs.ws_client = MagicMock()

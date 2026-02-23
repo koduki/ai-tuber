@@ -5,10 +5,10 @@ from unittest.mock import Mock, patch, MagicMock
 from googleapiclient.errors import HttpError
 
 
-class TestFetchCommentsLogic:
-    """fetch_comments.py のロジックテスト
+class TestYouTubeCommentFetcherLogic:
+    """youtube_comment_fetcher.py のロジックテスト
     
-    Note: fetch_comments.py はスクリプトとして実行される前提のため、
+    Note: youtube_comment_fetcher.py はスクリプトとして実行される前提のため、
     実際のインポートではなくロジックの概念テストを行います。
     """
     
@@ -79,7 +79,7 @@ class TestRetryLogic:
     
     def test_retry_parameters(self):
         """リトライパラメータが適切な値であること"""
-        # fetch_comments.py で使用される値
+        # youtube_comment_fetcher.py で使用される値
         max_retries = 10
         retry_interval = 10  # 秒
         
