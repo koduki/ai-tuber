@@ -1,11 +1,17 @@
 steps:
-  # Build the container image
+  # 1. Build and push body-streamer
   - name: 'gcr.io/cloud-builders/docker'
     args: ['build', '-t', '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPOSITORY}/body-streamer:latest', '-f', 'src/body/streamer/Dockerfile', '.']
 
-  # Push the container image to Artifact Registry
   - name: 'gcr.io/cloud-builders/docker'
     args: ['push', '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPOSITORY}/body-streamer:latest']
+
+  # 2. Build and push obs-studio
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['build', '-t', '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPOSITORY}/obs-studio:latest', '-f', 'src/body/streamer/obs/Dockerfile', '.']
+
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['push', '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPOSITORY}/obs-studio:latest']
 
 substitutions:
   _REGION: asia-northeast1

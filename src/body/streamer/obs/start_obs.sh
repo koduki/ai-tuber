@@ -6,7 +6,8 @@ rm -f /root/.config/obs-studio/global.ini.lock
 rm -f /root/.config/obs-studio/plugin_config/obs-websocket/.obs_websocket_lock
 
 # Wait for assets to be downloaded
-ASSETS_DIR="${ASSETS_DIR:-/app/assets}"
+CHARACTER_NAME="${CHARACTER_NAME:-ren}"
+ASSETS_DIR="${ASSETS_DIR:-/app/data/mind/${CHARACTER_NAME}/assets}"
 MARKER="$ASSETS_DIR/.assets_ready"
 echo "Waiting for assets to be ready..."
 WAIT_COUNT=0

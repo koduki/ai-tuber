@@ -26,6 +26,7 @@ EMOTION_MAP = {
     "sad": "sad",
     "sorrow": "sad",
     "angry": "angry",
+    "silent": "silent",
 }
 
 # Global WebSocket client

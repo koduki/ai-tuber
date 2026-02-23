@@ -1,0 +1,8 @@
+{
+    "type": "rtmp_custom",
+    "settings": {
+        "key": "",
+        "server": "rtmp://a.rtmp.youtube.com/live2",
+        "use_auth": false
+    }
+}
