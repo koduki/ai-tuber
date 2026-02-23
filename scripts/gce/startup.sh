@@ -232,6 +232,9 @@ services:
       - voice_share:/app/shared/voice
     environment:
       - DISPLAY=:99
+      - STORAGE_TYPE=gcs
+      - CHARACTER_NAME=${CHARACTER_NAME}
+      - GCS_BUCKET_NAME=${BUCKET_NAME}
     shm_size: '2gb'
     deploy:
       resources:

@@ -15,13 +15,26 @@ logger = logging.getLogger("download_assets")
 
 def main():
     character = os.getenv("CHARACTER_NAME", "ren")
-    dest_dir = os.getenv("ASSETS_DIR", "/app/assets")
+    # OBS のシーン設定 (Untitled.json) が /app/data/mind/{character}/assets/ を参照するため合わせる
+    default_dest = f"/app/data/mind/{character}/assets"
+    dest_dir = os.getenv("ASSETS_DIR", default_dest)
     
     logger.info(f"Downloading assets for character: {character}")
     logger.info(f"Storage type: {os.getenv('STORAGE_TYPE', 'filesystem')}")
     logger.info(f"Destination: {dest_dir}")
     
     os.makedirs(dest_dir, exist_ok=True)
+    
+    # 後方互換: /app/assets が別パスなら symlink を作成（start_obs.sh のマーカー待機用）
+    legacy_dir = "/app/assets"
+    if os.path.abspath(dest_dir) != os.path.abspath(legacy_dir):
+        os.makedirs(os.path.dirname(legacy_dir), exist_ok=True)
+        if not os.path.exists(legacy_dir):
+            try:
+                os.symlink(dest_dir, legacy_dir)
+                logger.info(f"Created symlink {legacy_dir} -> {dest_dir}")
+            except OSError as e:
+                logger.warning(f"Could not create symlink {legacy_dir}: {e}")
     
     try:
         from infra.storage_client import create_storage_client
