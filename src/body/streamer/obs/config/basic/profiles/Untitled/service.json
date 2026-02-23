@@ -1,1 +1,8 @@
-{"type":"rtmp_custom","settings":{"key":"vbmg-5edf-bjcx-hyr8-7v69","server":"rtmp://a.rtmp.youtube.com/live2","use_auth":false}}
+{
+    "type": "rtmp_custom",
+    "settings": {
+        "key": "",
+        "server": "rtmp://a.rtmp.youtube.com/live2",
+        "use_auth": false
+    }
+}
