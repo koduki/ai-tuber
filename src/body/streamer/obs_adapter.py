@@ -147,13 +147,13 @@ async def set_visible_source(emotion: str) -> str:
         return f"OBS接続エラー"
     
     try:
-        # すべての感情ソースを非表示
+        # ちらつき防止のため、まず新しい感情ソースを表示
+        await set_source_visibility(source_name, True)
+
+        # その後、他のすべての感情ソースを非表示
         for emo_source in EMOTION_MAP.values():
             if emo_source != source_name:
                 await set_source_visibility(emo_source, False)
-        
-        # 指定された感情ソースを表示
-        await set_source_visibility(source_name, True)
         
         logger.info(f"Changed emotion to: {emotion} (source: {source_name})")
         return f"表情変更: {emotion}"
