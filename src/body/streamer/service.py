@@ -158,8 +158,9 @@ class StreamerBodyService(BodyServiceBase):
     async def play_audio_file(self, file_path: str, duration: float) -> str:
         """事前生成された音声ファイルを再生し、完了まで待機します。"""
         try:
-            await obs_adapter.set_source_visibility("voice", True)
+            # 先にファイルをロードしてから表示することで、前の音声の残骸で口パクが動くのを防ぐ
             await obs_adapter.refresh_media_source("voice", file_path)
+            await obs_adapter.set_source_visibility("voice", True)
             
             # 再生完了まで待機（バッファとして0.2秒追加）
             await asyncio.sleep(duration + 0.2)
