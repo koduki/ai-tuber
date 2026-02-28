@@ -1,6 +1,8 @@
 volumes:
   voice_share:
   recordings:
+  voicevox_data:
+  ai_tuber_data:
 
 
 services:
@@ -13,18 +15,15 @@ services:
       - RUN_MODE=desktop
       - BODY_URL=http://body-streamer:8000
       - WEATHER_MCP_URL=http://tools-weather:8001/sse
-      - GOOGLE_API_KEY=${GOOGLE_API_KEY}
       - STREAMING_MODE=${STREAMING_MODE:-false}
-      - STREAM_TITLE=${STREAM_TITLE:-}
-      - STREAM_DESCRIPTION=${STREAM_DESCRIPTION:-}
-      - STREAM_PRIVACY=${STREAM_PRIVACY:-private}
       - PYTHONPATH=/app/src
-      - ADK_TELEMETRY=false
       - NO_PROXY=body-streamer,tools-weather,localhost,127.0.0.1
-      # SaaS-ready configuration
       - STORAGE_TYPE=filesystem
       - SECRET_PROVIDER_TYPE=env
       - CHARACTER_NAME=${CHARACTER_NAME:-ren}
+    volumes:
+      - ai_tuber_data:/app/data
+    env_file: .env
     depends_on:
       body-streamer:
         condition: service_healthy
@@ -39,6 +38,7 @@ services:
       dockerfile: src/tools/weather/Dockerfile
     ports:
       - "8001:8001"
+    env_file: .env
     environment:
       - PORT=8001
     healthcheck:
@@ -54,6 +54,7 @@ services:
       dockerfile: src/body/cli/Dockerfile
     ports:
       - "8000:8000"
+    env_file: .env
     stdin_open: true
     tty: true
     environment:
@@ -71,10 +72,12 @@ services:
       dockerfile: src/body/streamer/Dockerfile
     ports:
       - "8002:8000"
+    env_file: .env
     stdin_open: true
     tty: true
     volumes:
       - voice_share:/app/shared/voice
+      - ai_tuber_data:/app/data
     environment:
       - PORT=8000
       - VOICEVOX_HOST=voicevox
@@ -104,10 +107,19 @@ services:
   # --- VoiceVox Engine ---
   voicevox:
     image: voicevox/voicevox_engine:nvidia-ubuntu20.04-latest
+    env_file: .env
     ports:
       - "50021:50021"
     volumes:
-      - ${VOICEVOX_DATA_DIR:-./data/mind/${CHARACTER_NAME:-ren}}:/home/user/.local/share/voicevox-engine-dev
+      - ${VOICEVOX_DATA_DIR:-./data/mind/${CHARACTER_NAME:-ren}}:/mnt/voicevox-config:ro
+      - voicevox_data:/home/user/.local/share/voicevox-engine-dev
+    entrypoint: ["/bin/bash", "-c"]
+    command:
+      - |
+        cp -rf /mnt/voicevox-config/* /home/user/.local/share/voicevox-engine-dev/ 2>/dev/null
+        chown -R user:user /home/user/.local/share/voicevox-engine-dev
+        cat /opt/voicevox_engine/README.md
+        exec gosu user /opt/python/bin/python3 ./run.py --use_gpu --voicelib_dir /opt/voicevox_core/ --runtime_dir /opt/onnxruntime/lib --host 0.0.0.0
     deploy:
       resources:
         reservations:
@@ -126,12 +138,20 @@ services:
     build:
       context: .
       dockerfile: src/body/streamer/obs/Dockerfile
+    env_file: .env
     ports:
       - "8080:8080" # noVNC web interface
       - "4455:4455" # OBS WebSocket
     volumes:
       - voice_share:/app/shared/voice
-      - ./data:/app/data
+      - ai_tuber_data:/app/data
+      - ./data:/mnt/host-data:ro
+    entrypoint: ["/bin/bash", "-c"]
+    command:
+      - |
+        cp -rf /mnt/host-data/* /app/data/ 2>/dev/null
+        chown -R root:root /app/data
+        exec /usr/bin/supervisord -c /etc/supervisor/conf.d/supervisord.conf
     environment:
       - DISPLAY=:99
       - STORAGE_TYPE=filesystem
