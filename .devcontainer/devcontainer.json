@@ -1,11 +1,11 @@
 {
 	"name": "AI Tuber Dev Container",
-	"dockerComposeFile": [
-		"../docker-compose.yml",
-		"../docker-compose.devcontainer.yml"
-	],
-	"service": "dev",
+	"build": {
+		"dockerfile": "Dockerfile",
+		"context": ".."
+	},
 	"workspaceFolder": "/app",
+	"workspaceMount": "source=${localWorkspaceFolder},target=/app,type=bind,consistency=cached",
 	"customizations": {
 		"vscode": {
 			"extensions": [
@@ -24,10 +24,19 @@
 		}
 	},
 	"containerEnv": {
-		"DOCKER_API_VERSION": "1.45"
+		"DOCKER_API_VERSION": "1.45",
+		"GOOGLE_API_KEY": "${localEnv:GOOGLE_API_KEY}",
+		"PYTHONPATH": "/app/src:/app"
 	},
+	"runArgs": [
+		"--init"
+	],
+	"remoteUser": "vscode",
 	"features": {
-		"ghcr.io/devcontainers/features/docker-outside-of-docker:1": {}
+		"ghcr.io/devcontainers/features/docker-outside-of-docker:1": {
+			"version": "latest",
+			"enableNonRootDocker": "true"
+		}
 	},
-	"postCreateCommand": "git config --global --add safe.directory /app && echo 'DevContainer Ready!'"
+	"postCreateCommand": "bash -c 'git config --global --add safe.directory /app || true && echo DevContainer Ready!'"
 }
