@@ -2,7 +2,7 @@
 resource "google_compute_instance" "body_node" {
   name         = "ai-tuber-body-node"
   machine_type = "g2-standard-4"
-  zone         = var.zone
+  zone         = var.compute_zone
 
   tags = ["ai-tuber-body"]
 

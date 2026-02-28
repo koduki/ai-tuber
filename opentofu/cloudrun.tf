@@ -60,7 +60,7 @@ resource "google_cloud_run_v2_job" "saint_graph" {
 
         env {
           name  = "BODY_URL"
-          value = "http://${google_compute_instance.body_node.name}.${var.zone}.c.${var.project_id}.internal:8000"
+          value = "http://${google_compute_instance.body_node.name}.${var.compute_zone}.c.${var.project_id}.internal:8000"
         }
 
         env {
@@ -79,7 +79,7 @@ resource "google_cloud_run_v2_job" "saint_graph" {
       vpc_access {
         network_interfaces {
           network    = google_compute_network.ai_tuber_network.name
-          subnetwork = google_compute_subnetwork.ai_tuber_subnet.name
+          subnetwork = google_compute_subnetwork.ai_tuber_serverless_subnet.name
         }
         egress = "ALL_TRAFFIC"
       }
@@ -196,7 +196,7 @@ resource "google_cloud_run_v2_service" "healthcheck_proxy" {
     vpc_access {
       network_interfaces {
         network    = google_compute_network.ai_tuber_network.name
-        subnetwork = google_compute_subnetwork.ai_tuber_subnet.name
+        subnetwork = google_compute_subnetwork.ai_tuber_serverless_subnet.name
       }
       egress = "ALL_TRAFFIC"
     }
