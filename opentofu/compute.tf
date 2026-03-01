@@ -2,13 +2,14 @@
 resource "google_compute_instance" "body_node" {
   name         = "ai-tuber-body-node"
   machine_type = "g2-standard-4"
-  zone         = var.zone
+  zone         = var.compute_zone
 
   tags = ["ai-tuber-body"]
 
   boot_disk {
     initialize_params {
-      image = "ubuntu-os-cloud/ubuntu-2204-lts"
+      # Deep Learning VM: NVIDIA drivers (570) + CUDA 12.8 + Docker (NVIDIA runtime) pre-installed
+      image = "deeplearning-platform-release/common-cu128-ubuntu-2204-nvidia-570"
       size  = 50
       type  = "pd-balanced"
     }
@@ -21,11 +22,10 @@ resource "google_compute_instance" "body_node" {
   }
 
   scheduling {
-    # Enable preemptible/spot for cost savings (if configured)
     preemptible       = var.enable_spot_instance
     automatic_restart = false
-    # Spot instances require termination during maintenance
-    on_host_maintenance = var.enable_spot_instance ? "TERMINATE" : "MIGRATE"
+    # GPU instances (L4) cannot be live-migrated — always TERMINATE
+    on_host_maintenance = "TERMINATE"
   }
 
   network_interface {
@@ -42,6 +42,7 @@ resource "google_compute_instance" "body_node" {
     character_name     = var.character_name
     stream_title       = var.stream_title
     stream_description = var.stream_description
+    primary_region     = var.region
   }
 
   metadata_startup_script = file("${path.module}/../scripts/gce/startup.sh")

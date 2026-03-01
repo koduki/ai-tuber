@@ -15,15 +15,27 @@ variable "project_id" {
 }
 
 variable "region" {
-  description = "GCP Region"
+  description = "GCP Region for Cloud Run, GCS, etc."
   type        = string
   default     = "asia-northeast1"
 }
 
 variable "zone" {
-  description = "GCP Zone"
+  description = "GCP Zone for primary region"
   type        = string
   default     = "asia-northeast1-a"
+}
+
+variable "compute_region" {
+  description = "GCP Region specifically for Compute Engine (GCE)"
+  type        = string
+  default     = "us-central1"
+}
+
+variable "compute_zone" {
+  description = "GCP Zone specifically for Compute Engine (GCE)"
+  type        = string
+  default     = "us-central1-a"
 }
 
 variable "bucket_name" {

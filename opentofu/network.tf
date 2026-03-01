@@ -5,23 +5,31 @@ resource "google_compute_network" "ai_tuber_network" {
 }
 
 resource "google_compute_subnetwork" "ai_tuber_subnet" {
-  name          = "ai-tuber-subnet"
-  ip_cidr_range = "10.0.0.0/24"
+  name          = "ai-tuber-subnet-us"
+  ip_cidr_range = "10.0.2.0/24"
+  region        = var.compute_region
+  network       = google_compute_network.ai_tuber_network.id
+}
+
+# Dedicated subnet for Cloud Run VPC Access (must be in the same region as Cloud Run)
+resource "google_compute_subnetwork" "ai_tuber_serverless_subnet" {
+  name          = "ai-tuber-serverless-subnet"
+  ip_cidr_range = "10.1.0.0/24"
   region        = var.region
   network       = google_compute_network.ai_tuber_network.id
 }
 
-# Firewall: Allow Cloud Run to communicate with Body Node (API only)
+# Firewall: Allow Cloud Run to communicate with Body Node (API + VoiceVox + VNC health check)
 resource "google_compute_firewall" "allow_cloud_run_to_body" {
   name    = "ai-tuber-allow-cloud-run-to-body"
   network = google_compute_network.ai_tuber_network.name
 
   allow {
     protocol = "tcp"
-    ports    = ["8000"]
+    ports    = ["8000", "8080", "50021"]
   }
 
-  source_ranges = [google_compute_subnetwork.ai_tuber_subnet.ip_cidr_range]
+  source_ranges = [google_compute_subnetwork.ai_tuber_serverless_subnet.ip_cidr_range]
   target_tags   = ["ai-tuber-body"]
 }
 
@@ -73,12 +81,12 @@ resource "google_compute_firewall" "allow_ssh_iap" {
 # NAT Gateway for outbound internet access
 resource "google_compute_address" "nat_ip" {
   name   = "ai-tuber-nat-ip"
-  region = var.region
+  region = var.compute_region
 }
 
 resource "google_compute_router" "router" {
   name    = "ai-tuber-router"
-  region  = var.region
+  region  = var.compute_region
   network = google_compute_network.ai_tuber_network.id
 }
 
