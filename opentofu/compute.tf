@@ -8,7 +8,8 @@ resource "google_compute_instance" "body_node" {
 
   boot_disk {
     initialize_params {
-      image = "ubuntu-os-cloud/ubuntu-2204-lts"
+      # Deep Learning VM: NVIDIA drivers (570) + CUDA 12.8 + Docker (NVIDIA runtime) pre-installed
+      image = "deeplearning-platform-release/common-cu128-ubuntu-2204-nvidia-570"
       size  = 50
       type  = "pd-balanced"
     }
@@ -42,6 +43,7 @@ resource "google_compute_instance" "body_node" {
     character_name     = var.character_name
     stream_title       = var.stream_title
     stream_description = var.stream_description
+    primary_region     = var.region
   }
 
   metadata_startup_script = file("${path.module}/../scripts/gce/startup.sh")

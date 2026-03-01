@@ -69,51 +69,20 @@ if ! command -v docker &> /dev/null; then
     log "Docker installed successfully."
 fi
 
-# Install Docker Compose if not present
-if ! command -v docker-compose &> /dev/null; then
-    log "Installing Docker Compose..."
-    DOCKER_COMPOSE_VERSION="v2.24.0"
-    curl -sL "https://github.com/docker/compose/releases/download/${DOCKER_COMPOSE_VERSION}/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
-    chmod +x /usr/local/bin/docker-compose
-    log "Docker Compose installed successfully."
-fi
+# NOTE: docker compose plugin is pre-installed on DLVM. No need for standalone docker-compose.
+
 
 # Configure Docker for Artifact Registry
 log "Configuring Docker for Artifact Registry..."
 ZONE=$(curl -s "http://metadata.google.internal/computeMetadata/v1/instance/zone" -H "Metadata-Flavor: Google" | cut -d/ -f4)
 REGION=$(echo $ZONE | sed 's/-[a-z]$//')
+PRIMARY_REGION=$(get_metadata "primary_region" "asia-northeast1")
 gcloud auth configure-docker ${REGION}-docker.pkg.dev --quiet
+gcloud auth configure-docker ${PRIMARY_REGION}-docker.pkg.dev --quiet
 
-# Install NVIDIA GPU drivers if not present
-if ! nvidia-smi &> /dev/null; then
-    log "Installing NVIDIA GPU drivers using GCP's official method..."
-    log "This may take 5-10 minutes..."
-    
-    if [ ! -f "install_gpu_driver.py" ]; then
-        curl -s https://raw.githubusercontent.com/GoogleCloudPlatform/compute-gpu-installation/main/linux/install_gpu_driver.py --output install_gpu_driver.py
-    fi
-    python3 install_gpu_driver.py
-    
-    log "NVIDIA drivers installed successfully."
-fi
-
-# Install NVIDIA Container Toolkit if not present
-if ! dpkg -l | grep -q nvidia-container-toolkit; then
-    log "Installing NVIDIA Container Toolkit..."
-    
-    curl -fsSL https://nvidia.github.io/libnvidia-container/gpgkey | gpg --dearmor -o /usr/share/keyrings/nvidia-container-toolkit-keyring.gpg
-    curl -s -L https://nvidia.github.io/libnvidia-container/stable/deb/nvidia-container-toolkit.list | \
-        sed 's#deb https://#deb [signed-by=/usr/share/keyrings/nvidia-container-toolkit-keyring.gpg] https://#g' | \
-        tee /etc/apt/sources.list.d/nvidia-container-toolkit.list
-    
-    apt-get update -y
-    apt-get install -y nvidia-container-toolkit
-    
-    log "Configuring Docker to use the NVIDIA runtime..."
-    nvidia-ctk runtime configure --runtime=docker
-    systemctl restart docker
-    log "NVIDIA Container Toolkit installed and configured successfully."
-fi
+# NOTE: NVIDIA drivers, CUDA, and Docker NVIDIA runtime are pre-installed on the
+# Deep Learning VM image (deeplearning-platform-release). No installation needed.
+log "Skipping NVIDIA driver install (pre-installed in DLVM image)."
 
 # Setup working directory
 WORKDIR="/opt/ai-tuber"
@@ -125,14 +94,16 @@ log "Fetching metadata resources..."
 PROJECT_ID=$(curl -s "http://metadata.google.internal/computeMetadata/v1/project/project-id" -H "Metadata-Flavor: Google")
 BUCKET_NAME=$(get_metadata "gcs_bucket" "")
 CHARACTER_NAME=$(get_metadata "character_name" "ren")
-REGISTRY="${REGION}-docker.pkg.dev/${PROJECT_ID}/ai-tuber"
+REGISTRY="${PRIMARY_REGION}-docker.pkg.dev/${PROJECT_ID}/ai-tuber"
 
-# Sync character dictionary from GCS
+# Sync character assets and dictionary from GCS
 if [[ -n "$BUCKET_NAME" && -n "$CHARACTER_NAME" ]]; then
-    log "Syncing character dictionary from GCS (gs://${BUCKET_NAME}/mind/${CHARACTER_NAME}/user_dict.json)..."
+    # Sync user dict (needed by VoiceVox)
+    log "Syncing character dictionary from GCS..."
     mkdir -p "/opt/ai-tuber/data/mind/${CHARACTER_NAME}"
-    gcloud storage cp "gs://${BUCKET_NAME}/mind/${CHARACTER_NAME}/user_dict.json" "/opt/ai-tuber/data/mind/${CHARACTER_NAME}/user_dict.json" || log "Warning: No dictionary found in GCS for ${CHARACTER_NAME}"
-    # Fix permissions to allow non-root container users (like VoiceVox's 'user') to read/write
+    gcloud storage cp "gs://${BUCKET_NAME}/mind/${CHARACTER_NAME}/user_dict.json" "/opt/ai-tuber/data/mind/${CHARACTER_NAME}/user_dict.json" || log "Warning: No dictionary found in GCS"
+
+    # Fix permissions
     chmod -R 777 "/opt/ai-tuber/data"
 else
     log "Skipping GCS sync: metadata BUCKET_NAME or CHARACTER_NAME is missing."
@@ -247,11 +218,11 @@ EOF
 
 # Pull images and start services
 log "Starting AI Tuber services (pulling images quietly)..."
-docker-compose -f docker-compose.gce.yml pull --quiet || log "Warning: Image pull failed, attempting to start anyway..."
+docker compose -f docker-compose.gce.yml pull --quiet || log "Warning: Image pull failed, attempting to start anyway..."
 
-if ! docker-compose -f docker-compose.gce.yml up -d; then
-    log "ERROR: docker-compose up failed. Recent container logs:"
-    docker-compose -f docker-compose.gce.yml logs --tail=50
+if ! docker compose -f docker-compose.gce.yml up -d; then
+    log "ERROR: docker compose up failed. Recent container logs:"
+    docker compose -f docker-compose.gce.yml logs --tail=50
     exit 1
 fi
 
