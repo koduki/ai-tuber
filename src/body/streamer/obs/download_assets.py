@@ -29,6 +29,14 @@ def main():
     legacy_dir = "/app/assets"
     if os.path.abspath(dest_dir) != os.path.abspath(legacy_dir):
         os.makedirs(os.path.dirname(legacy_dir), exist_ok=True)
+        # 既にディレクトリが存在する場合は削除を試みる (Dockerfileで誤って作成されていた場合への対処)
+        if os.path.isdir(legacy_dir) and not os.path.islink(legacy_dir):
+            try:
+                os.rmdir(legacy_dir)
+                logger.info(f"Removed empty directory {legacy_dir}")
+            except OSError as e:
+                logger.warning(f"Could not remove directory {legacy_dir} (maybe not empty?): {e}")
+
         if not os.path.exists(legacy_dir):
             try:
                 os.symlink(dest_dir, legacy_dir)
