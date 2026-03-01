@@ -447,7 +447,7 @@
             "id": "ffmpeg_source",
             "versioned_id": "ffmpeg_source",
             "settings": {
-                "local_file": "/app/data/mind/ren/assets/silent01.mp4",
+                "local_file": "/app/assets/silent01.mp4",
                 "looping": true
             },
             "mixers": 255,
@@ -484,7 +484,7 @@
             "versioned_id": "ffmpeg_source",
             "settings": {
                 "looping": true,
-                "local_file": "/app/data/mind/ren/assets/normal01.mp4"
+                "local_file": "/app/assets/normal01.mp4"
             },
             "mixers": 255,
             "sync": 0,
@@ -520,7 +520,7 @@
             "versioned_id": "ffmpeg_source",
             "settings": {
                 "looping": true,
-                "local_file": "/app/data/mind/ren/assets/angry02.mp4"
+                "local_file": "/app/assets/angry02.mp4"
             },
             "mixers": 255,
             "sync": 0,
@@ -556,7 +556,7 @@
             "versioned_id": "ffmpeg_source",
             "settings": {
                 "looping": true,
-                "local_file": "/app/data/mind/ren/assets/fun01.mp4"
+                "local_file": "/app/assets/fun01.mp4"
             },
             "mixers": 255,
             "sync": 0,
@@ -592,7 +592,7 @@
             "versioned_id": "ffmpeg_source",
             "settings": {
                 "looping": true,
-                "local_file": "/app/data/mind/ren/assets/fun02.mp4"
+                "local_file": "/app/assets/fun02.mp4"
             },
             "mixers": 255,
             "sync": 0,
@@ -628,7 +628,7 @@
             "versioned_id": "ffmpeg_source",
             "settings": {
                 "looping": true,
-                "local_file": "/app/data/mind/ren/assets/angry01.mp4"
+                "local_file": "/app/assets/angry01.mp4"
             },
             "mixers": 255,
             "sync": 0,

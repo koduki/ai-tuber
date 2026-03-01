@@ -36,7 +36,6 @@ RUN mkdir -p /var/run/supervisor /var/log/supervisor \
     /root/.config/obs-studio/plugin_config/obs-websocket \
     /root/.config/obs-studio/basic/profiles/Untitled \
     /root/.config/obs-studio/basic/scenes \
-    /app/assets \
     && echo '{"address": "0.0.0.0", "port": 4455, "enabled": true, "authentication_enabled": false, "server_enabled": true, "server_port": 4455, "auth_required": false, "first_load": false}' > /root/.config/obs-studio/plugin_config/obs-websocket/config.json
 
 # Copy configuration files
