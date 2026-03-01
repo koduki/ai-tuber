@@ -22,11 +22,10 @@ resource "google_compute_instance" "body_node" {
   }
 
   scheduling {
-    # Enable preemptible/spot for cost savings (if configured)
     preemptible       = var.enable_spot_instance
     automatic_restart = false
-    # Spot instances require termination during maintenance
-    on_host_maintenance = var.enable_spot_instance ? "TERMINATE" : "MIGRATE"
+    # GPU instances (L4) cannot be live-migrated — always TERMINATE
+    on_host_maintenance = "TERMINATE"
   }
 
   network_interface {

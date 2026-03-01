@@ -19,14 +19,14 @@ resource "google_compute_subnetwork" "ai_tuber_serverless_subnet" {
   network       = google_compute_network.ai_tuber_network.id
 }
 
-# Firewall: Allow Cloud Run to communicate with Body Node (API only)
+# Firewall: Allow Cloud Run to communicate with Body Node (API + VoiceVox + VNC health check)
 resource "google_compute_firewall" "allow_cloud_run_to_body" {
   name    = "ai-tuber-allow-cloud-run-to-body"
   network = google_compute_network.ai_tuber_network.name
 
   allow {
     protocol = "tcp"
-    ports    = ["8000"]
+    ports    = ["8000", "8080", "50021"]
   }
 
   source_ranges = [google_compute_subnetwork.ai_tuber_serverless_subnet.ip_cidr_range]

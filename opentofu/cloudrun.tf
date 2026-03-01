@@ -81,7 +81,7 @@ resource "google_cloud_run_v2_job" "saint_graph" {
           network    = google_compute_network.ai_tuber_network.name
           subnetwork = google_compute_subnetwork.ai_tuber_serverless_subnet.name
         }
-        egress = "ALL_TRAFFIC"
+        egress = "PRIVATE_RANGES_ONLY"
       }
 
       service_account = google_service_account.ai_tuber_sa.email
@@ -198,7 +198,7 @@ resource "google_cloud_run_v2_service" "healthcheck_proxy" {
         network    = google_compute_network.ai_tuber_network.name
         subnetwork = google_compute_subnetwork.ai_tuber_serverless_subnet.name
       }
-      egress = "ALL_TRAFFIC"
+      egress = "PRIVATE_RANGES_ONLY"
     }
 
     service_account = google_service_account.ai_tuber_sa.email

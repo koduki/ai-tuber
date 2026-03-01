@@ -213,7 +213,7 @@ services:
           devices:
             - driver: nvidia
               count: 1
-              capabilities: [gpu, video, graphics, utility, display]
+              capabilities: [gpu, video, graphics, utility]
 EOF
 
 # Pull images and start services
