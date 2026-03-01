@@ -5,8 +5,8 @@ resource "google_compute_network" "ai_tuber_network" {
 }
 
 resource "google_compute_subnetwork" "ai_tuber_subnet" {
-  name          = "ai-tuber-subnet"
-  ip_cidr_range = "10.0.0.0/24"
+  name          = "ai-tuber-subnet-us"
+  ip_cidr_range = "10.0.2.0/24"
   region        = var.compute_region
   network       = google_compute_network.ai_tuber_network.id
 }
