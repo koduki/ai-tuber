@@ -39,8 +39,30 @@ class BodyClient:
                     response = await client.get(url)
                 response.raise_for_status()
                 return response.json()
+            except httpx.ConnectError as e:
+                logger.error(
+                    f"Error calling {path} API: Connection failed to {url} -- "
+                    f"cause: {e.__cause__ or e} "
+                    f"(Check DNS resolution, firewall rules, and that the body node is running)"
+                )
+                return None
+            except httpx.TimeoutException as e:
+                logger.error(
+                    f"Error calling {path} API: Request timed out after {timeout}s to {url} -- "
+                    f"{type(e).__name__}: {e}"
+                )
+                return None
+            except httpx.HTTPStatusError as e:
+                logger.error(
+                    f"Error calling {path} API: HTTP {e.response.status_code} from {url} -- "
+                    f"response body: {e.response.text[:500]}"
+                )
+                return None
             except Exception as e:
-                logger.error(f"Error calling {path} API: {e}")
+                logger.error(
+                    f"Error calling {path} API: Unexpected {type(e).__name__}: {e}",
+                    exc_info=True,
+                )
                 return None
     
     async def speak(self, text: str, style: Optional[str] = None, speaker_id: Optional[int] = None) -> str:
@@ -97,6 +119,16 @@ class BodyClient:
         async with httpx.AsyncClient(timeout=5.0) as client:
             try:
                 response = await client.get(url)
-                return response.status_code == 200
-            except Exception:
+                is_ok = response.status_code == 200
+                if not is_ok:
+                    logger.warning(f"health_check: {url} returned HTTP {response.status_code}")
+                return is_ok
+            except httpx.ConnectError as e:
+                logger.warning(f"health_check: Cannot connect to {url} -- cause: {e.__cause__ or e}")
+                return False
+            except httpx.TimeoutException:
+                logger.warning(f"health_check: Timed out connecting to {url}")
+                return False
+            except Exception as e:
+                logger.warning(f"health_check: Unexpected error for {url}: {type(e).__name__}: {e}")
                 return False

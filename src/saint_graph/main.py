@@ -53,19 +53,6 @@ async def main():
         templates=templates
     )
 
-    # MCP URL の疎通確認（デバッグ用）
-    if WEATHER_MCP_URL:
-        import httpx
-        logger.info(f"Checking connectivity to WEATHER_MCP_URL: {WEATHER_MCP_URL}")
-        try:
-            async with httpx.AsyncClient(timeout=5.0) as client:
-                response = await client.get(WEATHER_MCP_URL)
-                logger.info(f"WEATHER_MCP_URL check response: {response.status_code}")
-        except asyncio.TimeoutError:
-            logger.info("WEATHER_MCP_URL check: connection timed out as expected (SSE)")
-        except Exception as e:
-            logger.warning(f"WEATHER_MCP_URL connectivity check failed: {e}")
-
     try:
         # 配信パラメータの構築 & 配信開始
         broadcast_config = _build_broadcast_config()
