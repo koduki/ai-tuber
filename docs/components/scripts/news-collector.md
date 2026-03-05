@@ -87,8 +87,8 @@ docker run --env-file .env news-collector
 | 変数名 | 必須 | 説明 |
 | :--- | :---: | :--- |
 | `GOOGLE_API_KEY` | ✅ | Gemini および Google Search API のキー |
-| `STORAGE_TYPE` | | `gcs` を指定すると GCS にアップロード。未指定時はローカルのみ |
-| `GCS_BUCKET_NAME` | | `STORAGE_TYPE=gcs` 時の保存先バケット名 |
+| `STORAGE_TYPE` | | `gcs` を指定すると GCS にアップロード。Cloud Run Job では必須。 |
+| `GCS_BUCKET_NAME` | | `STORAGE_TYPE=gcs` 時の保存先バケット名（Cloud Run では必須）。 |
 | `MODEL_NAME` | | Gemini モデル名（デフォルト: `gemini-2.5-flash-lite`） |
 
 ---
