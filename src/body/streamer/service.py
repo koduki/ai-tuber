@@ -135,6 +135,12 @@ class StreamerBodyService(BodyServiceBase):
         # すべての発話が完了するまで待機してから停止する
         await self.wait_for_queue()
 
+        # OBS/YouTube の音声バッファがドレインするまでの猶予時間
+        # BROADCAST_STOP_DELAY で調整可能（デフォルト 3秒）
+        stop_delay = float(os.getenv("BROADCAST_STOP_DELAY", "3.0"))
+        logger.info(f"Queue empty. Waiting {stop_delay}s before stopping broadcast...")
+        await asyncio.sleep(stop_delay)
+
         streaming_mode = os.getenv("STREAMING_MODE", "false").lower() == "true"
         
         try:
@@ -157,19 +163,29 @@ class StreamerBodyService(BodyServiceBase):
 
     async def play_audio_file(self, file_path: str, duration: float) -> str:
         """事前生成された音声ファイルを再生し、完了まで待機します。"""
+        # OBSがファイルをバッファリングするのを待ってから口パクを開始する
+        # LIP_SYNC_DELAY を調整することで口パクと音声のズレを補正できる
+        lip_sync_delay = float(os.getenv("LIP_SYNC_DELAY", "0.3"))
+
         try:
-            # 先にファイルをロードしてから表示することで、前の音声の残骸で口パクが動くのを防ぐ
+            # ファイルをロード（この時点ではまだ口パクしない）
             await obs_adapter.refresh_media_source("voice", file_path)
+
+            # OBSのバッファリング待機 → 音声実出力タイミングに口パクを合わせる
+            await asyncio.sleep(lip_sync_delay)
+
+            # 口パク開始（ソース表示）
             await obs_adapter.set_source_visibility("voice", True)
-            
+
             # 再生完了まで待機（バッファとして0.2秒追加）
             await asyncio.sleep(duration + 0.2)
-            
+
             logger.info(f"[play_audio_file] Completed playback ({duration:.1f}s)")
             return f"再生完了 ({duration:.1f}s)"
         except Exception as e:
             logger.error(f"Error in play_audio_file: {e}")
             return f"再生エラー: {str(e)}"
+
 
     async def start_obs_recording(self) -> str:
         """OBSの録画を開始します。"""
