@@ -15,7 +15,7 @@
             "id": "ffmpeg_source",
             "versioned_id": "ffmpeg_source",
             "settings": {
-                "local_file": "/app/assets/bgm.mp3",
+                "local_file": "/app/data/mind/ren/assets/bgm.mp3",
                 "looping": true
             },
             "mixers": 255,
