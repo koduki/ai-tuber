@@ -28,11 +28,7 @@ from google.adk.tools.google_search_tool import GoogleSearchTool
 from infra.storage_client import create_storage_client
 
 # 設定
-try:
-    from saint_graph.config import MODEL_NAME
-    # GOOGLE_API_KEY は環境変数に含まれていることを想定
-except ImportError:
-    MODEL_NAME = "gemini-2.5-flash-lite"
+MODEL_NAME = "gemini-3.1-pro-preview"
 
 logging.basicConfig(
     level=logging.INFO,
