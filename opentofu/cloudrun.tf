@@ -151,6 +151,16 @@ resource "google_cloud_run_v2_job" "news_collector" {
           value = var.bucket_name
         }
 
+        env {
+          name  = "STORAGE_TYPE"
+          value = "gcs"
+        }
+
+        env {
+          name  = "GCP_PROJECT_ID"
+          value = var.project_id
+        }
+
         resources {
           limits = {
             cpu    = "2"
