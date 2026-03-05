@@ -137,7 +137,7 @@ class StreamerBodyService(BodyServiceBase):
 
         # OBS/YouTube の音声バッファがドレインするまでの猶予時間
         # BROADCAST_STOP_DELAY で調整可能（デフォルト 3秒）
-        stop_delay = float(os.getenv("BROADCAST_STOP_DELAY", "3.0"))
+        stop_delay = float(os.getenv("BROADCAST_STOP_DELAY", "5.0"))
         logger.info(f"Queue empty. Waiting {stop_delay}s before stopping broadcast...")
         await asyncio.sleep(stop_delay)
 
