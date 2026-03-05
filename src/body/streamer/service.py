@@ -165,7 +165,7 @@ class StreamerBodyService(BodyServiceBase):
         """事前生成された音声ファイルを再生し、完了まで待機します。"""
         # OBSがファイルをバッファリングするのを待ってから口パクを開始する
         # LIP_SYNC_DELAY を調整することで口パクと音声のズレを補正できる
-        lip_sync_delay = float(os.getenv("LIP_SYNC_DELAY", "0.3"))
+        lip_sync_delay = float(os.getenv("LIP_SYNC_DELAY", "2.5"))
 
         try:
             # ファイルをロード（この時点ではまだ口パクしない）

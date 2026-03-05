@@ -68,6 +68,16 @@ resource "google_cloud_run_v2_job" "saint_graph" {
           value = "${google_cloud_run_v2_service.tools_weather.uri}/sse"
         }
 
+        env {
+          name  = "LIP_SYNC_DELAY"
+          value = var.lip_sync_delay
+        }
+
+        env {
+          name  = "BROADCAST_STOP_DELAY"
+          value = var.broadcast_stop_delay
+        }
+
         resources {
           limits = {
             cpu    = "2"
@@ -159,6 +169,16 @@ resource "google_cloud_run_v2_job" "news_collector" {
         env {
           name  = "GCP_PROJECT_ID"
           value = var.project_id
+        }
+
+        env {
+          name  = "LIP_SYNC_DELAY"
+          value = var.lip_sync_delay
+        }
+
+        env {
+          name  = "BROADCAST_STOP_DELAY"
+          value = var.broadcast_stop_delay
         }
 
         resources {

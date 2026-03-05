@@ -149,6 +149,8 @@ YT_TOKEN=$(gcloud secrets versions access latest --secret="youtube-token" 2>/dev
 STREAM_TITLE=$(get_metadata "stream_title" "紅月れんのAIニュース配信")
 STREAM_DESC=$(get_metadata "stream_description" "Google ADKとGeminiを使用した次世代AITuberの配信テストです。")
 STREAM_PRIVACY=$(get_metadata "stream_privacy" "private")
+LIP_SYNC_DELAY=$(get_metadata "lip_sync_delay" "2.5")
+BROADCAST_STOP_DELAY=$(get_metadata "broadcast_stop_delay" "5.0")
 
 cat > .env << EOF
 # Core Secrets
@@ -169,6 +171,8 @@ STREAM_TITLE=${STREAM_TITLE}
 STREAM_DESCRIPTION=${STREAM_DESC}
 STREAM_PRIVACY=${STREAM_PRIVACY}
 VOICEVOX_DATA_DIR=/opt/ai-tuber/data/mind/${CHARACTER_NAME}
+LIP_SYNC_DELAY=${LIP_SYNC_DELAY}
+BROADCAST_STOP_DELAY=${BROADCAST_STOP_DELAY}
 EOF
 
 # Create docker-compose.gce.yml dynamically

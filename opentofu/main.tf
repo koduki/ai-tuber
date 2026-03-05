@@ -80,6 +80,18 @@ variable "stream_description" {
   default     = "Google ADKとGeminiを使用した次世代AITuberの配信テストです。"
 }
 
+variable "lip_sync_delay" {
+  description = "Delay (seconds) before starting lip-sync to align with audio"
+  type        = number
+  default     = 2.5
+}
+
+variable "broadcast_stop_delay" {
+  description = "Delay (seconds) after queue drain before stopping the broadcast"
+  type        = number
+  default     = 5.0
+}
+
 provider "google" {
   project = var.project_id
   region  = var.region
