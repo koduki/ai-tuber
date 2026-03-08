@@ -99,6 +99,13 @@ class BodyClient:
             return data.get("result", "Broadcast started")
         return "Error: Failed to start broadcast"
     
+    async def go_live(self) -> str:
+        """YouTube Live 配信を視聴者に公開します (testing -> live 遷移)。"""
+        data = await self._request("POST", "/api/broadcast/go_live")
+        if data:
+            return data.get("result", "Broadcast is now live")
+        return "Error: Failed to go live"
+
     async def stop_broadcast(self) -> str:
         """配信または録画を停止します。"""
         data = await self._request("POST", "/api/broadcast/stop")

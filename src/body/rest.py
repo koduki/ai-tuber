@@ -70,6 +70,14 @@ class BodyApp:
             logger.error(f"Error in stop_broadcast API: {e}")
             return JSONResponse({"status": "error", "message": str(e)}, status_code=500)
 
+    async def go_live_api(self, request: Request) -> JSONResponse:
+        try:
+            result = await self.service.go_live()
+            return JSONResponse({"status": "ok", "result": result})
+        except Exception as e:
+            logger.error(f"Error in go_live API: {e}")
+            return JSONResponse({"status": "error", "message": str(e)}, status_code=500)
+
     async def wait_for_queue_api(self, request: Request) -> JSONResponse:
         try:
             result = await self.service.wait_for_queue()
@@ -86,6 +94,7 @@ class BodyApp:
             Route("/api/change_emotion", self.change_emotion_api, methods=["POST"]),
             Route("/api/comments", self.get_comments_api, methods=["GET"]),
             Route("/api/broadcast/start", self.start_broadcast_api, methods=["POST"]),
+            Route("/api/broadcast/go_live", self.go_live_api, methods=["POST"]),
             Route("/api/broadcast/stop", self.stop_broadcast_api, methods=["POST"]),
             Route("/api/queue/wait", self.wait_for_queue_api, methods=["POST"]),
         ]

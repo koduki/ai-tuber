@@ -33,3 +33,14 @@ class BodyServiceBase(ABC):
     async def wait_for_queue(self) -> str:
         """すべての処理が完了するまで待機します。"""
         ...
+
+    async def go_live(self) -> str:
+        """配信を視聴者に公開します（YouTube Live の testing -> live 遷移）。
+        録画モードなど非対応の場合は何もしません。
+        """
+        return "go_live: not supported in this mode"
+
+    @abstractmethod
+    async def stop_broadcast(self) -> str:
+        """録画または配信を停止します。"""
+        ...

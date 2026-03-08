@@ -113,6 +113,14 @@ class StreamerBodyService(BodyServiceBase):
             logger.error(f"Error in get_comments tool: {e}")
             return json.dumps([])
 
+    async def go_live(self) -> str:
+        """YouTube Live 配信を視聴者に公開します (testing -> live)。"""
+        streaming_mode = os.getenv("STREAMING_MODE", "false").lower() == "true"
+        if not streaming_mode:
+            logger.info("go_live: not in streaming mode, skipping.")
+            return "go_live: not in streaming mode"
+        return await self._go_live()
+
     async def start_broadcast(self, config: Optional[Dict[str, Any]] = None) -> str:
         """配信または録画を開始します。"""
         streaming_mode = os.getenv("STREAMING_MODE", "false").lower() == "true"
@@ -219,7 +227,9 @@ class StreamerBodyService(BodyServiceBase):
             return f"録画停止エラー: {str(e)}"
 
     async def _start_streaming(self, config: dict) -> str:
-        """YouTube Live 配信を開始する内部関数。"""
+        """YouTube Live 配信の Phase 1: ブロードキャストとストリームを作成し、OBS RTMP を開始する。
+        この時点ではまだ視聴者に公開されない（testing ステータス）。公開には go_live() を啇吾。
+        """
         from .youtube_live_adapter import YoutubeLiveAdapter
         
         self._youtube_live_adapter = YoutubeLiveAdapter()
@@ -240,7 +250,7 @@ class StreamerBodyService(BodyServiceBase):
         stream_key = live_response['stream']['cdn']['ingestionInfo']['streamName']
         self._current_broadcast_id = live_response['broadcast']['id']
         
-        logger.info("Starting OBS streaming with YouTube stream key")
+        logger.info("Starting OBS streaming (warmup phase - not yet visible to viewers)")
         success = await obs_adapter.start_streaming(stream_key)
         
         if not success:
@@ -249,8 +259,21 @@ class StreamerBodyService(BodyServiceBase):
         from .youtube_comment_adapter import YouTubeCommentAdapter
         self._youtube_comment_adapter = YouTubeCommentAdapter(self._current_broadcast_id)
         
-        logger.info(f"[start_streaming] Success - Broadcast ID: {self._current_broadcast_id}")
-        return f"YouTube Live配信を開始しました。ブロードキャストID: {self._current_broadcast_id}"
+        logger.info(f"[start_streaming] Warmup ready - Broadcast ID: {self._current_broadcast_id} (testing mode)")
+        return f"YouTube Live配信を準備しました（ウォームアップ中）。ブロードキャストID: {self._current_broadcast_id}"
+
+    async def _go_live(self) -> str:
+        """YouTube Live 配信の Phase 2: ブロードキャストを testing から live に遷移する（視聴者に公開）。"""
+        if not self._youtube_live_adapter or not self._current_broadcast_id:
+            return "エラー: 配信が初期化されていません。"
+        try:
+            youtube_client, _ = self._youtube_live_adapter.authenticate_youtube()
+            self._youtube_live_adapter.go_live(youtube_client, self._current_broadcast_id)
+            logger.info(f"[go_live] Broadcast {self._current_broadcast_id} is now LIVE (visible to viewers)")
+            return f"配信を開始しました。ブロードキャストID: {self._current_broadcast_id}"
+        except Exception as e:
+            logger.error(f"Error in go_live: {e}")
+            return f"go_live エラー: {str(e)}"
 
     async def _stop_streaming(self) -> str:
         """YouTube Live 配信を停止する内部関数。"""

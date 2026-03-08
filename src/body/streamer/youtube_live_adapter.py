@@ -82,7 +82,7 @@ class YoutubeLiveAdapter:
                     scheduledStartTime=scheduledStartTime
                 ),
                 contentDetails=dict(
-                    enableAutoStart=True,
+                    enableAutoStart=False,
                     latencyPreference="ultraLow"  # 超低遅延
                 ),
                 status=dict(
@@ -134,6 +134,16 @@ class YoutubeLiveAdapter:
 
         logger.info(f"Bound broadcast {broadcast_id} to stream {stream_id}")
         return bind_response
+
+    def go_live(self, youtube, broadcast_id: str) -> Dict:
+        """broadcast を testing から live に遷移させます（視聴者に公開）。"""
+        res = youtube.liveBroadcasts().transition(
+            broadcastStatus="live",
+            id=broadcast_id,
+            part="id,status"
+        ).execute()
+        logger.info(f"Broadcast {broadcast_id} transitioned to live.")
+        return res
 
     def stop_live(self, youtube, broadcast_id: str) -> Dict:
         """Stop a live broadcast on YouTube."""

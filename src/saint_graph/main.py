@@ -59,11 +59,15 @@ async def main():
         await _start_broadcast(body_client, broadcast_config)
 
         # 配信開始後、OBSの映像ソース（GPUデコーダー）が安定するまで待機
+        # この間は OBS は RTMP を push しているが YouTube Live はまだ視聴者に非公開 (testing)
         # BROADCAST_START_DELAY を調整することで冒頭のブラックアウト期間を回避できる
         start_delay = float(os.getenv("BROADCAST_START_DELAY", "90"))
-        logger.info(f"Waiting {start_delay}s for OBS video sources to initialize...")
+        logger.info(f"Waiting {start_delay}s for OBS video sources to initialize (not yet public)...")
         await asyncio.sleep(start_delay)
-        logger.info("OBS stabilization wait complete. Starting broadcast loop.")
+        logger.info("OBS stabilization wait complete. Going live...")
+
+        # Phase 2: YouTube Live を視聴者に公開（testing -> live）
+        await _go_live(body_client)
 
         # ステートマシンによるメインループ実行
         ctx = BroadcastContext(
@@ -90,7 +94,7 @@ def _build_broadcast_config() -> dict:
 
 
 async def _start_broadcast(body: BodyClient, config: dict):
-    """配信または録画を開始します。"""
+    """配信または録画を開始します（OBSウォームアップ）。"""
     try:
         res = await body.start_broadcast(config)
         logger.info(f"Broadcast start result: {res}")
@@ -99,6 +103,15 @@ async def _start_broadcast(body: BodyClient, config: dict):
     except Exception as e:
         logger.critical(f"Could not start broadcast: {e}")
         raise
+
+
+async def _go_live(body: BodyClient):
+    """YouTube Live を視聴者に公開します (testing -> live)。"""
+    try:
+        res = await body.go_live()
+        logger.info(f"Go live result: {res}")
+    except Exception as e:
+        logger.warning(f"go_live failed (non-fatal): {e}")
 
 
 async def _stop_broadcast(body: BodyClient):
