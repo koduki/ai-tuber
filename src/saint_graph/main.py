@@ -89,12 +89,19 @@ async def main():
 
 def _build_broadcast_config() -> dict:
     """環境変数から配信パラメータを構築します。"""
-    from datetime import datetime
-    now_iso = datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ')
+    from datetime import datetime, timezone, timedelta
+    now = datetime.now(timezone.utc)
+    now_iso = now.strftime('%Y-%m-%dT%H:%M:%SZ')
+    # YouTube Live API は scheduledStartTime が現在時刻と同一か過去の場合に
+    # epoch (1970年) として表示されることがある。
+    # 実際の go_live() は BROADCAST_START_DELAY 後に呼ぶため、
+    # scheduled はそれより十分先の未来を指定する。
+    scheduled_start = now + timedelta(minutes=5)
+    scheduled_start_iso = scheduled_start.strftime('%Y-%m-%dT%H:%M:%SZ')
     return {
         "title": os.getenv("STREAM_TITLE", f"AI Tuber Live Stream - {now_iso}"),
         "description": os.getenv("STREAM_DESCRIPTION", "AI Tuber Live Stream"),
-        "scheduled_start_time": now_iso,
+        "scheduled_start_time": scheduled_start_iso,
         "privacy_status": os.getenv("STREAM_PRIVACY", "private"),
     }
 
