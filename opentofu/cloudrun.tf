@@ -68,6 +68,11 @@ resource "google_cloud_run_v2_job" "saint_graph" {
           value = "${google_cloud_run_v2_service.tools_weather.uri}/sse"
         }
 
+        env {
+          name  = "BROADCAST_START_DELAY"
+          value = var.broadcast_start_delay
+        }
+
         resources {
           limits = {
             cpu    = "2"

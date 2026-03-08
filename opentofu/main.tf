@@ -92,6 +92,12 @@ variable "broadcast_stop_delay" {
   default     = 5.0
 }
 
+variable "broadcast_start_delay" {
+  description = "Delay (seconds) after broadcast start before beginning speech (GPU source init wait)"
+  type        = number
+  default     = 90
+}
+
 provider "google" {
   project = var.project_id
   region  = var.region
