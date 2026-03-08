@@ -49,6 +49,9 @@ class SaintGraph:
         self.templates = templates or {}
         self.speaker_id = self.mind_config.get("speaker_id")
 
+        # go_live() 前にLLM推論を先行実行した結果のキャッシュ
+        self._precomputed_intro_sentences: Optional[list] = None
+
         # MCP ツールセットの初期化（天気などの外部ツール用）
         self.toolsets = []
         if weather_mcp_url:
@@ -74,10 +77,71 @@ class SaintGraph:
             if isinstance(ts, McpToolset) and hasattr(ts, 'close'):
                 await ts.close()
 
-    async def process_intro(self):
-        """開始挨拶を実行します。"""
+    async def precompute_intro(self) -> None:
+        """
+        BROADCAST_START_DELAY 中に並列で呼び出し、イントロのLLM推論結果を
+        キャッシュしておきます。go_live() 後に process_intro() を呼ぶと
+        LLM推論をスキップして即座に TTS キューへ積めるため、
+        配信開始直後の無音時間を大幅に短縮できます。
+        """
+        logger.info("[precompute_intro] Starting LLM pre-computation for intro...")
         template = self.templates.get("intro", "こんにちは。配信を始めます。")
-        await self.process_turn(template, context="Intro")
+        current_user_message = f"[Intro]\n{template}"
+        try:
+            session = await self.runner.session_service.get_session(
+                app_name=self.runner.app_name,
+                user_id="yt_user",
+                session_id="yt_session"
+            )
+            if not session:
+                await self.runner.session_service.create_session(
+                    app_name=self.runner.app_name,
+                    user_id="yt_user",
+                    session_id="yt_session"
+                )
+
+            full_text = ""
+            async for event in self.runner.run_async(
+                new_message=types.Content(role="user", parts=[types.Part(text=current_user_message)]),
+                user_id="yt_user",
+                session_id="yt_session"
+            ):
+                t = self._extract_text_from_event(event)
+                if t:
+                    full_text += t
+
+            if full_text:
+                self._precomputed_intro_sentences = self._parse_response(full_text)
+                logger.info(f"[precompute_intro] Done. Cached {len(self._precomputed_intro_sentences)} sentences.")
+            else:
+                logger.warning("[precompute_intro] No text output from LLM. Will fall back to normal process_intro.")
+        except Exception as e:
+            logger.error(f"[precompute_intro] Failed: {e}. Will fall back to normal process_intro.")
+            self._precomputed_intro_sentences = None
+
+    async def process_intro(self):
+        """開始挨拶を実行します。precompute_intro() 済みならLLM推論をスキップして即発話。"""
+        if self._precomputed_intro_sentences is not None:
+            logger.info("[process_intro] Using precomputed intro (no LLM inference needed).")
+            sentences = self._precomputed_intro_sentences
+            self._precomputed_intro_sentences = None  # キャッシュクリア
+
+            current_emotion = None
+            for emotion, text in sentences:
+                if emotion != current_emotion:
+                    await self.body.change_emotion(emotion)
+                    current_emotion = emotion
+                await self.body.speak(text, style=emotion, speaker_id=self.speaker_id)
+
+            logger.info("Waiting for intro speech to finish...")
+            await self.body.wait_for_queue()
+            await self.body.change_emotion("silent")
+            logger.info(f"[process_intro] Completed (precomputed). {len(sentences)} sentences spoken.")
+        else:
+            # フォールバック: 通常のLLM推論から実行
+            logger.info("[process_intro] No precomputed intro found, running normal process_turn.")
+            template = self.templates.get("intro", "こんにちは。配信を始めます。")
+            await self.process_turn(template, context="Intro")
 
     async def process_news_reading(self, title: str, content: str):
         """ニュース読み上げを実行します。"""

@@ -61,12 +61,18 @@ async def main():
         # 配信開始後、OBSの映像ソース（GPUデコーダー）が安定するまで待機
         # この間は OBS は RTMP を push しているが YouTube Live はまだ視聴者に非公開 (testing)
         # BROADCAST_START_DELAY を調整することで冒頭のブラックアウト期間を回避できる
+        # ★ 同時に intro の LLM 推論を先行実行しておく（go_live 直後に即発話するため）
         start_delay = float(os.getenv("BROADCAST_START_DELAY", "90"))
-        logger.info(f"Waiting {start_delay}s for OBS video sources to initialize (not yet public)...")
+        logger.info(f"Waiting {start_delay}s for OBS to stabilize. Pre-computing intro in parallel...")
+        precompute_task = asyncio.create_task(saint_graph.precompute_intro())
         await asyncio.sleep(start_delay)
-        logger.info("OBS stabilization wait complete. Going live...")
+        if not precompute_task.done():
+            logger.info("Intro pre-computation still running, waiting for it to finish...")
+            await precompute_task
+        logger.info("OBS stabilization wait complete. Intro pre-computation done. Going live...")
 
         # Phase 2: YouTube Live を視聴者に公開（testing -> live）
+        # イントロは precompute 済みなので go_live の直後にすぐ発話できる
         await _go_live(body_client)
 
         # ステートマシンによるメインループ実行
