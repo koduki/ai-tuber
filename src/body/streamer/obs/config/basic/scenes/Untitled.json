@@ -133,7 +133,7 @@
                     {
                         "name": "voice",
                         "source_uuid": "6c9b47ff-70e1-4254-8e2f-01035aff81a8",
-                        "visible": true,
+                        "visible": false,
                         "locked": false,
                         "rot": 0.0,
                         "pos": {
