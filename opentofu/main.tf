@@ -83,7 +83,7 @@ variable "stream_description" {
 variable "lip_sync_delay" {
   description = "Delay (seconds) before starting lip-sync to align with audio"
   type        = number
-  default     = 2.5
+  default     = 0
 }
 
 variable "broadcast_stop_delay" {
