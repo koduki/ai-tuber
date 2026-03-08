@@ -180,6 +180,9 @@ class StreamerBodyService(BodyServiceBase):
             # 再生完了まで待機（バッファとして0.2秒追加）
             await asyncio.sleep(duration + 0.2)
 
+            # 口パク終了（ソース非表示）
+            await obs_adapter.set_source_visibility("voice", False)
+
             logger.info(f"[play_audio_file] Completed playback ({duration:.1f}s)")
             return f"再生完了 ({duration:.1f}s)"
         except Exception as e:
