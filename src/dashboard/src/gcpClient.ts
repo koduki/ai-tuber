@@ -7,7 +7,7 @@ import { CloudSchedulerClient } from '@google-cloud/scheduler';
 import { WorkflowsClient } from '@google-cloud/workflows';
 import { ServicesClient, JobsClient } from '@google-cloud/run';
 import { InstancesClient } from '@google-cloud/compute';
-import { CloudBuildClient } from 'cloudbuild';
+import { CloudBuildClient } from '@google-cloud/cloudbuild';
 import { config } from './config';
 
 // クライアントの初期化

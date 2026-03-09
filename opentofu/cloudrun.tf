@@ -274,3 +274,12 @@ resource "google_cloud_run_v2_service" "dashboard" {
 output "dashboard_url" {
   value = google_cloud_run_v2_service.dashboard.uri
 }
+
+# Allow unauthenticated access for dashboard
+resource "google_cloud_run_v2_service_iam_member" "dashboard_noauth" {
+  project  = google_cloud_run_v2_service.dashboard.project
+  location = google_cloud_run_v2_service.dashboard.location
+  name     = google_cloud_run_v2_service.dashboard.name
+  role     = "roles/run.invoker"
+  member   = "allUsers"
+}
