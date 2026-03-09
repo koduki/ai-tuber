@@ -26,11 +26,12 @@ interface SchedulerJob {
     name: string;
     displayName: string;
     lastStatus: string;
+    lastRunTime: string;
+    nextRunTime: string;
     region: string;
     state: string;
     description: string;
     schedule: string;
-    target: string;
 }
 
 export async function getSchedulerJobs(): Promise<SchedulerJob[]> {
@@ -42,14 +43,20 @@ export async function getSchedulerJobs(): Promise<SchedulerJob[]> {
         return {
             name: shortName,
             displayName: shortName,
-            lastStatus: mapSchedulerStatus(job.status?.latestExecution?.state),
+            lastStatus: mapSchedulerStatus(job.status?.latestExecution?.state || job.status?.state),
+            lastRunTime: formatTimestamp(job.status?.latestExecution?.scheduleTime || job.lastAttemptTime),
+            nextRunTime: formatTimestamp(job.nextRunTime),
             region: config.region,
             state: job.state === 'ENABLED' ? '有効' : '無効',
             description: job.description || '',
             schedule: job.schedule || '',
-            target: job.httpTarget?.uri || job.pubsubTarget?.topicName || '',
         };
     });
+}
+
+export async function runSchedulerJob(jobName: string): Promise<void> {
+    const name = `projects/${config.projectId}/locations/${config.region}/jobs/${jobName}`;
+    await scheduler.runJob({ name });
 }
 
 function mapSchedulerStatus(state?: string): string {
@@ -122,13 +129,15 @@ export async function getWorkflowExecutions(): Promise<WorkflowExecution[]> {
     const EXECUTIONS_API = 'https://workflowexecutions.googleapis.com/v1';
 
     try {
-        const data = await gcpFetch(`${EXECUTIONS_API}/${parent}/executions?pageSize=10&orderBy=startTime desc`);
+        const data = await gcpFetch(`${EXECUTIONS_API}/${parent}/executions?pageSize=4&orderBy=startTime desc`);
         const executions = data.executions || [];
 
         return executions.map((ex: any) => {
             const exId = ex.name?.split('/').pop() || '';
+            const stepLabel = ex.status?.currentSteps?.[0]?.step || (ex.state === 'ACTIVE' ? 'executing' : 'end');
+
             return {
-                stepName: ex.workflowRevisionId ? 'end' : 'executing',
+                stepName: stepLabel,
                 status: mapExecutionStatus(ex.state),
                 executionId: exId,
                 revision: ex.workflowRevisionId || '',

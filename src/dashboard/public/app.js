@@ -148,15 +148,17 @@ async function loadScheduler() {
         container.innerHTML = `
       <div class="filter-bar"><span>フィルタ</span><span class="filter-bar__input">ジョブのフィルタ</span></div>
       ${tableHtml(
-            ['名前', '最後の実行のステータス', 'リージョン', '状態', '説明', '頻度', 'ターゲット'],
+            ['名前', '最後の実行のステータス', 'Last run', 'Next run', 'リージョン', '状態', '説明', '頻度', 'アクション'],
             jobs.map(j => [
                 `<div><strong>${linkHtml(j.name, getConsoleUrl('scheduler', j))}</strong><div style="margin-top:4px;font-size:11px;color:var(--gray-500)">Cloud Scheduler</div></div>`,
                 statusHtml(j.lastStatus, toneFor(j.lastStatus)),
+                j.lastRunTime,
+                j.nextRunTime,
                 j.region,
                 j.state,
                 j.description,
                 j.schedule,
-                linkHtml(j.target, j.target),
+                `<button class="btn btn--primary btn--sm" onclick="runSchedulerJob('${j.name}')">今すぐ実行</button>`,
             ])
         )}`;
     } catch (err) { container.innerHTML = errorHtml(err.message); }
@@ -192,9 +194,9 @@ async function loadWorkflows() {
             ['状態', '実行 ID', 'ワークフローのリビジョン', '作成日時', '開始時刻', '終了時間'],
             executions.map(ex => [
                 `<div style="display:flex;align-items:center;gap:8px">
-          <span class="status__dot" style="width:10px;height:10px;border-radius:50%;background:${ex.status === '成功' ? 'var(--green)' : 'var(--red)'}"></span>
-          <span class="exec-tag">${ex.stepName || 'end'}</span>
-          <span style="font-size:12px;font-weight:500;color:${ex.status === '成功' ? 'var(--green)' : 'var(--red)'}">${ex.status}</span>
+          <span class="status__dot" style="width:10px;height:10px;border-radius:50%;background:var(--${toneFor(ex.status)})"></span>
+          <span class="exec-tag">${ex.stepName || 'exec'}</span>
+          <span style="font-size:12px;font-weight:500;color:var(--${toneFor(ex.status)})">${ex.status}</span>
         </div>`,
                 linkHtml(ex.executionId, getConsoleUrl('execution', ex)),
                 ex.revision,
@@ -441,3 +443,17 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (loader) loader();
     }, REFRESH_INTERVAL_MS);
 });
+
+/** Scheduler ジョブを強制実行 */
+async function runSchedulerJob(name) {
+    if (!confirm(`ジョブ "${name}" を今すぐ実行しますか？`)) return;
+
+    try {
+        const res = await fetch(`/api/scheduler/${name}/run`, { method: 'POST' });
+        if (!res.ok) throw new Error(await res.text());
+        alert(`ジョブ "${name}" の実行をリクエストしました。`);
+        loadScheduler(); // 再読み込み
+    } catch (err) {
+        alert(`エラー: ${err.message}`);
+    }
+}

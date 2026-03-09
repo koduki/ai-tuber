@@ -50,3 +50,6 @@ opentofu/*.tofuplan
 data/mind/*/core_libraries/
 data/mind/*/installed_libraries/
 
+
+node_modules/
+package-lock.json

@@ -37,6 +37,18 @@ app.get('/api/scheduler', async (_req, res) => {
     }
 });
 
+/** Scheduler ジョブ強制実行 */
+app.post('/api/scheduler/:name/run', async (req, res) => {
+    try {
+        const name = req.params.name;
+        await gcp.runSchedulerJob(name);
+        res.json({ message: `Job ${name} started` });
+    } catch (err: any) {
+        console.error('run scheduler error:', err.message);
+        res.status(500).json({ error: err.message });
+    }
+});
+
 /** Workflow + Executions */
 app.get('/api/workflows', async (_req, res) => {
     try {
