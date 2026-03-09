@@ -59,7 +59,7 @@
             <h1>AI Tuber Platform</h1>
             <span class="badge badge--green" id="overall-status">正常</span>
           </div>
-          <p class="page-desc">定期実行、ワークフロー、稼働リソース、コスト、Build を確認する運用ポータル</p>
+          <p class="page-desc">定期実行、ワークフロー、稼働リソース、コストを確認する運用ポータル</p>
         </div>
         <div class="page-header__actions">
           <button class="btn btn--outline" id="btn-refresh">更新</button>
@@ -128,60 +128,35 @@
             </div>
           </div>
 
-          <div class="overview-grid">
-            <!-- Left Column -->
-            <div class="overview-left">
-              <!-- Scheduler -->
-              <div class="card" id="card-scheduler">
-                <div class="card__header">
-                  <h2>Cloud Scheduler</h2>
-                </div>
-                <div class="card__body">
-                  <div class="loading-placeholder">読み込み中...</div>
-                </div>
+          <!-- Main Cards -->
+          <div class="overview-cards">
+            <!-- Scheduler -->
+            <div class="card" id="card-scheduler">
+              <div class="card__header">
+                <h2>Cloud Scheduler</h2>
               </div>
-
-              <!-- Workflows -->
-              <div class="card" id="card-workflows">
-                <div class="card__header">
-                  <h2>ワークフロー</h2>
-                </div>
-                <div class="card__body">
-                  <div class="loading-placeholder">読み込み中...</div>
-                </div>
-              </div>
-
-              <!-- Resources (Services / Jobs / Compute) -->
-              <div class="card" id="card-resources">
-                <div class="card__header">
-                  <h2>稼働リソース</h2>
-                </div>
-                <div class="card__body">
-                  <div class="loading-placeholder">読み込み中...</div>
-                </div>
+              <div class="card__body">
+                <div class="loading-placeholder">読み込み中...</div>
               </div>
             </div>
 
-            <!-- Right Column -->
-            <div class="overview-right">
-              <!-- Cloud Build -->
-              <div class="card" id="card-builds">
-                <div class="card__header">
-                  <h2>Cloud Build</h2>
-                </div>
-                <div class="card__body">
-                  <div class="loading-placeholder">読み込み中...</div>
-                </div>
+            <!-- Workflows -->
+            <div class="card" id="card-workflows">
+              <div class="card__header">
+                <h2>ワークフロー</h2>
               </div>
+              <div class="card__body">
+                <div class="loading-placeholder">読み込み中...</div>
+              </div>
+            </div>
 
-              <!-- Quick Links -->
-              <div class="card" id="card-quicklinks">
-                <div class="card__header">
-                  <h2>クイックリンク</h2>
-                </div>
-                <div class="card__body">
-                  <div class="quicklinks" id="quicklinks"></div>
-                </div>
+            <!-- Resources (Services / Jobs / Compute) -->
+            <div class="card" id="card-resources">
+              <div class="card__header">
+                <h2>稼働リソース</h2>
+              </div>
+              <div class="card__body">
+                <div class="loading-placeholder">読み込み中...</div>
               </div>
             </div>
           </div>

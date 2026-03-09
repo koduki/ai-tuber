@@ -47,7 +47,7 @@ function getConsoleUrl(type, item) {
     let url = '#';
     switch (type) {
         case 'scheduler':
-            url = `${base}/cloudscheduler/job/${item.region}/${item.name}?${p}`;
+            url = `${base}/cloudscheduler/jobs/edit/${item.region}/${item.name}?${p}`;
             break;
         case 'workflow':
             url = `${base}/workflows/workflow/${item.location}/${item.name}/executions?${p}`;
@@ -385,7 +385,7 @@ async function loadDetailBuilds() {
 
 // ── Tab 切替 ──────────────────────────────────────────
 const tabLoaders = {
-    overview: () => Promise.all([loadOverview(), loadScheduler(), loadWorkflows(), loadResources(), loadBuilds()]),
+    overview: () => Promise.all([loadOverview(), loadScheduler(), loadWorkflows(), loadResources()]),
     services: loadDetailServices,
     jobs: loadDetailJobs,
     workflows: loadDetailWorkflows,
@@ -415,8 +415,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (consoleBtn) consoleBtn.href = `${CONSOLE_BASE}/home/dashboard?project=${projectId}`;
     } catch (e) { /* ignore */ }
 
-    // Quick Links
-    renderQuickLinks();
+    // Quick Links は概要から削除されたため非表示
+    // renderQuickLinks();
 
     // Tab イベント
     $$('.tab').forEach(tab => {

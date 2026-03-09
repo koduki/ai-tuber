@@ -56,7 +56,21 @@ export GCP_REGION=asia-northeast1
 export GCP_ZONE=asia-northeast1-a
 ```
 
-### 3. テスト起動
+### 3. テスト起動 (Docker 推奨)
+
+ローカル環境の `gcloud` 認証情報を利用して、コンテナ内でダッシュボードを起動します。
+
+```bash
+# 1. 認証情報のコピー (一度だけ実行)
+cp ~/.config/gcloud/application_default_credentials.json gcp-creds.json
+
+# 2. 起動
+docker compose -f docker-compose.local.yml up --build
+```
+
+起動後、 `http://localhost:3000` にアクセスしてください。
+
+### (参考) Node.js 直接起動
 
 ```bash
 npm run dev
