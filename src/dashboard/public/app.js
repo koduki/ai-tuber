@@ -44,27 +44,42 @@ function errorHtml(msg) {
 function getConsoleUrl(type, item) {
     const base = `${CONSOLE_BASE}`;
     const p = `project=${projectId}`;
+    let url = '#';
     switch (type) {
         case 'scheduler':
-            return `${base}/cloudscheduler/job/${item.region}/${item.name}?${p}`;
+            url = `${base}/cloudscheduler/job/${item.region}/${item.name}?${p}`;
+            break;
         case 'workflow':
-            return `${base}/workflows/workflow/${item.location}/${item.name}/executions?${p}`;
+            url = `${base}/workflows/workflow/${item.location}/${item.name}/executions?${p}`;
+            break;
         case 'execution':
-            // 実行画面はワークフロー名が必要。現在ワークフローは1つのみ
-            return `${base}/workflows/workflow/${item.location || 'asia-northeast1'}/ai-tuber-streaming-pipeline/executions/${item.executionId}?${p}`;
+            // 実行詳細画面は単数形の 'execution' かつ末尾に /summary が必要
+            url = `${base}/workflows/workflow/${item.location || 'asia-northeast1'}/ai-tuber-streaming-pipeline/execution/${item.executionId}/summary?${p}`;
+            break;
         case 'service':
-            return `${base}/run/detail/${item.region}/${item.name}/revisions?${p}`;
+            url = `${base}/run/detail/${item.region}/${item.name}/revisions?${p}`;
+            break;
         case 'job':
-            return `${base}/run/jobs/details/${item.region}/${item.name}/executions?${p}`;
+            url = `${base}/run/jobs/details/${item.region}/${item.name}/executions?${p}`;
+            break;
         case 'compute':
-            return `${base}/compute/instancesDetail/zones/${item.zone}/instances/${item.name}?${p}`;
+            url = `${base}/compute/instancesDetail/zones/${item.zone}/instances/${item.name}?${p}`;
+            break;
         case 'build':
-            return `${base}/cloud-build/builds/${item.fullId || item.id}?${p}&region=${item.region || 'global'}`;
+            const buildId = item.fullId || item.id;
+            url = `${base}/cloud-build/builds/${buildId}?${p}`;
+            if (item.region && item.region !== 'global') {
+                url += `&region=${item.region}`;
+            }
+            break;
         case 'trigger':
-            return `${base}/cloud-build/triggers/edit/${item.triggerId || item.triggerName}?${p}`;
+            url = `${base}/cloud-build/triggers/edit/${item.triggerId || item.triggerName}?${p}`;
+            break;
         default:
-            return '#';
+            url = '#';
     }
+    console.log(`[Dashboard] Generated ${type} link:`, url);
+    return url;
 }
 
 // ── API Fetch ─────────────────────────────────────────

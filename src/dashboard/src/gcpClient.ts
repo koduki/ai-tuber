@@ -135,6 +135,7 @@ export async function getWorkflowExecutions(): Promise<WorkflowExecution[]> {
                 created: formatTimestamp(ex.createTime),
                 started: formatTimestamp(ex.startTime),
                 ended: formatTimestamp(ex.endTime),
+                location: config.region,
             };
         });
     } catch (err) {
@@ -220,6 +221,7 @@ export async function getCloudRunJobs(): Promise<CloudRunJob[]> {
             status: job.latestCreatedExecution?.completionTime ? '完了' : '不明',
             lastExecution: formatTimestamp(job.latestCreatedExecution?.createTime),
             region: config.region,
+            location: config.region,
             creator: '',
             trigger: 'OpenTofu',
         };
