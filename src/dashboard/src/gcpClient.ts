@@ -8,6 +8,8 @@ import { WorkflowsClient } from '@google-cloud/workflows';
 import { ServicesClient, JobsClient } from '@google-cloud/run';
 import { InstancesClient } from '@google-cloud/compute';
 import { CloudBuildClient } from '@google-cloud/cloudbuild';
+import { BudgetServiceClient } from '@google-cloud/billing-budgets';
+import { BigQuery } from '@google-cloud/bigquery';
 import { config } from './config';
 
 // クライアントの初期化
@@ -17,6 +19,8 @@ const runServices = new ServicesClient();
 const runJobs = new JobsClient();
 const compute = new InstancesClient();
 const cloudBuild = new CloudBuildClient();
+const budgets = new BudgetServiceClient();
+const bigquery = new BigQuery();
 
 // ============================================================
 // Cloud Scheduler
@@ -43,7 +47,7 @@ export async function getSchedulerJobs(): Promise<SchedulerJob[]> {
         return {
             name: shortName,
             displayName: shortName,
-            lastStatus: mapSchedulerStatus(job.status?.latestExecution?.state || job.status?.state),
+            lastStatus: mapSchedulerStatus(job.status),
             lastRunTime: formatTimestamp(job.status?.latestExecution?.scheduleTime || job.lastAttemptTime),
             nextRunTime: formatTimestamp(job.nextRunTime),
             region: config.region,
@@ -59,13 +63,24 @@ export async function runSchedulerJob(jobName: string): Promise<void> {
     await scheduler.runJob({ name });
 }
 
-function mapSchedulerStatus(state?: string): string {
-    switch (state) {
-        case 'SUCCEEDED': return '成功';
-        case 'FAILED': return '失敗';
-        case 'RUNNING': return '実行中';
-        default: return '不明';
+function mapSchedulerStatus(status: any): string {
+    if (!status) return '不明';
+
+    // V2 API (Google Cloud Scheduler v1/v2 might have subtle differences in SDK)
+    const state = status.latestExecution?.state;
+    if (state) {
+        if (state === 'SUCCEEDED') return '成功';
+        if (state === 'FAILED') return '失敗';
+        if (state === 'RUNNING') return '実行中';
     }
+
+    // google.rpc.Status code mapping
+    // code: 0 or {} usually means success in Proto3 JSON if lastAttemptTime exists
+    if (status.code === 0 || (typeof status.code === 'undefined' && Object.keys(status).length === 0)) {
+        return '成功';
+    }
+
+    return (status.code > 0) ? '失敗' : '不明';
 }
 
 // ============================================================
@@ -187,9 +202,18 @@ export async function getCloudRunServices(): Promise<CloudRunService[]> {
 
     return filtered.map((svc: any) => {
         const shortName = svc.name?.split('/').pop() || '';
-        const isReady = svc.conditions?.some(
-            (c: any) => c.type === 'Ready' && c.state === 'CONDITION_SUCCEEDED'
-        );
+        const conditions = svc.conditions || svc.status?.conditions || [];
+
+        // デバッグ用: 必要に応じてコメントアウト
+        // console.log(`Service: ${shortName}`, JSON.stringify(svc.status || svc, (k,v) => k === 'conditions' ? '[...]' : v));
+
+        const isReady = conditions.some(
+            (c: any) => c.type?.toLowerCase() === 'ready' &&
+                (c.state === 'CONDITION_SUCCEEDED' || c.status === 'True' || c.state === 'SUCCEEDED')
+        ) || (svc.terminalCondition?.type?.toLowerCase() === 'ready' &&
+            (svc.terminalCondition?.state === 'CONDITION_SUCCEEDED' || svc.terminalCondition?.status === 'True'))
+            || (svc.latestReadyRevisionName && !svc.reconciling);
+
         return {
             name: shortName,
             status: isReady ? '正常' : 'エラー',
@@ -225,10 +249,22 @@ export async function getCloudRunJobs(): Promise<CloudRunJob[]> {
 
     return filtered.map((job: any) => {
         const shortName = job.name?.split('/').pop() || '';
+        const latest = job.latestCreatedExecution;
+        let status = '不明';
+        if (latest) {
+            if (latest.completionStatus === 'EXECUTION_SUCCEEDED' || latest.completionStatus === 'SUCCEEDED') {
+                status = '完了';
+            } else if (latest.completionStatus === 'EXECUTION_FAILED' || latest.completionStatus === 'FAILED') {
+                status = '失敗';
+            } else if (latest.createTime && !latest.completionTime) {
+                status = '実行中';
+            }
+        }
+
         return {
             name: shortName,
-            status: job.latestCreatedExecution?.completionTime ? '完了' : '不明',
-            lastExecution: formatTimestamp(job.latestCreatedExecution?.createTime),
+            status,
+            lastExecution: formatTimestamp(latest?.createTime),
             region: config.region,
             location: config.region,
             creator: '',
@@ -331,16 +367,67 @@ function mapBuildStatus(status?: string): string {
 }
 
 // ============================================================
+// Billing
+// ============================================================
+
+interface BillingSummary {
+    monthlyCost: string;
+    forecast: string;
+    budget: string;
+    trend: 'up' | 'down' | 'stable';
+    currency: string;
+}
+
+export async function getBillingSummary(): Promise<BillingSummary> {
+    try {
+        // 今月のコスト計算 (BigQuery)
+        const query = `
+            SELECT 
+                SUM(cost) as total_cost,
+                MIN(currency) as currency
+            FROM \`${config.projectId}.${config.billing.dataset}.${config.billing.tableName}\`
+            WHERE usage_start_time >= TIMESTAMP_TRUNC(CURRENT_TIMESTAMP(), MONTH)
+        `;
+        const [rows] = await bigquery.query({ query });
+        const cost = rows[0]?.total_cost || 0;
+        const currency = rows[0]?.currency || 'USD';
+
+        // 予算取得
+        const parent = `billingAccounts/${config.billing.accountId}`;
+        const [budgetList] = await budgets.listBudgets({ parent });
+        const budgetAmount = budgetList[0]?.amount?.specifiedAmount?.units || '0';
+
+        return {
+            monthlyCost: `$${cost.toFixed(2)}`,
+            forecast: 'データ収束中...',
+            budget: `$${budgetAmount}`,
+            trend: 'stable',
+            currency
+        };
+    } catch (err: any) {
+        console.error('billing query error:', err.message);
+        return {
+            monthlyCost: '$0.00',
+            forecast: '不明',
+            budget: '$0.00',
+            trend: 'stable',
+            currency: 'USD'
+        };
+    }
+}
+
+// ============================================================
 // Overview
 // ============================================================
 
 export async function getOverview() {
-    const [schedulerJobs, executions, services, jobs, instances] = await Promise.all([
+    const [schedulerJobs, executions, services, jobs, instances, billing] = await Promise.all([
         getSchedulerJobs().catch(() => []),
         getWorkflowExecutions().catch(() => []),
         getCloudRunServices().catch(() => []),
         getCloudRunJobs().catch(() => []),
         getComputeInstances().catch(() => []),
+        getBillingSummary().catch(() => ({ monthlyCost: '$0.00', budget: '$0.00', detail: 'データなし', currency: 'USD' })),
     ]);
 
     const schedulerOk = schedulerJobs.every(j => j.lastStatus === '成功');
@@ -351,6 +438,7 @@ export async function getOverview() {
         workflowState: { value: workflowOk ? '正常' : 'エラー', detail: workflowOk ? '最新 execution は成功' : '以前の実行に失敗あり' },
         runningResources: { value: services.length + jobs.length + instances.length, detail: `Run ${services.length} / Job ${jobs.length} / VM ${instances.length}` },
         externalIps: { value: instances.filter(i => i.externalIp).length, detail: '確認用 IP あり' },
+        billing: { value: (billing as any).monthlyCost, detail: `予算 ${(billing as any).budget} / ${(billing as any).currency}` },
     };
 }
 

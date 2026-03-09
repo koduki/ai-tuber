@@ -50,4 +50,10 @@ export const config = {
             'ai-tuber-mind-data-sync',
         ],
     },
+    // 請求設定
+    billing: {
+        accountId: '001D9E-0C663F-BD5019',
+        dataset: 'ops_raw',
+        tableName: 'gcp_billing_export_v1_001D9E_0C663F_BD5019',
+    }
 } as const;

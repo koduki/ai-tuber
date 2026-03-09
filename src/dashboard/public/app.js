@@ -120,6 +120,7 @@ async function loadOverview() {
         setMetric('mc-workflow', data.workflowState.value, data.workflowState.detail);
         setMetric('mc-resources', data.runningResources.value, data.runningResources.detail);
         setMetric('mc-ips', data.externalIps.value, data.externalIps.detail);
+        setMetric('mc-cost', data.billing.value, data.billing.detail);
         // 全体ステータス
         const badge = $('#overall-status');
         if (badge) {

@@ -9,6 +9,8 @@
         "dev": "tsx watch src/server.ts"
     },
     "dependencies": {
+        "@google-cloud/bigquery": "^8.1.1",
+        "@google-cloud/billing-budgets": "^6.1.1",
         "@google-cloud/cloudbuild": "^5.0.0",
         "@google-cloud/compute": "^4.0.0",
         "@google-cloud/run": "^1.0.0",
