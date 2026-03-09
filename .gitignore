@@ -23,6 +23,7 @@ Thumbs.db
 *.key
 google_client_secret.json
 yt_token.json
+src/dashboard/gcp-creds.json
 
 # OBS temp files
 *.lock
