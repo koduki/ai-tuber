@@ -294,12 +294,14 @@ export async function getCloudBuildHistory(): Promise<CloudBuild[]> {
         return (builds || []).slice(0, 10).map((b: any) => {
             return {
                 id: (b.id || '').substring(0, 8),
+                fullId: b.id || '',
                 status: mapBuildStatus(b.status),
                 region: 'global',
                 source: b.substitutions?._REPOSITORY || '',
                 ref: b.source?.repoSource?.branchName || '',
                 commit: (b.sourceProvenance?.resolvedRepoSource?.commitSha || '').substring(0, 8),
                 triggerName: b.buildTriggerId || '',
+                triggerId: b.buildTriggerId || '',
             };
         });
     } catch (err) {

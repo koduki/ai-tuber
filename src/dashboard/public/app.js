@@ -41,6 +41,32 @@ function errorHtml(msg) {
     return `<div class="error-message">データ取得に失敗しました: ${msg}</div>`;
 }
 
+function getConsoleUrl(type, item) {
+    const base = `${CONSOLE_BASE}`;
+    const p = `project=${projectId}`;
+    switch (type) {
+        case 'scheduler':
+            return `${base}/cloudscheduler/job/${item.region}/${item.name}?${p}`;
+        case 'workflow':
+            return `${base}/workflows/workflow/${item.location}/${item.name}/executions?${p}`;
+        case 'execution':
+            // 実行画面はワークフロー名が必要。現在ワークフローは1つのみ
+            return `${base}/workflows/workflow/${item.location || 'asia-northeast1'}/ai-tuber-streaming-pipeline/executions/${item.executionId}?${p}`;
+        case 'service':
+            return `${base}/run/detail/${item.region}/${item.name}/revisions?${p}`;
+        case 'job':
+            return `${base}/run/jobs/details/${item.region}/${item.name}/executions?${p}`;
+        case 'compute':
+            return `${base}/compute/instancesDetail/zones/${item.zone}/instances/${item.name}?${p}`;
+        case 'build':
+            return `${base}/cloud-build/builds/${item.fullId || item.id}?${p}&region=${item.region || 'global'}`;
+        case 'trigger':
+            return `${base}/cloud-build/triggers/edit/${item.triggerId || item.triggerName}?${p}`;
+        default:
+            return '#';
+    }
+}
+
 // ── API Fetch ─────────────────────────────────────────
 async function api(path) {
     const res = await fetch(path);
@@ -109,7 +135,7 @@ async function loadScheduler() {
       ${tableHtml(
             ['名前', '最後の実行のステータス', 'リージョン', '状態', '説明', '頻度', 'ターゲット'],
             jobs.map(j => [
-                `<div><strong>${linkHtml(j.name, '#')}</strong><div style="margin-top:4px;font-size:11px;color:var(--gray-500)">Cloud Scheduler</div></div>`,
+                `<div><strong>${linkHtml(j.name, getConsoleUrl('scheduler', j))}</strong><div style="margin-top:4px;font-size:11px;color:var(--gray-500)">Cloud Scheduler</div></div>`,
                 statusHtml(j.lastStatus, toneFor(j.lastStatus)),
                 j.region,
                 j.state,
@@ -134,7 +160,7 @@ async function loadWorkflows() {
             html += `
         <div class="wf-detail">
           <div class="wf-detail__header">
-            <div>ワークフロー: ${linkHtml(wf.name, '#')}</div>
+            <div>ワークフロー: ${linkHtml(wf.name, getConsoleUrl('workflow', wf))}</div>
             ${latestExec ? statusHtml('現在状態: ' + (latestExec.status === '成功' ? '正常' : latestExec.status), toneFor(latestExec.status)) : ''}
           </div>
           <div class="wf-detail__grid">
@@ -155,7 +181,7 @@ async function loadWorkflows() {
           <span class="exec-tag">${ex.stepName || 'end'}</span>
           <span style="font-size:12px;font-weight:500;color:${ex.status === '成功' ? 'var(--green)' : 'var(--red)'}">${ex.status}</span>
         </div>`,
-                linkHtml(ex.executionId, '#'),
+                linkHtml(ex.executionId, getConsoleUrl('execution', ex)),
                 ex.revision,
                 ex.created,
                 ex.started,
@@ -183,7 +209,7 @@ async function loadResources() {
             ['状態', '名前', 'リージョン', '認証', 'Ingress', 'リンク'],
             svcData.services.map(s => [
                 statusHtml(s.status, toneFor(s.status)),
-                linkHtml(s.name, s.uri),
+                linkHtml(s.name, getConsoleUrl('service', s)),
                 s.region,
                 s.authentication,
                 s.ingress,
@@ -197,7 +223,7 @@ async function loadResources() {
             ['状態', '名前', '最終実行', 'リージョン', '起点'],
             svcData.jobs.map(j => [
                 statusHtml(j.status, toneFor(j.status)),
-                linkHtml(j.name, '#'),
+                linkHtml(j.name, getConsoleUrl('job', j)),
                 j.lastExecution,
                 j.region,
                 j.trigger,
@@ -210,7 +236,7 @@ async function loadResources() {
             ['状態', '名前', 'ゾーン', '内部 IP', '外部 IP', '用途'],
             instances.map(vm => [
                 statusHtml(vm.status, toneFor(vm.status)),
-                linkHtml(vm.name, '#'),
+                linkHtml(vm.name, getConsoleUrl('compute', vm)),
                 vm.zone,
                 `<strong>${vm.internalIp}</strong>`,
                 `<strong>${vm.externalIp}</strong>`,
@@ -233,12 +259,12 @@ async function loadBuilds() {
             ['ステータス', 'ビルド', 'リージョン', 'ソース', 'Ref', 'commit', 'トリガー名'],
             builds.map(b => [
                 statusHtml(b.status, toneFor(b.status)),
-                linkHtml(b.id, '#'),
+                linkHtml(b.id, getConsoleUrl('build', b)),
                 b.region,
                 linkHtml(b.source, '#'),
                 b.ref,
                 linkHtml(b.commit, '#'),
-                linkHtml(b.triggerName, '#'),
+                linkHtml(b.triggerName, getConsoleUrl('trigger', b)),
             ])
         )}`;
     } catch (err) { container.innerHTML = errorHtml(err.message); }
@@ -254,7 +280,7 @@ async function loadDetailServices() {
             ['状態', '名前', 'リージョン', '認証', 'Ingress', 'URI'],
             data.services.map(s => [
                 statusHtml(s.status, toneFor(s.status)),
-                linkHtml(s.name, s.uri),
+                linkHtml(s.name, getConsoleUrl('service', s)),
                 s.region, s.authentication, s.ingress,
                 linkHtml(s.uri, s.uri),
             ])
@@ -263,7 +289,7 @@ async function loadDetailServices() {
             ['状態', '名前', '最終実行', 'リージョン', '起点'],
             data.jobs.map(j => [
                 statusHtml(j.status, toneFor(j.status)),
-                linkHtml(j.name, '#'),
+                linkHtml(j.name, getConsoleUrl('job', j)),
                 j.lastExecution, j.region, j.trigger,
             ])
         );
@@ -281,7 +307,7 @@ async function loadDetailJobs() {
             ['状態', '名前', '最終実行', 'リージョン', 'トリガー', '作成者'],
             data.jobs.map(j => [
                 statusHtml(j.status, toneFor(j.status)),
-                linkHtml(j.name, '#'),
+                linkHtml(j.name, getConsoleUrl('job', j)),
                 j.lastExecution, j.region, j.trigger, j.creator,
             ])
         );
@@ -295,7 +321,7 @@ async function loadDetailWorkflows() {
         wfEl.innerHTML = tableHtml(
             ['名前', '場所', 'リビジョン', '作成日', '更新日', 'ラベル'],
             workflows.map(w => [
-                linkHtml(w.name, '#'), w.location, w.revision, w.created, w.updated, w.labels,
+                linkHtml(w.name, getConsoleUrl('workflow', w)), w.location, w.revision, w.created, w.updated, w.labels,
             ])
         );
         const exEl = $('#detail-executions');
@@ -303,7 +329,7 @@ async function loadDetailWorkflows() {
             ['状態', '実行 ID', 'リビジョン', '作成日時', '開始時刻', '終了時間'],
             executions.map(ex => [
                 statusHtml(ex.status, toneFor(ex.status)),
-                linkHtml(ex.executionId, '#'),
+                linkHtml(ex.executionId, getConsoleUrl('execution', ex)),
                 ex.revision, ex.created, ex.started, ex.ended,
             ])
         );
@@ -320,7 +346,7 @@ async function loadDetailCompute() {
             ['状態', '名前', 'ゾーン', '内部 IP', '外部 IP', '用途'],
             instances.map(vm => [
                 statusHtml(vm.status, toneFor(vm.status)),
-                linkHtml(vm.name, '#'),
+                linkHtml(vm.name, getConsoleUrl('compute', vm)),
                 vm.zone, `<strong>${vm.internalIp}</strong>`, `<strong>${vm.externalIp}</strong>`, vm.description,
             ])
         );
@@ -335,8 +361,8 @@ async function loadDetailBuilds() {
             ['ステータス', 'ビルド', 'リージョン', 'ソース', 'Ref', 'commit', 'トリガー名'],
             builds.map(b => [
                 statusHtml(b.status, toneFor(b.status)),
-                linkHtml(b.id, '#'), b.region, linkHtml(b.source, '#'),
-                b.ref, linkHtml(b.commit, '#'), linkHtml(b.triggerName, '#'),
+                linkHtml(b.id, getConsoleUrl('build', b)), b.region, linkHtml(b.source, '#'),
+                b.ref, linkHtml(b.commit, '#'), linkHtml(b.triggerName, getConsoleUrl('trigger', b)),
             ])
         );
     } catch (err) { el.innerHTML = errorHtml(err.message); }
