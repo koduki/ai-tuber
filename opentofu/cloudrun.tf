@@ -224,3 +224,53 @@ output "tools_weather_url" {
 output "healthcheck_proxy_url" {
   value = google_cloud_run_v2_service.healthcheck_proxy.uri
 }
+
+# Cloud Run service for Ops Dashboard
+resource "google_cloud_run_v2_service" "dashboard" {
+  name     = "ai-tuber-dashboard"
+  location = var.region
+
+  labels = {
+    managed-by = "opentofu"
+    app        = "ai-tuber"
+  }
+
+  template {
+    containers {
+      image = "${var.region}-docker.pkg.dev/${var.project_id}/${var.artifact_repository}/dashboard:latest"
+
+      env {
+        name  = "GCP_PROJECT_ID"
+        value = var.project_id
+      }
+
+      env {
+        name  = "GCP_REGION"
+        value = var.region
+      }
+
+      env {
+        name  = "GCP_ZONE"
+        value = var.zone
+      }
+
+      resources {
+        limits = {
+          cpu    = "1"
+          memory = "512Mi"
+        }
+      }
+    }
+
+    service_account = google_service_account.ai_tuber_sa.email
+  }
+
+  traffic {
+    type    = "TRAFFIC_TARGET_ALLOCATION_TYPE_LATEST"
+    percent = 100
+  }
+}
+
+output "dashboard_url" {
+  value = google_cloud_run_v2_service.dashboard.uri
+}

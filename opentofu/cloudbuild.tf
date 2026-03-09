@@ -134,6 +134,32 @@ resource "google_cloudbuild_trigger" "mind_data_sync_trigger" {
   }
 }
 
+# 6. Trigger for Dashboard
+resource "google_cloudbuild_trigger" "dashboard_trigger" {
+  name        = "ai-tuber-dashboard"
+  description = "Build and deploy Dashboard on changes in src/dashboard/"
+
+  github {
+    owner = var.github_owner
+    name  = var.github_repository
+    push {
+      branch = "^main$|^master$|^dev/.*$"
+    }
+  }
+
+  included_files = [
+    "src/dashboard/**",
+    "cloudbuild-dashboard.yaml"
+  ]
+
+  filename = "cloudbuild-dashboard.yaml"
+
+  substitutions = {
+    _REGION     = var.region
+    _REPOSITORY = var.artifact_repository
+  }
+}
+
 # --- IAM Roles for Cloud Build Service Account ---
 
 data "google_project" "project" {}
