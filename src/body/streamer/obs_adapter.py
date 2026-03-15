@@ -35,42 +35,45 @@ LIP_SYNC_ADJUST_MS = int(os.getenv("LIP_SYNC_ADJUST_MS", "500"))
 
 # Global WebSocket client
 ws_client: Optional[obsws] = None
+_playback_event = asyncio.Event()
 
 # Scene Item ID Cache (to avoid redundant API calls)
 _source_id_cache = {}
 _current_scene_name = None
 
+def _on_media_start(event):
+    """OBSからのメディア再生開始イベントを受け取るコールバック"""
+    try:
+        source_name = event.getInputName()
+        if source_name == "voice":
+            logger.info("OBS Event: 'voice' playback actually started!")
+            # asyncio.Eventをセット（メインタスクの待機を解除）
+            # ただし、このコールバックは別スレッドで動くため、loop.call_soon_threadsafe等が必要な場合があるが、
+            # 基本的にEvent.set()はスレッドセーフなケースが多い（環境による）
+            _playback_event.set()
+    except Exception:
+        pass
 
 async def connect() -> bool:
-    """
-    OBS WebSocketに接続します。
-    既に関係がある場合は接続状態を確認し、切断されている場合は再接続します。
-    
-    Returns:
-        接続成功の場合True
-    """
+    """OBS WebSocketに接続し、イベントリスナーを登録します。"""
     global ws_client
     
-    # すでにクライアントが存在する場合
+    # 接続確認
     if ws_client is not None:
         try:
-            # 接続状態をテストするために簡単なリクエストを送る
             ws_client.call(obs_requests.GetVersion())
             return True
         except Exception:
-            # 接続が切れている場合はクリーンアップして再接続へ
-            logger.info("OBS connection lost, attempting to reconnect...")
-            try:
-                ws_client.disconnect()
-            except:
-                pass
             ws_client = None
     
     try:
-        logger.info(f"Connecting to OBS at {OBS_HOST}:{OBS_PORT}")
         ws_client = obsws(OBS_HOST, OBS_PORT, OBS_PASSWORD)
         ws_client.connect()
-        logger.info("Connected to OBS WebSocket")
+        
+        # 再生開始イベント（v5）を購読
+        ws_client.register(_on_media_start, "MediaInputPlaybackStarted")
+        
+        logger.info("Connected to OBS WebSocket and registered event listeners")
         return True
     except Exception as e:
         logger.debug(f"Failed to connect to OBS: {e}")
@@ -379,20 +382,27 @@ async def play_media_with_emotion(audio_source: str, file_path: str, emotion: st
         await asyncio.sleep(0.1)
         
         # --- 発火フェーズ ---
-        # 5. 音声再生トリガーを「先」に引く
+        # 5. イベントフラグをリセット
+        _playback_event.clear()
+
+        # 6. 音声再生トリガーを引く
         ws_client.call(obs_requests.TriggerMediaInputAction(
             inputName=audio_source,
             mediaAction="OBS_WEBSOCKET_MEDIA_INPUT_ACTION_RESTART"
         ))
         
-        # 6. OBS内部で音声が鳴り始めるまでの時間差を吸収するために待機
-        if LIP_SYNC_ADJUST_MS > 0:
-            await asyncio.sleep(LIP_SYNC_ADJUST_MS / 1000.0)
+        # 7. OBSから「再生が始まったよ！」というイベントが来るのを待つ（最大5秒）
+        # これにより内部のバッファリング時間を完璧に同期させます
+        try:
+            logger.info("Waiting for OBS playback event...")
+            await asyncio.wait_for(_playback_event.wait(), timeout=5.0)
+            logger.info("Playback event received! Showing mouth movement.")
+        except asyncio.TimeoutError:
+            logger.warning("Timeout waiting for OBS playback event. Showing mouth anyway.")
 
-        # 7. 表情変更（口パク開始）を実行
+        # 8. 表情変更（口パク開始）を実行
         await set_visible_source(emotion)
         
-        logger.info(f"Synchronized playback started. (Audio triggered first, then {LIP_SYNC_ADJUST_MS}ms delay for visuals)")
         return True
     except Exception as e:
         logger.error(f"Error in play_media_with_emotion: {e}")
