@@ -554,6 +554,40 @@ NVIDIA GPU 以外（CPU のみ等）を使用する場合は、この値を `x26
 
 ---
 
+## 運用ダッシュボードの問題
+
+### Google ログイン後に「Access Denied」と表示される
+
+**症状**:
+Google ログインは成功するが、その後「Access Denied: ユーザー xxx はこのプロジェクトの閲覧権限を持っていません」というメッセージが表示される。
+
+**原因**:
+1. **ユーザー権限の不足**: ログインした Google アカウントが、GCP プロジェクトの IAM で `roles/viewer`（閲覧者）以上の権限を持っていない。
+2. **サービスアカウントの権限不足**: ダッシュボードの Cloud Run が使用しているサービスアカウント（`ai-tuber-sa`）に、プロジェクトの IAM ポリシーを読み取るための権限（`roles/iam.securityReviewer`）が付与されていない。
+
+**解決方法**:
+- ユーザーに権限があるか確認（Owner 権限であれば問題ありません）。
+- Terraform (`iam.tf`) で `google_project_iam_member.project_iam_viewer` が正しく設定され、apply されているか確認してください。
+
+---
+
+### Google ログイン後に「Permission check error」が出る、または 403 エラー
+
+**症状**:
+ログに `Cloud Resource Manager API has not been used in project ... before or it is disabled` というエラーが出ている。
+
+**原因**:
+IAM 権限のプログラム的確認に必要な **Cloud Resource Manager API** がプロジェクトで有効になっていない。
+
+**解決方法**:
+以下のコマンドで API を有効化してください：
+```bash
+gcloud services enable cloudresourcemanager.googleapis.com
+```
+反映には数分かかる場合があります。
+
+---
+
 ## ログの確認方法
 
 ### すべてのサービスのログ
