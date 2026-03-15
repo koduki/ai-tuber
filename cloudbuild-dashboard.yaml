@@ -1,7 +1,7 @@
 steps:
   # Build Docker image
   - name: 'gcr.io/cloud-builders/docker'
-    args: ['build', '-t', '${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/dashboard:$COMMIT_SHA', '-t', '${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/dashboard:latest', '-f', 'src/dashboard/Dockerfile', 'src/dashboard']
+    args: ['build', '-t', '${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/dashboard:$COMMIT_SHA', '-t', '${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/dashboard:latest', '-f', 'dashboard/Dockerfile', 'dashboard']
 
   # Push image
   - name: 'gcr.io/cloud-builders/docker'

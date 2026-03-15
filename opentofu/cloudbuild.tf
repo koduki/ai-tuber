@@ -137,7 +137,7 @@ resource "google_cloudbuild_trigger" "mind_data_sync_trigger" {
 # 6. Trigger for Dashboard
 resource "google_cloudbuild_trigger" "dashboard_trigger" {
   name        = "ai-tuber-dashboard"
-  description = "Build and deploy Dashboard on changes in src/dashboard/"
+  description = "Build and deploy Dashboard on changes in dashboard/"
 
   github {
     owner = var.github_owner
@@ -148,7 +148,7 @@ resource "google_cloudbuild_trigger" "dashboard_trigger" {
   }
 
   included_files = [
-    "src/dashboard/**",
+    "dashboard/**",
     "cloudbuild-dashboard.yaml"
   ]
 

@@ -23,7 +23,7 @@ AI Tuber プラットフォームの GCP リソースの状態を可視化する
 ## ディレクトリ構成
 
 ```text
-src/dashboard/
+dashboard/
 ├── Dockerfile          # マルチステージビルド定義
 ├── package.json        # 依存関係定義
 ├── src/                # バックエンド TypeScript 
@@ -43,7 +43,7 @@ src/dashboard/
 Node.js 20+ が必要です。
 
 ```bash
-cd src/dashboard
+cd dashboard
 npm install
 ```
 
