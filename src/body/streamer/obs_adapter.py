@@ -29,6 +29,10 @@ EMOTION_MAP = {
     "silent": "silent",
 }
 
+# リップシンク調整：音声が鳴り始めるまでのOBS内部遅延をミリ秒で指定
+# 0.5s〜1s遅れるとのことなので、デフォルトを400ms〜800ms程度で調整可能にします
+LIP_SYNC_ADJUST_MS = int(os.getenv("LIP_SYNC_ADJUST_MS", "500"))
+
 # Global WebSocket client
 ws_client: Optional[obsws] = None
 
@@ -371,20 +375,24 @@ async def play_media_with_emotion(audio_source: str, file_path: str, emotion: st
         except Exception:
             pass
             
-        # 4. OBS側での読み込み完了を待つ (少し長めに0.1s)
+        # 4. OBS側での読み込み完了を待つ (0.1s)
         await asyncio.sleep(0.1)
         
         # --- 発火フェーズ ---
-        # 5. 表情変更を実行
-        await set_visible_source(emotion)
-
-        # 6. 音声再生トリガーを引く
+        # 5. 音声再生トリガーを「先」に引く
         ws_client.call(obs_requests.TriggerMediaInputAction(
             inputName=audio_source,
             mediaAction="OBS_WEBSOCKET_MEDIA_INPUT_ACTION_RESTART"
         ))
         
-        logger.info(f"Synchronized playback and emotion '{emotion}' triggered.")
+        # 6. OBS内部で音声が鳴り始めるまでの時間差を吸収するために待機
+        if LIP_SYNC_ADJUST_MS > 0:
+            await asyncio.sleep(LIP_SYNC_ADJUST_MS / 1000.0)
+
+        # 7. 表情変更（口パク開始）を実行
+        await set_visible_source(emotion)
+        
+        logger.info(f"Synchronized playback started. (Audio triggered first, then {LIP_SYNC_ADJUST_MS}ms delay for visuals)")
         return True
     except Exception as e:
         logger.error(f"Error in play_media_with_emotion: {e}")
