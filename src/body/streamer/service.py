@@ -19,6 +19,7 @@ class StreamerBodyService(BodyServiceBase):
         self._current_broadcast_id = None
         self._action_queue = asyncio.Queue()
         self._worker_task = None
+        self._pending_broadcast_config = None
 
     async def start_worker(self):
         """バックグラウンドワーカーを開始します。"""
@@ -50,19 +51,23 @@ class StreamerBodyService(BodyServiceBase):
                     style = task.get("style")
                     speaker_id = task.get("speaker_id")
                     
-                    # 実際に音声生成と再生を行う
                     try:
+                        # 1. 音声生成（2〜3秒かかる）
                         file_path, duration = await voice_adapter.generate_and_save(text, style, speaker_id)
                         
-                        # 音声生成完了後、再生（play_audio_file）の直前で口パクの表情パターンのソースを表示する
-                        # これにより、音声生成中（2〜3秒）に無言で口が動く非同期現象を完全に防止します
+                        # 2. 【配信開始の同期（初回のみ）】
+                        if self._pending_broadcast_config is not None:
+                            config = self._pending_broadcast_config
+                            self._pending_broadcast_config = None
+                            await self._execute_actual_broadcast_start(config)
+
+                        # 3. 表情変更と音声再生をほぼ同時に開始（ズレを最小化）
                         if style:
                             await obs_adapter.set_visible_source(style)
-                            
+                        
                         await self.play_audio_file(file_path, duration)
                         
-                        # 音声再生終了後、即座に口を閉じた状態（silent）に戻します。
-                        # これにより「音が終わったのに口がまだ動いている」現象を防ぎます。
+                        # 4. 音声再生終了後、即座に口を閉じる
                         await obs_adapter.set_visible_source("silent")
 
                         logger.info(f"[Worker:speak] Completed: {text[:30]}...")
@@ -125,20 +130,28 @@ class StreamerBodyService(BodyServiceBase):
             return json.dumps([])
 
     async def start_broadcast(self, config: Optional[Dict[str, Any]] = None) -> str:
-        """配信または録画を開始します。"""
+        """配信または録画の開始を予約します（最初の発話時に同期して開始されます）。"""
+        self._pending_broadcast_config = config or {}
+        logger.info("[start_broadcast] Broadcast start deferred until first speech.")
+        return "配信開始を予約しました。最初の発話に合わせて開始されます。"
+
+    async def _execute_actual_broadcast_start(self, config: Dict[str, Any]) -> str:
+        """実際に配信または録画を開始する内部メソッド。"""
         streaming_mode = os.getenv("STREAMING_MODE", "false").lower() == "true"
-        config = config or {}
         
         try:
             if streaming_mode:
-                return await self._start_streaming(config)
+                result = await self._start_streaming(config)
+                # ストリーミング開始後の安定化待機（YouTube側にデータが届き始めるまで数秒待つ）
+                await asyncio.sleep(3)
+                return result
             else:
                 result = await self.start_obs_recording()
                 # OBS録画開始後の安定化待機
-                await asyncio.sleep(3)
+                await asyncio.sleep(2)
                 return result
         except Exception as e:
-            logger.error(f"Error in start_broadcast: {e}")
+            logger.error(f"Error in _execute_actual_broadcast_start: {e}")
             return f"配信開始エラー: {str(e)}"
 
     async def stop_broadcast(self) -> str:
@@ -174,13 +187,9 @@ class StreamerBodyService(BodyServiceBase):
 
     async def play_audio_file(self, file_path: str, duration: float) -> str:
         """事前生成された音声ファイルを再生し、完了まで待機します。"""
-        # OBSでのバッファリング等の遅延補正（通常はローカルファイルなので0秒でよい）
         try:
-            # OBSの制約により、非表示のメディアソースは音声が出力されないため、常に表示(True)状態を維持します。
-            # これによりミキサーからソースが消えるのを防ぎます。
-            await obs_adapter.set_source_visibility("voice", True)
-
             # ファイルをロード・再生開始（この瞬間から音声が流れる）
+            # 内部で0.05sの待機後にRestart命令が飛びます
             await obs_adapter.refresh_media_source("voice", file_path)
 
             # 次の音声と被らないように再生完了まで待機

@@ -148,12 +148,15 @@ async def set_visible_source(emotion: str) -> str:
     
     try:
         # ちらつき防止のため、まず新しい感情ソースを表示
-        await set_source_visibility(source_name, True)
+        tasks = [set_source_visibility(source_name, True)]
 
-        # その後、他のすべての感情ソースを非表示
+        # その後、他のすべての感情ソースを非表示（これらを並列実行して高速化）
         for emo_source in EMOTION_MAP.values():
             if emo_source != source_name:
-                await set_source_visibility(emo_source, False)
+                tasks.append(set_source_visibility(emo_source, False))
+        
+        # すべての指令を並列で実行
+        await asyncio.gather(*tasks)
         
         logger.info(f"Changed emotion to: {emotion} (source: {source_name})")
         return f"表情変更: {emotion}"
@@ -164,7 +167,7 @@ async def set_visible_source(emotion: str) -> str:
 
 async def refresh_media_source(source_name: str, file_path: str) -> bool:
     """
-    メディアソースのファイルパスを更新して再生します。
+    指定されたメディアソースのファイルを更新し、再生を開始します。
     
     Args:
         source_name: メディアソース名
@@ -193,14 +196,13 @@ async def refresh_media_source(source_name: str, file_path: str) -> bool:
         try:
             ws_client.call(obs_requests.SetInputVolume(inputName=source_name, inputVolumeMul=1.0))
             ws_client.call(obs_requests.SetInputMute(inputName=source_name, inputMuted=False))
-            logger.info(f"Ensured volume 1.0 and unmuted for '{source_name}'")
-        except Exception as e:
-            logger.warning(f"Failed to set volume/mute via v5 API (might be v4): {e}")
+        except Exception:
+            pass
 
-        # 3. OBSが設定を反映するのをわずかに待つ
-        await asyncio.sleep(0.1)
+        # 3. OBSが設定を反映するのをわずかに待つ（高速化のため短縮）
+        await asyncio.sleep(0.05)
         
-        # 4. 再生を最初から開始 (Restart)
+        # 4. 再生をリスタート (v5 API)
         try:
             ws_client.call(obs_requests.TriggerMediaInputAction(
                 inputName=source_name,
