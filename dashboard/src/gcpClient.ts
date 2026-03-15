@@ -483,6 +483,47 @@ export async function getOverview() {
     };
 }
 
+/**
+ * ユーザーがプロジェクトに対する閲覧権限以上の IAM ロールを持っているか確認
+ */
+export async function checkUserPermission(email: string): Promise<boolean> {
+    try {
+        // Cloud Resource Manager API を使用して IAM ポリシーを取得
+        const { GoogleAuth } = await import('google-auth-library');
+        const auth = new GoogleAuth({
+            scopes: ['https://www.googleapis.com/auth/cloud-platform']
+        });
+        const client = await auth.getClient();
+        const projectId = config.projectId;
+        const url = `https://cloudresourcemanager.googleapis.com/v1/projects/${projectId}:getIamPolicy`;
+
+        const res = await client.request<{ bindings: { role: string, members: string[] }[] }>({ url, method: 'POST' });
+        const policy = res.data;
+
+        // 閲覧権限以上の代表的なロールをチェック
+        const allowedRoles = [
+            'roles/viewer',
+            'roles/editor',
+            'roles/owner',
+            'roles/browser', // 少なくともプロジェクトを表示できる
+        ];
+
+        const userEntries = [
+            `user:${email}`,
+            `domain:${email.split('@')[1]}`, // ドメイン全体に許可がある場合
+        ];
+
+        return policy.bindings.some(binding => 
+            allowedRoles.includes(binding.role) && 
+            binding.members.some(member => userEntries.includes(member))
+        );
+    } catch (err) {
+        console.error('Permission check error:', err);
+        // 安全のため、エラー時は拒否
+        return false;
+    }
+}
+
 function formatTimestamp(ts?: any): string {
     if (!ts) return '';
     try {

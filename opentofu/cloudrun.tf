@@ -229,6 +229,7 @@ output "healthcheck_proxy_url" {
 resource "google_cloud_run_v2_service" "dashboard" {
   name     = "ai-tuber-dashboard"
   location = var.region
+  ingress  = "INGRESS_TRAFFIC_ALL"
 
   labels = {
     managed-by = "opentofu"
@@ -254,6 +255,41 @@ resource "google_cloud_run_v2_service" "dashboard" {
         value = var.zone
       }
 
+      env {
+        name  = "OAUTH_CLIENT_ID"
+        value_source {
+          secret_key_ref {
+            secret  = "oauth-client-id" # Secret Manager に手動で入れる前提
+            version = "latest"
+          }
+        }
+      }
+
+      env {
+        name  = "OAUTH_CLIENT_SECRET"
+        value_source {
+          secret_key_ref {
+            secret  = "oauth-client-secret"
+            version = "latest"
+          }
+        }
+      }
+
+      env {
+        name  = "SESSION_SECRET"
+        value_source {
+          secret_key_ref {
+            secret  = "dashboard-session-secret"
+            version = "latest"
+          }
+        }
+      }
+
+      env {
+        name  = "OAUTH_REDIRECT_URI"
+        value = "https://ai-tuber-dashboard-dtpytkqsoq-an.a.run.app/auth/callback" # URL は apply 後に確定するので、一旦プレースホルダか output から参照
+      }
+
       resources {
         limits = {
           cpu    = "1"
@@ -275,11 +311,10 @@ output "dashboard_url" {
   value = google_cloud_run_v2_service.dashboard.uri
 }
 
-# Allow authenticated access for dashboard (needed for gcloud proxy)
-resource "google_cloud_run_v2_service_iam_member" "dashboard_auth" {
+resource "google_cloud_run_v2_service_iam_member" "dashboard_public" {
   project  = google_cloud_run_v2_service.dashboard.project
   location = google_cloud_run_v2_service.dashboard.location
   name     = google_cloud_run_v2_service.dashboard.name
   role     = "roles/run.invoker"
-  member   = "allAuthenticatedUsers"
+  member   = "allUsers" # アプリ層で保護するためパブリックにする
 }
