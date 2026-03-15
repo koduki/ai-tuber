@@ -517,8 +517,8 @@ export async function checkUserPermission(email: string): Promise<boolean> {
             allowedRoles.includes(binding.role) && 
             binding.members.some(member => userEntries.includes(member))
         );
-    } catch (err) {
-        console.error('Permission check error:', err);
+    } catch (err: any) {
+        console.error('Permission check error:', err.message || err);
         // 安全のため、エラー時は拒否
         return false;
     }

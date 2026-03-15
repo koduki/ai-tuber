@@ -108,9 +108,9 @@ resource "google_project_iam_member" "workflows_viewer" {
 }
 
 # Allow ai-tuber-sa to read IAM policy to check user permissions
-resource "google_project_iam_member" "project_browser" {
+resource "google_project_iam_member" "project_iam_viewer" {
   project = var.project_id
-  role    = "roles/browser"
+  role    = "roles/iam.securityReviewer"
   member  = "serviceAccount:${google_service_account.ai_tuber_sa.email}"
 }
 
