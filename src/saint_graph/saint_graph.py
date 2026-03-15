@@ -196,33 +196,20 @@ class SaintGraph:
             # 感情タグのチェックと抽出 (先頭から)
             emotion_match = re.search(r'\[emotion:\s*(\w+)\]', buffered_text)
             if emotion_match:
-                # タグより前にテキストがあれば、まずはそれを文として処理
-                pre_text = buffered_text[:emotion_match.start()]
-                if pre_text.strip():
-                    sentences = self._split_sentences(pre_text, force_flush=flush)
-                    # 最後の要素以外（=完成した文）を送信
-                    for i in range(len(sentences) - 1):
-                        if sentences[i].strip():
-                            await self._speak_sentence(sentences[i].strip(), current_emotion)
-                            count += 1
-                    
-                    if len(sentences) > 0:
-                        last_part = sentences[-1]
-                        if flush and last_part.strip():
-                            await self._speak_sentence(last_part.strip(), current_emotion)
-                            count += 1
-                            last_part = ""
-                        # 残りのテキストはまだ送信せず、感情タグ移行のバッファにする
-                        buffered_text = last_part + buffered_text[emotion_match.end():]
-                    else:
-                        buffered_text = buffered_text[emotion_match.end():]
-                else:
-                    # 感情の更新
-                    new_emotion = emotion_match.group(1).lower()
-                    if new_emotion != current_emotion:
-                        await self.body.change_emotion(new_emotion)
-                        current_emotion = new_emotion
-                    buffered_text = buffered_text[emotion_match.end():]
+                # 感情タグの前のテキストがあれば、現在の感情で即座に発話（感情切り替え前のフラッシュ）
+                pre_text = buffered_text[:emotion_match.start()].strip()
+                if pre_text:
+                    await self._speak_sentence(pre_text, current_emotion)
+                    count += 1
+                
+                # 感情の更新
+                new_emotion = emotion_match.group(1).lower()
+                if new_emotion != current_emotion:
+                    await self.body.change_emotion(new_emotion)
+                    current_emotion = new_emotion
+                
+                # 処理済み部分をバッファから削除
+                buffered_text = buffered_text[emotion_match.end():]
                 continue # タグを処理したら再度ループで次のパーツを探す
 
             # 感情タグがない場合、文の区切りを探す
