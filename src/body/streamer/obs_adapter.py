@@ -5,10 +5,12 @@ from typing import Optional
 import asyncio
 
 try:
-    from obswebsocket import obsws, requests as obs_requests
+    from obswebsocket import obsws, requests as obs_requests, events as obs_events
 except ImportError:
     obs_requests = None
     obsws = None
+    obs_events = None
+
 
 logger = logging.getLogger(__name__)
 
@@ -36,6 +38,8 @@ LIP_SYNC_ADJUST_MS = int(os.getenv("LIP_SYNC_ADJUST_MS", "500"))
 # Global WebSocket client
 ws_client: Optional[obsws] = None
 _playback_event = asyncio.Event()
+_main_loop: Optional[asyncio.AbstractEventLoop] = None
+
 
 # Scene Item ID Cache (to avoid redundant API calls)
 _source_id_cache = {}
@@ -47,12 +51,15 @@ def _on_media_start(event):
         source_name = event.getInputName()
         if source_name == "voice":
             logger.info("OBS Event: 'voice' playback actually started!")
-            # asyncio.Eventをセット（メインタスクの待機を解除）
-            # ただし、このコールバックは別スレッドで動くため、loop.call_soon_threadsafe等が必要な場合があるが、
-            # 基本的にEvent.set()はスレッドセーフなケースが多い（環境による）
-            _playback_event.set()
-    except Exception:
-        pass
+            # メインスレッドのEventをスレッドセーフにセット
+            if _main_loop and _main_loop.is_running():
+                _main_loop.call_soon_threadsafe(_playback_event.set)
+            else:
+                # フォールバック
+                _playback_event.set()
+    except Exception as e:
+        logger.error(f"Error in OBS callback: {e}")
+
 
 async def connect() -> bool:
     """OBS WebSocketに接続し、イベントリスナーを登録します。"""
@@ -67,11 +74,15 @@ async def connect() -> bool:
             ws_client = None
     
     try:
+        global _main_loop
+        _main_loop = asyncio.get_running_loop()
+
         ws_client = obsws(OBS_HOST, OBS_PORT, OBS_PASSWORD)
         ws_client.connect()
         
         # 再生開始イベント（v5）を購読
-        ws_client.register(_on_media_start, "MediaInputPlaybackStarted")
+        ws_client.register(_on_media_start, obs_events.MediaInputPlaybackStarted)
+
         
         logger.info("Connected to OBS WebSocket and registered event listeners")
         return True
@@ -396,9 +407,17 @@ async def play_media_with_emotion(audio_source: str, file_path: str, emotion: st
         try:
             logger.info("Waiting for OBS playback event...")
             await asyncio.wait_for(_playback_event.wait(), timeout=5.0)
-            logger.info("Playback event received! Showing mouth movement.")
+            logger.info(f"Playback event received! Delaying {LIP_SYNC_ADJUST_MS}ms before showing mouth.")
+            
+            # リップシンク微調整：イベント受信から実際に表示を切り替えるまで待機
+            # 映像より音声が遅れる場合はここを増やす
+            if LIP_SYNC_ADJUST_MS > 0:
+                await asyncio.sleep(LIP_SYNC_ADJUST_MS / 1000.0)
+                
+            logger.info("Showing mouth movement now.")
         except asyncio.TimeoutError:
             logger.warning("Timeout waiting for OBS playback event. Showing mouth anyway.")
+
 
         # 8. 表情変更（口パク開始）を実行
         await set_visible_source(emotion)

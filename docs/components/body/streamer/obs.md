@@ -31,10 +31,11 @@ obs-websocket-py  (pip install obs-websocket-py)
 
 ```python
 try:
-    from obswebsocket import obsws, requests as obs_requests
+    from obswebsocket import obsws, requests as obs_requests, events as obs_events
 except ImportError:
     obs_requests = None
     obsws = None
+    obs_events = None
 ```
 
 #### OBS WebSocket v5 の特徴
@@ -90,9 +91,14 @@ connect() 呼び出し
 
 ---
 
-### 音声再生と口パクの同期フロー
+### 音声再生と口パクの同期フロー (v5 高度同期)
  
- `refresh_media_source()` は単純なファイル差し替えではなく、OBS の再生タイミングを確実に制御するために複数のステップを踏みます。また、`StreamerBodyService` のワーカー層で「音声生成完了」を待ってから表情を切り替えるため、**「口だけが先に動く」現象が防止されています。**
+ OBS v5 API とイベントリスナーを活用し、**「実際に音声が再生され始めた瞬間」**を検知して口パクを開始する高度な同期ロジックを実装しています。
+
+1.  **装填フェーズ**: `SetInputSettings` でファイルをセットし、再生準備を行う。
+2.  **イベント待機**: `TriggerMediaInputAction` (RESTART) を実行し、同時に `MediaInputPlaybackStarted` イベントの待機を開始する。
+3.  **着火フェーズ**: OBS から「再生開始」イベントを受信した瞬間に、表情を切り替えて口パクを開始する。
+4.  **微調整**: `LIP_SYNC_ADJUST_MS` によって、イベント受信から実際の切り替えまでにミリ秒単位のオフセットを付加できる。
 
 ```mermaid
 sequenceDiagram
@@ -100,15 +106,15 @@ sequenceDiagram
     participant A as obs_adapter
     participant O as OBS Studio
 
-    Note over S: 1. 声の生成 (2-3秒) を待つ
-    S->>A: set_visible_source("joyful")
-    A->>O: SetSceneItemEnabled("joyful", true)
-    S->>A: refresh_media_source("voice", audio.wav)
+    S->>A: play_media_with_emotion("voice", audio.wav, "joyful")
     A->>O: SetInputSettings(local_file="audio.wav")
-    Note over A: 安定化のため 0.1s 待機
+    Note over A: 準備のため 0.1s 待機
     A->>O: TriggerMediaInputAction(RESTART)
-    O-->>A: 再生開始
-    Note over S: 2. 再生完了まで待機
+    O-->>A: (内部バッファリング)
+    O-->>A: Event: MediaInputPlaybackStarted
+    Note over A: LIP_SYNC_ADJUST_MS 待機
+    A->>O: SetSceneItemEnabled("joyful", true)
+    Note over S: 音声の長さ分だけ sleep
     S->>A: set_visible_source("silent")
     A->>O: 全部非表示にし、"silent"を表示
 ```
@@ -178,6 +184,7 @@ sequenceDiagram
 | `OBS_HOST` | OBS Studio のホスト名 | `obs-studio` |
 | `OBS_PORT` | OBS WebSocket のポート | `4455` |
 | `OBS_PASSWORD` | WebSocket のパスワード | (なし) |
+| `LIP_SYNC_ADJUST_MS` | 音声開始イベント検知から口パク開始までの遅延 (ms) | `500` |
 
 ---
 

@@ -125,8 +125,8 @@ class SaintGraph:
                 
                 buffered_text = ""
                 current_emotion = "neutral"
-                # ターン開始時に「無言」状態から「通常」状態へリセット
-                await self.body.change_emotion(current_emotion)
+                # ターン開始時に「無言」状態へリセット（LLMの思考中に口が動かないようにする）
+                await self.body.change_emotion("silent")
                 sentences_spoken = 0
 
                 # AIからのテキスト出力をストリーミング的に処理
