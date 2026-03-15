@@ -60,7 +60,7 @@ async def main():
 
         # 配信開始後、OBSの映像ソース（GPUデコーダー）が安定するまで待機
         # BROADCAST_START_DELAY を調整することで冒頭のブラックアウト期間を回避できる
-        start_delay = float(os.getenv("BROADCAST_START_DELAY", "90"))
+        start_delay = float(os.getenv("BROADCAST_START_DELAY", "15"))
         logger.info(f"Waiting {start_delay}s for OBS video sources to initialize...")
         await asyncio.sleep(start_delay)
         logger.info("OBS stabilization wait complete. Starting broadcast loop.")

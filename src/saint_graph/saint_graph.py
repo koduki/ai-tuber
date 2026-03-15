@@ -100,7 +100,7 @@ class SaintGraph:
     async def process_turn(self, user_input: str, context: Optional[str] = None):
         """
         単一のインタラクションターンを処理します。
-        AIからのテキスト出力を取得し、感情タグ [emotion: ...] をパースして Body API を実行します。
+        AIからのテキスト出力を取得し、随時パースして文章単位でストリーミング的に Body API (TTS) を実行します。
         """
         logger.info(f"Turn started. Input: {user_input[:50]}..., Context: {context}")
         max_retries = 3
@@ -123,9 +123,13 @@ class SaintGraph:
                 if context:
                     current_user_message = f"[{context}]\n{user_input}"
                 
-                # AIからの全テキストを蓄積
-                full_text = ""
-                
+                buffered_text = ""
+                current_emotion = "neutral"
+                # ターン開始時に「無言」状態から「通常」状態へリセット
+                await self.body.change_emotion(current_emotion)
+                sentences_spoken = 0
+
+                # AIからのテキスト出力をストリーミング的に処理
                 async for event in self.runner.run_async(
                     new_message=types.Content(role="user", parts=[types.Part(text=current_user_message)]), 
                     user_id="yt_user", 
@@ -134,23 +138,22 @@ class SaintGraph:
                     # テキストパートを抽出
                     t = self._extract_text_from_event(event)
                     if t:
-                        full_text += t
-
-                # センテンス単位でパース
-                if full_text:
-                    sentences = self._parse_response(full_text)
-                    logger.info(f"Parsed {len(sentences)} sentences from AI response")
-                    
-                    current_emotion = None
-                    for emotion, text in sentences:
-                        # 感情が変わった場合のみ変更
-                        if emotion != current_emotion:
-                            await self.body.change_emotion(emotion)
-                            current_emotion = emotion
+                        buffered_text += t
                         
-                        # 発話（キューに追加）
-                        await self.body.speak(text, style=emotion, speaker_id=self.speaker_id)
-                    
+                        # バッファされたテキストから文や感情タグを随時抽出して処理
+                        buffered_text, current_emotion, count = await self._process_buffered_text(
+                            buffered_text, current_emotion
+                        )
+                        sentences_spoken += count
+
+                # 残りのバッファがあれば最後に処理
+                if buffered_text.strip():
+                    buffered_text, current_emotion, count = await self._process_buffered_text(
+                        buffered_text, current_emotion, flush=True
+                    )
+                    sentences_spoken += count
+
+                if sentences_spoken > 0:
                     # このターンで投げた内容を全て話し終えるまで待機（配信のリズム維持のため）
                     logger.info("Waiting for speech to finish before completing turn...")
                     await self.body.wait_for_queue()
@@ -158,7 +161,7 @@ class SaintGraph:
                     # 話し終わったら「無言」状態に切り替える
                     await self.body.change_emotion("silent")
                     
-                    logger.info(f"Turn completed. {len(sentences)} sentences spoken")
+                    logger.info(f"Turn completed. {sentences_spoken} sentences spoken")
                 else:
                     logger.warning("No text output received from AI.")
                 
@@ -182,6 +185,79 @@ class SaintGraph:
 
                 logger.exception("Error in process_turn: %s", e)
                 raise
+                
+    async def _process_buffered_text(self, buffered_text: str, current_emotion: str, flush: bool = False) -> tuple[str, str, int]:
+        """
+        バッファされた文字列を解析し、完成した文があればTTSキューに送信。
+        残りの未完成な文字列と現在の感情を返します。
+        """
+        count = 0
+        while True:
+            # 感情タグのチェックと抽出 (先頭から)
+            emotion_match = re.search(r'\[emotion:\s*(\w+)\]', buffered_text)
+            if emotion_match:
+                # タグより前にテキストがあれば、まずはそれを文として処理
+                pre_text = buffered_text[:emotion_match.start()]
+                if pre_text.strip():
+                    sentences = self._split_sentences(pre_text, force_flush=flush)
+                    # 最後の要素以外（=完成した文）を送信
+                    for i in range(len(sentences) - 1):
+                        if sentences[i].strip():
+                            await self._speak_sentence(sentences[i].strip(), current_emotion)
+                            count += 1
+                    
+                    if len(sentences) > 0:
+                        last_part = sentences[-1]
+                        if flush and last_part.strip():
+                            await self._speak_sentence(last_part.strip(), current_emotion)
+                            count += 1
+                            last_part = ""
+                        # 残りのテキストはまだ送信せず、感情タグ移行のバッファにする
+                        buffered_text = last_part + buffered_text[emotion_match.end():]
+                    else:
+                        buffered_text = buffered_text[emotion_match.end():]
+                else:
+                    # 感情の更新
+                    new_emotion = emotion_match.group(1).lower()
+                    if new_emotion != current_emotion:
+                        await self.body.change_emotion(new_emotion)
+                        current_emotion = new_emotion
+                    buffered_text = buffered_text[emotion_match.end():]
+                continue # タグを処理したら再度ループで次のパーツを探す
+
+            # 感情タグがない場合、文の区切りを探す
+            sentences = self._split_sentences(buffered_text, force_flush=flush)
+            
+            # 区切られた文が1つ以下（=まだ文が完了していない）でflushフラグもない場合は待機
+            if not flush and len(sentences) <= 1:
+                break
+                
+            # 完成した文を送信
+            for i in range(len(sentences) - 1):
+                if sentences[i].strip():
+                    await self._speak_sentence(sentences[i].strip(), current_emotion)
+                    count += 1
+            
+            # バッファの更新
+            if len(sentences) > 0:
+                buffered_text = sentences[-1]
+                if flush and buffered_text.strip():
+                    await self._speak_sentence(buffered_text.strip(), current_emotion)
+                    count += 1
+                    buffered_text = ""
+            else:
+                buffered_text = ""
+            break
+            
+        return buffered_text, current_emotion, count
+
+    async def _speak_sentence(self, sentence: str, emotion: str):
+        """1文を発話キューに入れます。"""
+        # 単純なタグは除去
+        sentence = re.sub(r'\[emotion:\s*(\w+)\]', '', sentence).strip()
+        if sentence:
+            logger.debug(f"Streaming sentence to TTS: {sentence[:30]}... (emotion: {emotion})")
+            await self.body.speak(sentence, style=emotion, speaker_id=self.speaker_id)
 
     def _extract_text_from_event(self, event) -> Optional[str]:
         """ADKイベントからテキストを抽出します。"""
@@ -195,77 +271,9 @@ class SaintGraph:
                 return "".join(text_parts)
         return None
 
-    def _parse_response(self, full_text: str) -> list[tuple[str, str]]:
+    def _split_sentences(self, text: str, force_flush: bool = False) -> list[str]:
         """
-        テキストから感情タグと文章を抽出し、(emotion, sentence)のリストを返します。
-        
-        サポート形式:
-        - [emotion: happy] 文章1。文章2。
-        - [emotion: happy] 文章1。[emotion: sad] 文章2。
-        
-        Returns:
-            [(emotion, sentence), ...] のリスト
+        テキストを区切りません。
+        一括でVoiceVoxに渡すことで、OBSでの2.5秒のリップシンクラグによる「文ごとの不自然な間」を解消します。
         """
-        result = []
-        current_emotion = "neutral"  # デフォルト感情
-        
-        # 感情タグとテキストを分割
-        parts = re.split(r'(\[emotion:\s*\w+\])', full_text)
-        
-        current_text = ""
-        for part in parts:
-            part = part.strip()
-            if not part:
-                continue
-                
-            # 感情タグの場合
-            emotion_match = re.match(r'\[emotion:\s*(\w+)\]', part)
-            if emotion_match:
-                # 前のテキストがあれば保存
-                if current_text:
-                    sentences = self._split_sentences(current_text)
-                    for sent in sentences:
-                        if sent.strip():
-                            result.append((current_emotion, sent.strip()))
-                    current_text = ""
-                # 感情を更新
-                current_emotion = emotion_match.group(1).lower()
-            else:
-                # 通常のテキスト
-                current_text += part
-        
-        # 残りのテキストを処理
-        if current_text:
-            sentences = self._split_sentences(current_text)
-            for sent in sentences:
-                if sent.strip():
-                    result.append((current_emotion, sent.strip()))
-        
-        # 結果が空の場合はデフォルトを返す
-        if not result:
-            result = [("neutral", full_text.strip())]
-        
-        return result
-    
-    def _split_sentences(self, text: str) -> list[str]:
-        """
-        テキストを文単位で分割します。
-        日本語（。！？）と英語（.!?）の両方に対応。
-        """
-        # 文末記号で分割
-        sentences = re.split(r'([。！？.!?]+)', text)
-        
-        # 分割結果を再結合（区切り文字を含める）
-        result = []
-        for i in range(0, len(sentences) - 1, 2):
-            sentence = sentences[i]
-            if i + 1 < len(sentences):
-                sentence += sentences[i + 1]  # 区切り文字を追加
-            if sentence.strip():
-                result.append(sentence)
-        
-        # 最後の要素が区切り文字でない場合
-        if len(sentences) % 2 == 1 and sentences[-1].strip():
-            result.append(sentences[-1])
-        
-        return result if result else [text]
+        return [text]

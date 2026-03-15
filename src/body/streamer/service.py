@@ -53,7 +53,18 @@ class StreamerBodyService(BodyServiceBase):
                     # 実際に音声生成と再生を行う
                     try:
                         file_path, duration = await voice_adapter.generate_and_save(text, style, speaker_id)
+                        
+                        # 音声生成完了後、再生（play_audio_file）の直前で口パクの表情パターンのソースを表示する
+                        # これにより、音声生成中（2〜3秒）に無言で口が動く非同期現象を完全に防止します
+                        if style:
+                            await obs_adapter.set_visible_source(style)
+                            
                         await self.play_audio_file(file_path, duration)
+                        
+                        # 音声再生終了後、即座に口を閉じた状態（silent）に戻します。
+                        # これにより「音が終わったのに口がまだ動いている」現象を防ぎます。
+                        await obs_adapter.set_visible_source("silent")
+
                         logger.info(f"[Worker:speak] Completed: {text[:30]}...")
                     except Exception as e:
                         logger.error(f"Error in worker speak task: {e}")
@@ -163,25 +174,17 @@ class StreamerBodyService(BodyServiceBase):
 
     async def play_audio_file(self, file_path: str, duration: float) -> str:
         """事前生成された音声ファイルを再生し、完了まで待機します。"""
-        # OBSがファイルをバッファリングするのを待ってから口パクを開始する
-        # LIP_SYNC_DELAY を調整することで口パクと音声のズレを補正できる
-        lip_sync_delay = float(os.getenv("LIP_SYNC_DELAY", "2.5"))
-
+        # OBSでのバッファリング等の遅延補正（通常はローカルファイルなので0秒でよい）
         try:
-            # ファイルをロード（この時点ではまだ口パクしない）
-            await obs_adapter.refresh_media_source("voice", file_path)
-
-            # OBSのバッファリング待機 → 音声実出力タイミングに口パクを合わせる
-            await asyncio.sleep(lip_sync_delay)
-
-            # 口パク開始（ソース表示）
+            # OBSの制約により、非表示のメディアソースは音声が出力されないため、常に表示(True)状態を維持します。
+            # これによりミキサーからソースが消えるのを防ぎます。
             await obs_adapter.set_source_visibility("voice", True)
 
-            # 再生完了まで待機（バッファとして0.2秒追加）
-            await asyncio.sleep(duration + 0.2)
+            # ファイルをロード・再生開始（この瞬間から音声が流れる）
+            await obs_adapter.refresh_media_source("voice", file_path)
 
-            # 口パク終了（ソース非表示）
-            await obs_adapter.set_source_visibility("voice", False)
+            # 次の音声と被らないように再生完了まで待機
+            await asyncio.sleep(duration + 0.1)
 
             logger.info(f"[play_audio_file] Completed playback ({duration:.1f}s)")
             return f"再生完了 ({duration:.1f}s)"

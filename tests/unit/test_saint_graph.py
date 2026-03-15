@@ -73,6 +73,7 @@ async def test_process_turn_parses_emotion_tag(mock_adk):
     # Verify
     from unittest.mock import call
     sg.body.change_emotion.assert_has_calls([
+        call("neutral"),
         call("joyful"),
         call("silent")
     ])
