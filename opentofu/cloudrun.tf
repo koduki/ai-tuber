@@ -237,8 +237,103 @@ resource "google_cloud_run_v2_service" "dashboard" {
   }
 
   template {
+    # OAuth2 Proxy container (Primary / Ingress)
     containers {
+      name  = "oauth2-proxy"
+      image = "quay.io/oauth2-proxy/oauth2-proxy:latest"
+
+      ports {
+        container_port = 8080
+      }
+
+      env {
+        name  = "OAUTH2_PROXY_PROVIDER"
+        value = "google"
+      }
+
+      env {
+        name  = "OAUTH2_PROXY_CLIENT_ID"
+        value_source {
+          secret_key_ref {
+            secret  = "oauth-client-id"
+            version = "latest"
+          }
+        }
+      }
+
+      env {
+        name  = "OAUTH2_PROXY_CLIENT_SECRET"
+        value_source {
+          secret_key_ref {
+            secret  = "oauth-client-secret"
+            version = "latest"
+          }
+        }
+      }
+
+      env {
+        name  = "OAUTH2_PROXY_COOKIE_SECRET"
+        value_source {
+          secret_key_ref {
+            secret  = "dashboard-session-secret"
+            version = "latest"
+          }
+        }
+      }
+
+      env {
+        name  = "OAUTH2_PROXY_EMAIL_DOMAINS"
+        value = "*"
+      }
+
+      # 許可するメールアドレスのリスト
+      env {
+        name  = "OAUTH2_PROXY_AUTHENTICATED_EMAILS"
+        value = "pascalm3@gmail.com"
+      }
+
+      env {
+        name  = "OAUTH2_PROXY_UPSTREAMS"
+        value = "http://localhost:8081"
+      }
+
+      env {
+        name  = "OAUTH2_PROXY_HTTP_ADDRESS"
+        value = "0.0.0.0:8080"
+      }
+
+      env {
+        name  = "OAUTH2_PROXY_REDIRECT_URL"
+        value = "https://ai-tuber-dashboard-dtpytkqsoq-an.a.run.app/auth/callback"
+      }
+
+      env {
+        name  = "OAUTH2_PROXY_PROXY_PREFIX"
+        value = "/auth"
+      }
+
+      env {
+        name  = "OAUTH2_PROXY_REVERSE_PROXY"
+        value = "true"
+      }
+
+      resources {
+        limits = {
+          cpu    = "1"
+          memory = "256Mi"
+        }
+      }
+    }
+
+    # Dashboard App container (Sidecar)
+    containers {
+      name  = "dashboard"
       image = "${var.region}-docker.pkg.dev/${var.project_id}/${var.artifact_repository}/dashboard:latest"
+
+      env {
+        name  = "PORT"
+        value = "8081"
+      }
 
       env {
         name  = "GCP_PROJECT_ID"
@@ -253,41 +348,6 @@ resource "google_cloud_run_v2_service" "dashboard" {
       env {
         name  = "GCP_ZONE"
         value = var.zone
-      }
-
-      env {
-        name  = "OAUTH_CLIENT_ID"
-        value_source {
-          secret_key_ref {
-            secret  = "oauth-client-id" # Secret Manager に手動で入れる前提
-            version = "latest"
-          }
-        }
-      }
-
-      env {
-        name  = "OAUTH_CLIENT_SECRET"
-        value_source {
-          secret_key_ref {
-            secret  = "oauth-client-secret"
-            version = "latest"
-          }
-        }
-      }
-
-      env {
-        name  = "SESSION_SECRET"
-        value_source {
-          secret_key_ref {
-            secret  = "dashboard-session-secret"
-            version = "latest"
-          }
-        }
-      }
-
-      env {
-        name  = "OAUTH_REDIRECT_URI"
-        value = "https://ai-tuber-dashboard-dtpytkqsoq-an.a.run.app/auth/callback" # URL は apply 後に確定するので、一旦プレースホルダか output から参照
       }
 
       resources {

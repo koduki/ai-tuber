@@ -56,12 +56,4 @@ export const config = {
         dataset: 'ops_raw',
         tableName: 'gcp_billing_export_v1_001D9E_0C663F_BD5019',
     },
-
-    // OAuth 認証設定
-    auth: {
-        clientId: process.env.OAUTH_CLIENT_ID || '',
-        clientSecret: process.env.OAUTH_CLIENT_SECRET || '',
-        redirectUri: process.env.OAUTH_REDIRECT_URI || 'http://localhost:8080/auth/callback',
-        sessionSecret: process.env.SESSION_SECRET || 'ai-tuber-dashboard-secret',
-    }
 } as const;

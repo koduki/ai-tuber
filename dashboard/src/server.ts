@@ -1,89 +1,32 @@
 /**
  * ダッシュボード Express サーバー (Modular IDP Version)
+ * 認証はサイドカー (OAuth2 Proxy) で行うため、ここではアプリロジックに集中する
  */
 
 import express from 'express';
 import path from 'path';
-import cookieSession from 'cookie-session';
 import { config } from './config';
-import { getOAuth2Client, checkUserPermission } from './core/auth';
-import { loadModules, ModuleInfo } from './core/loader';
+import { loadModules } from './core/loader';
 
 async function startServer() {
     const app = express();
-    const oauth2Client = getOAuth2Client();
 
     // モジュールのロード
     const modulesDir = path.join(__dirname, 'modules');
     const modules = await loadModules(modulesDir);
 
-    // セッション設定
-    app.use(cookieSession({
-        name: 'session',
-        keys: [config.auth.sessionSecret],
-        maxAge: 24 * 60 * 60 * 1000 // 24 hours
-    }));
+    // ─── ミドルウェア ──────────────────────────────────
 
-    // ─── 認証ミドルウェア ──────────────────────────────────
-
-    const authMiddleware = async (req: express.Request, res: express.Response, next: express.NextFunction) => {
-        if (!req.session?.tokens) {
-            if (req.path.startsWith('/api/')) {
-                return res.status(401).json({ error: 'Unauthorized' });
-            }
-            return res.redirect('/auth/login');
+    // OAuth2 Proxy から渡されるヘッダーを取得するミドルウェア
+    app.use((req, res, next) => {
+        const userEmail = req.header('X-Forwarded-Email') || req.header('X-Auth-Request-Email');
+        if (userEmail) {
+            (req as any).userEmail = userEmail;
         }
         next();
-    };
-
-    // ─── 認証ルート ────────────────────────────────────
-
-    app.get('/auth/login', (req, res) => {
-        const authorizeUrl = oauth2Client.generateAuthUrl({
-            access_type: 'offline',
-            scope: ['https://www.googleapis.com/auth/userinfo.email', 'openid'],
-        });
-        res.redirect(authorizeUrl);
-    });
-
-    app.get('/auth/callback', async (req, res) => {
-        const { code } = req.query;
-        if (!code) return res.status(400).send('Code not found');
-
-        try {
-            const { tokens } = await oauth2Client.getToken(code as string);
-            const ticket = await oauth2Client.verifyIdToken({
-                idToken: tokens.id_token!,
-                audience: config.auth.clientId,
-            });
-            const payload = ticket.getPayload();
-            const email = payload?.email;
-
-            if (!email) throw new Error('Email not found in token');
-
-            const hasAccess = await checkUserPermission(email);
-            if (!hasAccess) {
-                return res.status(403).send(`Access Denied: ユーザー ${email} は権限を持っていません。`);
-            }
-
-            req.session!.tokens = tokens;
-            req.session!.userEmail = email;
-
-            res.redirect('/');
-        } catch (err: any) {
-            console.error('Auth error:', err.message);
-            res.status(500).send('Authentication failed');
-        }
-    });
-
-    app.get('/auth/logout', (req, res) => {
-        req.session = null;
-        res.send('Logged out');
     });
 
     // ─── API エンドポイント ──────────────────────────────────
-
-    app.use('/api', authMiddleware);
 
     // モジュール一覧 (Manifest)
     app.get('/api/manifest', (req, res) => {
@@ -104,7 +47,7 @@ async function startServer() {
             projectId: config.projectId,
             region: config.region,
             zone: config.zone,
-            userEmail: req.session?.userEmail,
+            userEmail: (req as any).userEmail,
         });
     });
 
@@ -115,13 +58,13 @@ async function startServer() {
     const clientPublicPath = path.join(__dirname, '..', 'public'); // 互換性のため
 
     if (process.env.NODE_ENV === 'production') {
-        app.use(authMiddleware, express.static(clientDistPath));
-        app.get('*', authMiddleware, (req, res) => {
+        app.use(express.static(clientDistPath));
+        app.get('*', (req, res) => {
             res.sendFile(path.join(clientDistPath, 'index.html'));
         });
     } else {
         // 開発時は public ディレクトリまたは Vite Proxy を想定
-        app.use(authMiddleware, express.static(clientPublicPath));
+        app.use(express.static(clientPublicPath));
     }
 
     // ─── サーバー起動 ──────────────────────────────────────
