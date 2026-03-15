@@ -185,6 +185,7 @@ class StreamerBodyService(BodyServiceBase):
     async def play_audio_with_sync_emotion(self, file_path: str, duration: float, emotion: str) -> str:
         """音声の装填を先に済ませ、表情切り替えと再生開始を同時に叩き込みます。"""
         try:
+            logger.info(f"[play_audio_sync] Starting playback of {file_path} (duration: {duration:.1f}s) with emotion: {emotion}")
             # obs_adapter側の新メソッドを呼び出す（表情と音声を同時着火）
             await obs_adapter.play_media_with_emotion("voice", file_path, emotion)
 

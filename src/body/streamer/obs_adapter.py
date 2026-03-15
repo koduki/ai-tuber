@@ -32,6 +32,10 @@ EMOTION_MAP = {
 # Global WebSocket client
 ws_client: Optional[obsws] = None
 
+# Scene Item ID Cache (to avoid redundant API calls)
+_source_id_cache = {}
+_current_scene_name = None
+
 
 async def connect() -> bool:
     """
@@ -86,32 +90,34 @@ async def disconnect():
 
 async def set_source_visibility(source_name: str, visible: bool, scene_name: Optional[str] = None) -> bool:
     """
-    ソースの表示/非表示を切り替えます。
-    
-    Args:
-        source_name: ソース名
-        visible: 表示する場合True
-        scene_name: シーン名 (Noneの場合は現在のシーン)
-        
-    Returns:
-        成功の場合True
+    ソースの表示/非表示を切り替えます（キャッシュを活用して高速化）。
     """
+    global _source_id_cache, _current_scene_name
+    
     if not await connect():
         return False
     
     try:
+        # シーン名の取得とキャッシュのリフレッシュ
         if scene_name is None:
-            # 現在のシーンを取得
-            current_scene = ws_client.call(obs_requests.GetCurrentProgramScene())
-            scene_name = current_scene.getSceneName()
-        
-        # アイテムリストを取得してIDを探す (OBS WebSocket v5)
-        scene_items = ws_client.call(obs_requests.GetSceneItemList(sceneName=scene_name))
-        scene_item_id = None
-        for item in scene_items.getSceneItems():
-            if item["sourceName"] == source_name:
-                scene_item_id = item["sceneItemId"]
-                break
+            if _current_scene_name is None:
+                resp = ws_client.call(obs_requests.GetCurrentProgramScene())
+                _current_scene_name = resp.getSceneName()
+            scene_name = _current_scene_name
+
+        # キャッシュの確認
+        cache_key = f"{scene_name}:{source_name}"
+        scene_item_id = _source_id_cache.get(cache_key)
+
+        if scene_item_id is None:
+            # キャッシュにない場合は取得
+            scene_items = ws_client.call(obs_requests.GetSceneItemList(sceneName=scene_name))
+            for item in scene_items.getSceneItems():
+                item_name = item["sourceName"]
+                item_id = item["sceneItemId"]
+                _source_id_cache[f"{scene_name}:{item_name}"] = item_id
+                if item_name == source_name:
+                    scene_item_id = item_id
         
         if scene_item_id is None:
             logger.warning(f"Source '{source_name}' not found in scene '{scene_name}'")
@@ -123,42 +129,33 @@ async def set_source_visibility(source_name: str, visible: bool, scene_name: Opt
             sceneItemId=scene_item_id,
             sceneItemEnabled=visible
         ))
-        logger.info(f"Set source '{source_name}' (ID: {scene_item_id}) visibility to {visible}")
         return True
     except Exception as e:
-        logger.error(f"Error setting source visibility: {e}")
+        logger.error(f"Error setting source visibility for '{source_name}': {e}")
+        # エラー時はキャッシュをクリアして次回リトライ
+        _source_id_cache = {}
+        _current_scene_name = None
         return False
 
 
 async def set_visible_source(emotion: str) -> str:
     """
     指定された感情に対応する立ち絵ソースを表示します。
-    他の感情ソースは非表示にします。
-    
-    Args:
-        emotion: 感情 (neutral, happy, sad, angry)
-        
-    Returns:
-        結果メッセージ
     """
     source_name = EMOTION_MAP.get(emotion, EMOTION_MAP["neutral"])
-    
     if not await connect():
         return f"OBS接続エラー"
     
     try:
-        # ちらつき防止のため、まず新しい感情ソースを表示
-        tasks = [set_source_visibility(source_name, True)]
+        # スレッドセーフかつ高速に実行するため、直列に実行します（キャッシュがあるので十分早いです）
+        # 1. まずターゲットを表示
+        await set_source_visibility(source_name, True)
 
-        # その後、他のすべての感情ソースを非表示（これらを並列実行して高速化）
-        for emo_source in EMOTION_MAP.values():
+        # 2. 他を非表示
+        for emo_source in set(EMOTION_MAP.values()):
             if emo_source != source_name:
-                tasks.append(set_source_visibility(emo_source, False))
+                await set_source_visibility(emo_source, False)
         
-        # すべての指令を並列で実行
-        await asyncio.gather(*tasks)
-        
-        logger.info(f"Changed emotion to: {emotion} (source: {source_name})")
         return f"表情変更: {emotion}"
     except Exception as e:
         logger.error(f"Error changing emotion: {e}")
@@ -356,37 +353,38 @@ async def play_media_with_emotion(audio_source: str, file_path: str, emotion: st
     abs_path = os.path.abspath(file_path)
 
     try:
-        # 1. まず音声ファイルの「装填」だけ済ませる（まだ再生しない）
+        # --- 準備フェーズ ---
+        # 1. 音声ソースを必ず「表示」状態にする（ミキサー消失防止）
+        await set_source_visibility(audio_source, True)
+
+        # 2. 音声ファイルの「装填」を済ませる
         ws_client.call(obs_requests.SetInputSettings(
             inputName=audio_source,
             inputSettings={"local_file": abs_path},
             overlay=True
         ))
         
-        # 2. 音量/ミュート設定を確実にする
+        # 3. 音量/ミュート設定
         try:
             ws_client.call(obs_requests.SetInputVolume(inputName=audio_source, inputVolumeMul=1.0))
             ws_client.call(obs_requests.SetInputMute(inputName=audio_source, inputMuted=False))
         except Exception:
             pass
             
-        # 3. OBS側での読み込み完了をわずかに待つ
-        await asyncio.sleep(0.05)
+        # 4. OBS側での読み込み完了を待つ (少し長めに0.1s)
+        await asyncio.sleep(0.1)
         
-        # 4. 再生トリガー(RESTART)と、表情変更(ソース表示)を一斉に実行！
-        # これにより「声と口」のズレの最大の原因である直列処理の遅延を解消します
-        tasks = [
-            # 音声再生開始
-            asyncio.to_thread(ws_client.call, obs_requests.TriggerMediaInputAction(
-                inputName=audio_source,
-                mediaAction="OBS_WEBSOCKET_MEDIA_INPUT_ACTION_RESTART"
-            )),
-            # 表情ソースの表示（および他を消す）
-            set_visible_source(emotion)
-        ]
+        # --- 発火フェーズ ---
+        # 5. 表情変更を実行
+        await set_visible_source(emotion)
+
+        # 6. 音声再生トリガーを引く
+        ws_client.call(obs_requests.TriggerMediaInputAction(
+            inputName=audio_source,
+            mediaAction="OBS_WEBSOCKET_MEDIA_INPUT_ACTION_RESTART"
+        ))
         
-        await asyncio.gather(*tasks)
-        logger.info(f"Synchronized playback and emotion '{emotion}' started.")
+        logger.info(f"Synchronized playback and emotion '{emotion}' triggered.")
         return True
     except Exception as e:
         logger.error(f"Error in play_media_with_emotion: {e}")
