@@ -17,20 +17,10 @@
 
   <!-- ===== Header ===== -->
   <header class="header" id="header">
-    <button class="header__menu" aria-label="メニュー">
-      <span></span><span></span><span></span>
-    </button>
     <div class="header__logo">
       <span class="logo-g">G</span><span class="logo-o1">o</span><span class="logo-o2">o</span><span
         class="logo-g2">g</span><span class="logo-l">l</span><span class="logo-e">e</span>
       <span class="logo-cloud">Cloud</span>
-    </div>
-    <div class="header__search">
-      <svg viewBox="0 0 24 24" class="search-icon">
-        <path
-          d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0016 9.5 6.5 6.5 0 109.5 16a6.471 6.471 0 004.23-1.57l.27.28v.79L20 21.5 21.5 20l-6-6zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z" />
-      </svg>
-      Search resources, jobs, workflows, services
     </div>
     <div class="header__actions">
       <button class="icon-btn">?</button>
@@ -40,14 +30,6 @@
   </header>
 
   <div class="layout">
-    <!-- ===== Sidebar ===== -->
-    <aside class="sidebar" id="sidebar">
-      <button class="sidebar__item sidebar__item--active" title="ホーム">⌂</button>
-      <button class="sidebar__item" title="リスト">≡</button>
-      <button class="sidebar__item" title="グリッド">▣</button>
-      <button class="sidebar__item" title="ターゲット">◎</button>
-      <button class="sidebar__item" title="設定">⚙</button>
-    </aside>
 
     <!-- ===== Main Content ===== -->
     <main class="main">
@@ -229,6 +211,44 @@
               <h2>Cloud Build 履歴</h2>
             </div>
             <div class="card__body" id="detail-builds-full">
+              <div class="loading-placeholder">読み込み中...</div>
+            </div>
+          </div>
+        </section>
+
+        <section class="tab-panel hidden" id="panel-cost">
+          <div class="metrics">
+            <div class="metric-card">
+              <div class="metric-card__label">今月の合計</div>
+              <div class="metric-card__value" id="cost-total">$0.00</div>
+            </div>
+            <div class="metric-card">
+              <div class="metric-card__label">予算設定</div>
+              <div class="metric-card__value" id="cost-budget">$0.00</div>
+            </div>
+            <div class="metric-card">
+              <div class="metric-card__label">予測 (データ収束中)</div>
+              <div class="metric-card__value" id="cost-forecast">$0.00</div>
+            </div>
+          </div>
+
+          <div class="card" style="margin-top:1rem">
+            <div class="card__header">
+              <h2>日次コスト推移 (直近30日)</h2>
+            </div>
+            <div class="card__body">
+              <div id="cost-chart" class="cost-chart-container">
+                <!-- 簡易的なバー表示などは JS で動的生成 -->
+                <div class="loading-placeholder">データを取得中...</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="card" style="margin-top:1rem">
+            <div class="card__header">
+              <h2>サービス別内訳 (今月)</h2>
+            </div>
+            <div class="card__body" id="cost-breakdown">
               <div class="loading-placeholder">読み込み中...</div>
             </div>
           </div>

@@ -99,6 +99,17 @@ app.get('/api/builds', async (_req, res) => {
     }
 });
 
+/** Billing 情報 */
+app.get('/api/billing', async (_req, res) => {
+    try {
+        const billing = await gcp.getBillingSummary();
+        res.json(billing);
+    } catch (err: any) {
+        console.error('billing error:', err.message);
+        res.status(500).json({ error: err.message });
+    }
+});
+
 /** 設定情報 (フロントエンド用) */
 app.get('/api/config', (_req, res) => {
     res.json({

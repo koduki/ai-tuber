@@ -261,14 +261,18 @@ export async function getCloudRunJobs(): Promise<CloudRunJob[]> {
             }
         }
 
+        // 起点と作成者の判定
+        const trigger = latest?.labels?.['run.googleapis.com/triggered-by'] || (shortName.includes('collector') ? 'Cloud Scheduler' : 'Manual');
+        const creator = latest?.annotations?.['run.googleapis.com/creator'] || '';
+
         return {
             name: shortName,
             status,
             lastExecution: formatTimestamp(latest?.createTime),
             region: config.region,
             location: config.region,
-            creator: '',
-            trigger: 'OpenTofu',
+            creator,
+            trigger,
         };
     });
 }
@@ -303,7 +307,7 @@ export async function getComputeInstances(): Promise<ComputeInstance[]> {
                 zone: config.zone,
                 internalIp: networkInterface?.networkIP ? `${networkInterface.networkIP} (nic0)` : '',
                 externalIp: networkInterface?.accessConfigs?.[0]?.natIP ? `${networkInterface.accessConfigs[0].natIP} (nic0)` : '',
-                description: 'Body 接続確認用',
+                description: instance.description || (instance.labels?.['purpose'] || 'Body 接続確認用'),
             });
         } catch (err) {
             results.push({ name: instanceName, status: '取得エラー', zone: config.zone, internalIp: '', externalIp: '', description: '' });
@@ -376,21 +380,54 @@ interface BillingSummary {
     budget: string;
     trend: 'up' | 'down' | 'stable';
     currency: string;
+    dailyCosts: { date: string, cost: number }[];
+    serviceCosts: { name: string, cost: number }[];
 }
 
 export async function getBillingSummary(): Promise<BillingSummary> {
     try {
         // 今月のコスト計算 (BigQuery)
-        const query = `
+        const summaryQuery = `
             SELECT 
                 SUM(cost) as total_cost,
                 MIN(currency) as currency
             FROM \`${config.projectId}.${config.billing.dataset}.${config.billing.tableName}\`
             WHERE usage_start_time >= TIMESTAMP_TRUNC(CURRENT_TIMESTAMP(), MONTH)
         `;
-        const [rows] = await bigquery.query({ query });
-        const cost = rows[0]?.total_cost || 0;
-        const currency = rows[0]?.currency || 'USD';
+
+        const dailyQuery = `
+            SELECT 
+                DATE(usage_start_time) as usage_date,
+                SUM(cost) as daily_cost
+            FROM \`${config.projectId}.${config.billing.dataset}.${config.billing.tableName}\`
+            WHERE usage_start_time >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 30 DAY)
+            GROUP BY usage_date
+            ORDER BY usage_date ASC
+        `;
+
+        const serviceQuery = `
+            SELECT 
+                service.description as service_name,
+                SUM(cost) as service_cost
+            FROM \`${config.projectId}.${config.billing.dataset}.${config.billing.tableName}\`
+            WHERE usage_start_time >= TIMESTAMP_TRUNC(CURRENT_TIMESTAMP(), MONTH)
+            GROUP BY service_name
+            ORDER BY service_cost DESC
+            LIMIT 5
+        `;
+
+        const [
+            [summaryRows],
+            [dailyRows],
+            [serviceRows]
+        ] = await Promise.all([
+            bigquery.query({ query: summaryQuery }),
+            bigquery.query({ query: dailyQuery }),
+            bigquery.query({ query: serviceQuery })
+        ]);
+
+        const cost = summaryRows[0]?.total_cost || 0;
+        const currency = summaryRows[0]?.currency || 'USD';
 
         // 予算取得
         const parent = `billingAccounts/${config.billing.accountId}`;
@@ -402,7 +439,9 @@ export async function getBillingSummary(): Promise<BillingSummary> {
             forecast: 'データ収束中...',
             budget: `$${budgetAmount}`,
             trend: 'stable',
-            currency
+            currency,
+            dailyCosts: dailyRows.map((r: any) => ({ date: r.usage_date.value, cost: r.daily_cost })),
+            serviceCosts: serviceRows.map((r: any) => ({ name: r.service_name, cost: r.service_cost })),
         };
     } catch (err: any) {
         console.error('billing query error:', err.message);
@@ -411,7 +450,9 @@ export async function getBillingSummary(): Promise<BillingSummary> {
             forecast: '不明',
             budget: '$0.00',
             trend: 'stable',
-            currency: 'USD'
+            currency: 'USD',
+            dailyCosts: [],
+            serviceCosts: [],
         };
     }
 }

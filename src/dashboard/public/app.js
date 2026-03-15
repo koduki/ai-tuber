@@ -147,7 +147,6 @@ async function loadScheduler() {
         const jobs = await api('/api/scheduler');
         if (!jobs.length) { container.innerHTML = '<p class="loading-placeholder">ジョブなし</p>'; return; }
         container.innerHTML = `
-      <div class="filter-bar"><span>フィルタ</span><span class="filter-bar__input">ジョブのフィルタ</span></div>
       ${tableHtml(
             ['名前', '最後の実行のステータス', 'Last run', 'Next run', 'リージョン', '状態', '説明', '頻度', 'アクション'],
             jobs.map(j => [
@@ -190,7 +189,6 @@ async function loadWorkflows() {
         </div>`;
         }
 
-        html += `<div class="filter-bar"><span>フィルタ</span><span class="filter-bar__input">実行をフィルタ</span></div>`;
         html += tableHtml(
             ['状態', '実行 ID', 'ワークフローのリビジョン', '作成日時', '開始時刻', '終了時間'],
             executions.map(ex => [
@@ -386,6 +384,60 @@ async function loadDetailBuilds() {
     } catch (err) { el.innerHTML = errorHtml(err.message); }
 }
 
+async function loadDetailCost() {
+    try {
+        const billing = await api('/api/billing');
+
+        // カード更新
+        $('#cost-total').textContent = billing.monthlyCost || '$0.00';
+        $('#cost-budget').textContent = billing.budget || '$0.00';
+        $('#cost-forecast').textContent = billing.forecast || '不明';
+
+        // サービス内訳テーブル
+        const breakdownEl = $('#cost-breakdown');
+        if (billing.serviceCosts && billing.serviceCosts.length > 0) {
+            breakdownEl.innerHTML = tableHtml(
+                ['サービス名', 'コスト (今月累計)'],
+                billing.serviceCosts.map(s => [s.name, `$${s.cost.toFixed(2)}`])
+            );
+        } else {
+            breakdownEl.innerHTML = '<div class="empty-state">データがありません</div>';
+        }
+
+        // 日次チャート (簡易的な動的生成)
+        const chartEl = $('#cost-chart');
+        chartEl.innerHTML = '';
+        chartEl.className = 'cost-chart';
+
+        const maxCost = Math.max(...billing.dailyCosts.map(d => d.cost), 1);
+        billing.dailyCosts.forEach(day => {
+            const height = (day.cost / maxCost) * 100;
+            const wrapper = document.createElement('div');
+            wrapper.className = 'cost-bar-wrapper';
+
+            const bar = document.createElement('div');
+            bar.className = 'cost-bar';
+            bar.style.height = `${height}%`;
+
+            const tooltip = document.createElement('div');
+            tooltip.className = 'cost-tooltip';
+            tooltip.textContent = `${day.date}: $${day.cost.toFixed(2)}`;
+
+            const label = document.createElement('div');
+            label.className = 'cost-bar-label';
+            label.textContent = day.date.split('-').slice(1).join('/'); // MM/DD
+
+            wrapper.appendChild(bar);
+            wrapper.appendChild(tooltip);
+            wrapper.appendChild(label);
+            chartEl.appendChild(wrapper);
+        });
+
+    } catch (err) {
+        $('#cost-breakdown').innerHTML = errorHtml(err.message);
+    }
+}
+
 // ── Tab 切替 ──────────────────────────────────────────
 const tabLoaders = {
     overview: () => Promise.all([loadOverview(), loadScheduler(), loadWorkflows(), loadResources()]),
@@ -394,6 +446,7 @@ const tabLoaders = {
     workflows: loadDetailWorkflows,
     compute: loadDetailCompute,
     builds: loadDetailBuilds,
+    cost: loadDetailCost,
 };
 
 let activeTab = 'overview';
