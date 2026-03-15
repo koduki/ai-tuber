@@ -240,7 +240,7 @@ resource "google_cloud_run_v2_service" "dashboard" {
     # OAuth2 Proxy container (Primary / Ingress)
     containers {
       name  = "oauth2-proxy"
-      image = "quay.io/oauth2-proxy/oauth2-proxy:latest"
+      image = "${var.region}-docker.pkg.dev/${var.project_id}/${var.artifact_repository}/oauth2-proxy:latest"
 
       ports {
         container_port = 8080
