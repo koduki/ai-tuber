@@ -17,12 +17,35 @@ async function startServer() {
 
     // ─── ミドルウェア ──────────────────────────────────
 
-    // OAuth2 Proxy から渡されるヘッダーを取得するミドルウェア
+    // 許可するメールアドレスのリスト (環境変数から取得)
+    const allowedEmails = (process.env.ALLOWED_EMAILS || '').split(',').map(e => e.trim()).filter(e => e);
+
+    // OAuth2 Proxy から渡されるヘッダーを取得し、認可をチェックするミドルウェア
     app.use((req, res, next) => {
         const userEmail = req.header('X-Forwarded-Email') || req.header('X-Auth-Request-Email');
-        if (userEmail) {
-            (req as any).userEmail = userEmail;
+        
+        // ヘルスチェックなどはパス（User-Agent 等で判断するか、特定のパスを除外）
+        if (req.path === '/healthz' || req.path === '/api/healthz') {
+            return next();
         }
+
+        if (!userEmail) {
+            // Proxy が正しく設定されていればここには来ないはずだが、安全のため
+            if (process.env.NODE_ENV === 'production') {
+                return res.status(401).send('Unauthorized: Missing auth headers from proxy');
+            }
+            // 開発環境ではモック
+            (req as any).userEmail = 'dev@example.com';
+            return next();
+        }
+
+        // ホワイトリストチェック
+        if (allowedEmails.length > 0 && !allowedEmails.includes(userEmail)) {
+            console.warn(`Access Denied: ${userEmail} is not in the allowed list.`);
+            return res.status(403).send(`Access Denied: ${userEmail} は許可されていません。`);
+        }
+
+        (req as any).userEmail = userEmail;
         next();
     });
 

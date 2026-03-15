@@ -288,11 +288,6 @@ resource "google_cloud_run_v2_service" "dashboard" {
 
       # 許可するメールアドレスのリスト
       env {
-        name  = "OAUTH2_PROXY_AUTHENTICATED_EMAILS"
-        value = "pascalm3@gmail.com"
-      }
-
-      env {
         name  = "OAUTH2_PROXY_UPSTREAMS"
         value = "http://localhost:8081"
       }
@@ -333,6 +328,11 @@ resource "google_cloud_run_v2_service" "dashboard" {
       env {
         name  = "PORT"
         value = "8081"
+      }
+
+      env {
+        name  = "ALLOWED_EMAILS"
+        value = "pascalm3@gmail.com"
       }
 
       env {
