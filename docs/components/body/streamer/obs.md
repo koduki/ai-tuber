@@ -90,9 +90,9 @@ connect() 呼び出し
 
 ---
 
-### 音声再生の内部フロー
-
-`refresh_media_source()` は単純なファイル差し替えではなく、OBS の再生タイミングを確実に制御するために複数のステップを踏みます：
+### 音声再生と口パクの同期フロー
+ 
+ `refresh_media_source()` は単純なファイル差し替えではなく、OBS の再生タイミングを確実に制御するために複数のステップを踏みます。また、`StreamerBodyService` のワーカー層で「音声生成完了」を待ってから表情を切り替えるため、**「口だけが先に動く」現象が防止されています。**
 
 ```mermaid
 sequenceDiagram
@@ -100,17 +100,20 @@ sequenceDiagram
     participant A as obs_adapter
     participant O as OBS Studio
 
-    S->>A: refresh_media_source("voice", "/path/to/audio.wav")
-    A->>O: SetInputSettings(local_file="/path/to/audio.wav")
-    A->>O: SetInputVolume(inputVolumeMul=1.0)
-    A->>O: SetInputMute(inputMuted=false)
-    Note over A: asyncio.sleep(0.1) で設定反映を待機
+    Note over S: 1. 声の生成 (2-3秒) を待つ
+    S->>A: set_visible_source("joyful")
+    A->>O: SetSceneItemEnabled("joyful", true)
+    S->>A: refresh_media_source("voice", audio.wav)
+    A->>O: SetInputSettings(local_file="audio.wav")
+    Note over A: 安定化のため 0.1s 待機
     A->>O: TriggerMediaInputAction(RESTART)
     O-->>A: 再生開始
-    A-->>S: True (成功)
+    Note over S: 2. 再生完了まで待機
+    S->>A: set_visible_source("silent")
+    A->>O: 全部非表示にし、"silent"を表示
 ```
 
-> **なぜ sleep が必要か**: `SetInputSettings` の直後に `RESTART` を送ると、OBS が古いファイルを再生してしまうケースがあるため、0.1 秒の待機を挟んでいます。
+> **注意**: `voice` ソース（メディアソース）は、非表示にすると OBS のオーディオミキサーから消失し、音声出力が不安定になるため、**常に表示状態（Visible=True）**を維持するように制御されます。
 
 ---
 
@@ -161,6 +164,12 @@ sequenceDiagram
 | `start_streaming(stream_key)` | `str` | `bool` | YouTube RTMP 配信開始 |
 | `stop_streaming()` | なし | `bool` | 配信停止 |
 | `get_streaming_status()` | なし | `bool` | 配信中かどうかを確認 |
+
+### 補助的な自動制御
+
+*   **自動配信開始の同期**: `start_broadcast` は呼び出された時点では配信を開始せず、最初の `speak` タスク（発話）の準備が整った瞬間に OBS の配信/録画を開始します。
+*   **音声ソースの常駐**: `voice` ソースは常に表示状態に維持され、オーディオミキサー上での視認性を確保します。
+*   **口パクの終了処理**: 発話終了時に自動で `silent` 表情へ切り替え、口を閉じます。
 
 ### 環境変数
 
