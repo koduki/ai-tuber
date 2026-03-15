@@ -31,10 +31,11 @@ obs-websocket-py  (pip install obs-websocket-py)
 
 ```python
 try:
-    from obswebsocket import obsws, requests as obs_requests
+    from obswebsocket import obsws, requests as obs_requests, events as obs_events
 except ImportError:
     obs_requests = None
     obsws = None
+    obs_events = None
 ```
 
 #### OBS WebSocket v5 の特徴
@@ -90,9 +91,14 @@ connect() 呼び出し
 
 ---
 
-### 音声再生の内部フロー
+### 音声再生と口パクの同期フロー (v5 高度同期)
+ 
+ OBS v5 API とイベントリスナーを活用し、**「実際に音声が再生され始めた瞬間」**を検知して口パクを開始する高度な同期ロジックを実装しています。
 
-`refresh_media_source()` は単純なファイル差し替えではなく、OBS の再生タイミングを確実に制御するために複数のステップを踏みます：
+1.  **装填フェーズ**: `SetInputSettings` でファイルをセットし、再生準備を行う。
+2.  **イベント待機**: `TriggerMediaInputAction` (RESTART) を実行し、同時に `MediaInputPlaybackStarted` イベントの待機を開始する。
+3.  **着火フェーズ**: OBS から「再生開始」イベントを受信した瞬間に、表情を切り替えて口パクを開始する。
+4.  **微調整**: `LIP_SYNC_ADJUST_MS` によって、イベント受信から実際の切り替えまでにミリ秒単位のオフセットを付加できる。
 
 ```mermaid
 sequenceDiagram
@@ -100,17 +106,20 @@ sequenceDiagram
     participant A as obs_adapter
     participant O as OBS Studio
 
-    S->>A: refresh_media_source("voice", "/path/to/audio.wav")
-    A->>O: SetInputSettings(local_file="/path/to/audio.wav")
-    A->>O: SetInputVolume(inputVolumeMul=1.0)
-    A->>O: SetInputMute(inputMuted=false)
-    Note over A: asyncio.sleep(0.1) で設定反映を待機
+    S->>A: play_media_with_emotion("voice", audio.wav, "joyful")
+    A->>O: SetInputSettings(local_file="audio.wav")
+    Note over A: 準備のため 0.1s 待機
     A->>O: TriggerMediaInputAction(RESTART)
-    O-->>A: 再生開始
-    A-->>S: True (成功)
+    O-->>A: (内部バッファリング)
+    O-->>A: Event: MediaInputPlaybackStarted
+    Note over A: LIP_SYNC_ADJUST_MS 待機
+    A->>O: SetSceneItemEnabled("joyful", true)
+    Note over S: 音声の長さ分だけ sleep
+    S->>A: set_visible_source("silent")
+    A->>O: 全部非表示にし、"silent"を表示
 ```
 
-> **なぜ sleep が必要か**: `SetInputSettings` の直後に `RESTART` を送ると、OBS が古いファイルを再生してしまうケースがあるため、0.1 秒の待機を挟んでいます。
+> **注意**: `voice` ソース（メディアソース）は、非表示にすると OBS のオーディオミキサーから消失し、音声出力が不安定になるため、**常に表示状態（Visible=True）**を維持するように制御されます。
 
 ---
 
@@ -162,6 +171,12 @@ sequenceDiagram
 | `stop_streaming()` | なし | `bool` | 配信停止 |
 | `get_streaming_status()` | なし | `bool` | 配信中かどうかを確認 |
 
+### 補助的な自動制御
+
+*   **自動配信開始の同期**: `start_broadcast` は呼び出された時点では配信を開始せず、最初の `speak` タスク（発話）の準備が整った瞬間に OBS の配信/録画を開始します。
+*   **音声ソースの常駐**: `voice` ソースは常に表示状態に維持され、オーディオミキサー上での視認性を確保します。
+*   **口パクの終了処理**: 発話終了時に自動で `silent` 表情へ切り替え、口を閉じます。
+
 ### 環境変数
 
 | 変数名 | 説明 | デフォルト値 |
@@ -169,6 +184,7 @@ sequenceDiagram
 | `OBS_HOST` | OBS Studio のホスト名 | `obs-studio` |
 | `OBS_PORT` | OBS WebSocket のポート | `4455` |
 | `OBS_PASSWORD` | WebSocket のパスワード | (なし) |
+| `LIP_SYNC_ADJUST_MS` | 音声開始イベント検知から口パク開始までの遅延 (ms) | `500` |
 
 ---
 

@@ -53,6 +53,10 @@ graph TD
         STR --> OBS
     end
 
+    subgraph Monitoring ["Monitoring"]
+        DB[Dashboard]
+    end
+
     YT[YouTube Live]
 
     %% Flow
@@ -65,6 +69,14 @@ graph TD
     SaintGraph -- "身体操作 (REST)" --> STR
     SaintGraph -- "自律ツール利用 (MCP)" --> Tools
     OBS -- "映像配信 (RTMP)" --> YT
+
+    %% Monitoring Connections
+    DB -. "Status Get (REST)" .-> CS
+    DB -. "Status Get (REST)" .-> CW
+    DB -. "Status Get (REST)" .-> NC
+    DB -. "Status Get (REST)" .-> SG
+    DB -. "Status Get (REST)" .-> TW
+    DB -. "Status Get (REST)" .-> STR
 ```
 
 **インフラ概要**:
@@ -141,6 +153,7 @@ docker compose up body-cli saint-graph
 | `tools-weather` | 8001 | 天気ツール（MCP） |
 | `obs-studio` | 8080, 4455 | 映像合成 |
 | `voicevox` | 50021 | 音声合成 |
+| `dashboard` | 8080 | 運用ポータル |
 
 詳細: [システム概要](docs/architecture/overview.md)
 
@@ -227,5 +240,6 @@ data/mind/{character_name}/
 | **アーキテクチャ** | [システム概要](docs/architecture/overview.md), [通信プロトコル](docs/architecture/communication.md), [データフロー](docs/architecture/data-flow.md) |
 | **Saint Graph（魂）** | [README](docs/components/saint-graph/README.md), [コアロジック](docs/components/saint-graph/core-logic.md), [プロンプト設計](docs/components/saint-graph/prompts.md) |
 | **Body（肉体）** | [README](docs/components/body/README.md) |
+| **Dashboard** | [README](docs/components/dashboard.md) |
 | **Mind（精神）** | [VOICEVOX 辞書管理](docs/components/mind/voicevox-dictionary.md) |
 | **運用・保守** | [トラブルシューティング](docs/knowledge/troubleshooting.md), [YouTube 配信セットアップ](docs/knowledge/youtube-setup.md) |

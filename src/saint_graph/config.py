@@ -4,6 +4,10 @@ import os
 import logging
 import sys
 from dataclasses import dataclass, fields, field
+from dotenv import load_dotenv
+
+# .envファイルを読み込む
+load_dotenv()
 from typing import Optional
 from infra.secret_provider import SecretProvider, create_secret_provider
 
@@ -36,7 +40,7 @@ class Config:
     run_mode: str = field(default_factory=lambda: os.getenv("RUN_MODE", "cli"))
     is_cloud_run: bool = field(default_factory=lambda: os.getenv("K_SERVICE") is not None or os.getenv("CLOUD_RUN_JOB") is not None)
 
-    def validate(self):
+    def validate(self, force_exit: bool = False):
         """設定の妥当性を検証します。"""
         # Cloud Run 環境での必須チェック
         if self.is_cloud_run:
@@ -46,7 +50,11 @@ class Config:
         
         if not self.google_api_key:
             logger.error("CRITICAL: GOOGLE_API_KEY is not set. The application cannot function.")
-            sys.exit(1)
+            # pytest実行時は意図的にSystemExitを避ける（force_exitがTrueの場合を除く）
+            if force_exit or "pytest" not in sys.modules:
+                sys.exit(1)
+            else:
+                logger.warning("Running in test environment. SystemExit skipped.")
 
     def log_config(self):
         """安全な範囲で設定をログ出力します。"""

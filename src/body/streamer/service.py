@@ -19,6 +19,7 @@ class StreamerBodyService(BodyServiceBase):
         self._current_broadcast_id = None
         self._action_queue = asyncio.Queue()
         self._worker_task = None
+        self._pending_broadcast_config = None
 
     async def start_worker(self):
         """バックグラウンドワーカーを開始します。"""
@@ -50,10 +51,22 @@ class StreamerBodyService(BodyServiceBase):
                     style = task.get("style")
                     speaker_id = task.get("speaker_id")
                     
-                    # 実際に音声生成と再生を行う
                     try:
+                        # 1. 音声生成（2〜3秒かかる）
                         file_path, duration = await voice_adapter.generate_and_save(text, style, speaker_id)
-                        await self.play_audio_file(file_path, duration)
+                        
+                        # 2. 【配信開始の同期（初回のみ）】
+                        if self._pending_broadcast_config is not None:
+                            config = self._pending_broadcast_config
+                            self._pending_broadcast_config = None
+                            await self._execute_actual_broadcast_start(config)
+
+                        # 3. 表情変更と音声再生を「同時」に開始（ズレをゼロに近づける）
+                        await self.play_audio_with_sync_emotion(file_path, duration, style)
+                        
+                        # 4. 音声再生終了後、即座に口を閉じる
+                        await obs_adapter.set_visible_source("silent")
+
                         logger.info(f"[Worker:speak] Completed: {text[:30]}...")
                     except Exception as e:
                         logger.error(f"Error in worker speak task: {e}")
@@ -114,20 +127,28 @@ class StreamerBodyService(BodyServiceBase):
             return json.dumps([])
 
     async def start_broadcast(self, config: Optional[Dict[str, Any]] = None) -> str:
-        """配信または録画を開始します。"""
+        """配信または録画の開始を予約します（最初の発話時に同期して開始されます）。"""
+        self._pending_broadcast_config = config or {}
+        logger.info("[start_broadcast] Broadcast start deferred until first speech.")
+        return "配信開始を予約しました。最初の発話に合わせて開始されます。"
+
+    async def _execute_actual_broadcast_start(self, config: Dict[str, Any]) -> str:
+        """実際に配信または録画を開始する内部メソッド。"""
         streaming_mode = os.getenv("STREAMING_MODE", "false").lower() == "true"
-        config = config or {}
         
         try:
             if streaming_mode:
-                return await self._start_streaming(config)
+                result = await self._start_streaming(config)
+                # ストリーミング開始後の安定化待機（YouTube側にデータが届き始めるまで数秒待つ）
+                await asyncio.sleep(3)
+                return result
             else:
                 result = await self.start_obs_recording()
                 # OBS録画開始後の安定化待機
-                await asyncio.sleep(3)
+                await asyncio.sleep(2)
                 return result
         except Exception as e:
-            logger.error(f"Error in start_broadcast: {e}")
+            logger.error(f"Error in _execute_actual_broadcast_start: {e}")
             return f"配信開始エラー: {str(e)}"
 
     async def stop_broadcast(self) -> str:
@@ -161,33 +182,25 @@ class StreamerBodyService(BodyServiceBase):
 
     # --- ヘルパーメソッドおよび固有メソッド ---
 
-    async def play_audio_file(self, file_path: str, duration: float) -> str:
-        """事前生成された音声ファイルを再生し、完了まで待機します。"""
-        # OBSがファイルをバッファリングするのを待ってから口パクを開始する
-        # LIP_SYNC_DELAY を調整することで口パクと音声のズレを補正できる
-        lip_sync_delay = float(os.getenv("LIP_SYNC_DELAY", "2.5"))
-
+    async def play_audio_with_sync_emotion(self, file_path: str, duration: float, emotion: str) -> str:
+        """音声の装填を先に済ませ、表情切り替えと再生開始を同時に叩き込みます。"""
         try:
-            # ファイルをロード（この時点ではまだ口パクしない）
-            await obs_adapter.refresh_media_source("voice", file_path)
+            logger.info(f"[play_audio_sync] Starting playback of {file_path} (duration: {duration:.1f}s) with emotion: {emotion}")
+            # obs_adapter側の新メソッドを呼び出す（表情と音声を同時着火）
+            await obs_adapter.play_media_with_emotion("voice", file_path, emotion)
 
-            # OBSのバッファリング待機 → 音声実出力タイミングに口パクを合わせる
-            await asyncio.sleep(lip_sync_delay)
+            # 再生完了まで待機
+            await asyncio.sleep(duration + 0.1)
 
-            # 口パク開始（ソース表示）
-            await obs_adapter.set_source_visibility("voice", True)
-
-            # 再生完了まで待機（バッファとして0.2秒追加）
-            await asyncio.sleep(duration + 0.2)
-
-            # 口パク終了（ソース非表示）
-            await obs_adapter.set_source_visibility("voice", False)
-
-            logger.info(f"[play_audio_file] Completed playback ({duration:.1f}s)")
+            logger.info(f"[play_audio_sync] Completed playback ({duration:.1f}s)")
             return f"再生完了 ({duration:.1f}s)"
         except Exception as e:
-            logger.error(f"Error in play_audio_file: {e}")
+            logger.error(f"Error in play_audio_sync: {e}")
             return f"再生エラー: {str(e)}"
+
+    async def play_audio_file(self, file_path: str, duration: float) -> str:
+        """（互換性用）通常の音声再生。内部的に同期再生を使用します。"""
+        return await self.play_audio_with_sync_emotion(file_path, duration, "neutral")
 
 
     async def start_obs_recording(self) -> str:

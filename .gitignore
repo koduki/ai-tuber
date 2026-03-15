@@ -23,6 +23,8 @@ Thumbs.db
 *.key
 google_client_secret.json
 yt_token.json
+dashboard/gcp-creds.json
+gcp-creds.json
 
 # OBS temp files
 *.lock
@@ -49,3 +51,6 @@ opentofu/*.tofuplan
 data/mind/*/core_libraries/
 data/mind/*/installed_libraries/
 
+
+node_modules/
+package-lock.json

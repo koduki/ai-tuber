@@ -9,9 +9,9 @@ RUN ls -la /etc/apt/sources.list.d/ \
     && cat /etc/apt/sources.list.d/*.list || true \
     && grep -r yarn /etc/apt/ || true
 
-# Install wget/git-lfs which is required by VSCode server install/LFS
+# Install apt packages
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    wget git-lfs ca-certificates curl gnupg socat procps iproute2 lsb-release \
+    wget git-lfs ca-certificates curl gnupg socat procps iproute2 lsb-release nodejs npm\
     && git lfs install \
     && rm -rf /var/lib/apt/lists/*
 

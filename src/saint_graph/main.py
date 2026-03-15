@@ -54,16 +54,11 @@ async def main():
     )
 
     try:
-        # 配信パラメータの構築 & 配信開始
+        # 配信パラメータの構築 & 配信開始予約（実際の発話開始まで保留される）
         broadcast_config = _build_broadcast_config()
         await _start_broadcast(body_client, broadcast_config)
 
-        # 配信開始後、OBSの映像ソース（GPUデコーダー）が安定するまで待機
-        # BROADCAST_START_DELAY を調整することで冒頭のブラックアウト期間を回避できる
-        start_delay = float(os.getenv("BROADCAST_START_DELAY", "90"))
-        logger.info(f"Waiting {start_delay}s for OBS video sources to initialize...")
-        await asyncio.sleep(start_delay)
-        logger.info("OBS stabilization wait complete. Starting broadcast loop.")
+        logger.info("Broadcast start requested. Entering broadcast loop immediately.")
 
         # ステートマシンによるメインループ実行
         ctx = BroadcastContext(

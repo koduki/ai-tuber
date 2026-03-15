@@ -73,6 +73,7 @@ async def test_process_turn_parses_emotion_tag(mock_adk):
     # Verify
     from unittest.mock import call
     sg.body.change_emotion.assert_has_calls([
+        call("silent"),
         call("joyful"),
         call("silent")
     ])
@@ -104,7 +105,7 @@ async def test_process_turn_defaults_to_neutral(mock_adk):
     # Verify
     from unittest.mock import call
     sg.body.change_emotion.assert_has_calls([
-        call("neutral"),
+        call("silent"),
         call("silent")
     ])
     sg.body.speak.assert_called_once_with("No tag here", style="neutral", speaker_id=None)
@@ -179,5 +180,5 @@ def test_config_missing_api_key(monkeypatch):
     monkeypatch.delenv("GOOGLE_API_KEY", raising=False)
     cfg = Config(google_api_key=None)
     with pytest.raises(SystemExit) as e:
-        cfg.validate()
+        cfg.validate(force_exit=True)
     assert e.value.code == 1

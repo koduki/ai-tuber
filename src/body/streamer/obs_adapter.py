@@ -5,10 +5,12 @@ from typing import Optional
 import asyncio
 
 try:
-    from obswebsocket import obsws, requests as obs_requests
+    from obswebsocket import obsws, requests as obs_requests, events as obs_events
 except ImportError:
     obs_requests = None
     obsws = None
+    obs_events = None
+
 
 logger = logging.getLogger(__name__)
 
@@ -29,40 +31,60 @@ EMOTION_MAP = {
     "silent": "silent",
 }
 
+# リップシンク調整：音声が鳴り始めるまでのOBS内部遅延をミリ秒で指定
+# 0.5s〜1s遅れるとのことなので、デフォルトを400ms〜800ms程度で調整可能にします
+LIP_SYNC_ADJUST_MS = int(os.getenv("LIP_SYNC_ADJUST_MS", "500"))
+
 # Global WebSocket client
 ws_client: Optional[obsws] = None
+_playback_event = asyncio.Event()
+_main_loop: Optional[asyncio.AbstractEventLoop] = None
+
+
+# Scene Item ID Cache (to avoid redundant API calls)
+_source_id_cache = {}
+_current_scene_name = None
+
+def _on_media_start(event):
+    """OBSからのメディア再生開始イベントを受け取るコールバック"""
+    try:
+        source_name = event.getInputName()
+        if source_name == "voice":
+            logger.info("OBS Event: 'voice' playback actually started!")
+            # メインスレッドのEventをスレッドセーフにセット
+            if _main_loop and _main_loop.is_running():
+                _main_loop.call_soon_threadsafe(_playback_event.set)
+            else:
+                # フォールバック
+                _playback_event.set()
+    except Exception as e:
+        logger.error(f"Error in OBS callback: {e}")
 
 
 async def connect() -> bool:
-    """
-    OBS WebSocketに接続します。
-    既に関係がある場合は接続状態を確認し、切断されている場合は再接続します。
-    
-    Returns:
-        接続成功の場合True
-    """
+    """OBS WebSocketに接続し、イベントリスナーを登録します。"""
     global ws_client
     
-    # すでにクライアントが存在する場合
+    # 接続確認
     if ws_client is not None:
         try:
-            # 接続状態をテストするために簡単なリクエストを送る
             ws_client.call(obs_requests.GetVersion())
             return True
         except Exception:
-            # 接続が切れている場合はクリーンアップして再接続へ
-            logger.info("OBS connection lost, attempting to reconnect...")
-            try:
-                ws_client.disconnect()
-            except:
-                pass
             ws_client = None
     
     try:
-        logger.info(f"Connecting to OBS at {OBS_HOST}:{OBS_PORT}")
+        global _main_loop
+        _main_loop = asyncio.get_running_loop()
+
         ws_client = obsws(OBS_HOST, OBS_PORT, OBS_PASSWORD)
         ws_client.connect()
-        logger.info("Connected to OBS WebSocket")
+        
+        # 再生開始イベント（v5）を購読
+        ws_client.register(_on_media_start, obs_events.MediaInputPlaybackStarted)
+
+        
+        logger.info("Connected to OBS WebSocket and registered event listeners")
         return True
     except Exception as e:
         logger.debug(f"Failed to connect to OBS: {e}")
@@ -86,32 +108,34 @@ async def disconnect():
 
 async def set_source_visibility(source_name: str, visible: bool, scene_name: Optional[str] = None) -> bool:
     """
-    ソースの表示/非表示を切り替えます。
-    
-    Args:
-        source_name: ソース名
-        visible: 表示する場合True
-        scene_name: シーン名 (Noneの場合は現在のシーン)
-        
-    Returns:
-        成功の場合True
+    ソースの表示/非表示を切り替えます（キャッシュを活用して高速化）。
     """
+    global _source_id_cache, _current_scene_name
+    
     if not await connect():
         return False
     
     try:
+        # シーン名の取得とキャッシュのリフレッシュ
         if scene_name is None:
-            # 現在のシーンを取得
-            current_scene = ws_client.call(obs_requests.GetCurrentProgramScene())
-            scene_name = current_scene.getSceneName()
-        
-        # アイテムリストを取得してIDを探す (OBS WebSocket v5)
-        scene_items = ws_client.call(obs_requests.GetSceneItemList(sceneName=scene_name))
-        scene_item_id = None
-        for item in scene_items.getSceneItems():
-            if item["sourceName"] == source_name:
-                scene_item_id = item["sceneItemId"]
-                break
+            if _current_scene_name is None:
+                resp = ws_client.call(obs_requests.GetCurrentProgramScene())
+                _current_scene_name = resp.getSceneName()
+            scene_name = _current_scene_name
+
+        # キャッシュの確認
+        cache_key = f"{scene_name}:{source_name}"
+        scene_item_id = _source_id_cache.get(cache_key)
+
+        if scene_item_id is None:
+            # キャッシュにない場合は取得
+            scene_items = ws_client.call(obs_requests.GetSceneItemList(sceneName=scene_name))
+            for item in scene_items.getSceneItems():
+                item_name = item["sourceName"]
+                item_id = item["sceneItemId"]
+                _source_id_cache[f"{scene_name}:{item_name}"] = item_id
+                if item_name == source_name:
+                    scene_item_id = item_id
         
         if scene_item_id is None:
             logger.warning(f"Source '{source_name}' not found in scene '{scene_name}'")
@@ -123,39 +147,33 @@ async def set_source_visibility(source_name: str, visible: bool, scene_name: Opt
             sceneItemId=scene_item_id,
             sceneItemEnabled=visible
         ))
-        logger.info(f"Set source '{source_name}' (ID: {scene_item_id}) visibility to {visible}")
         return True
     except Exception as e:
-        logger.error(f"Error setting source visibility: {e}")
+        logger.error(f"Error setting source visibility for '{source_name}': {e}")
+        # エラー時はキャッシュをクリアして次回リトライ
+        _source_id_cache = {}
+        _current_scene_name = None
         return False
 
 
 async def set_visible_source(emotion: str) -> str:
     """
     指定された感情に対応する立ち絵ソースを表示します。
-    他の感情ソースは非表示にします。
-    
-    Args:
-        emotion: 感情 (neutral, happy, sad, angry)
-        
-    Returns:
-        結果メッセージ
     """
     source_name = EMOTION_MAP.get(emotion, EMOTION_MAP["neutral"])
-    
     if not await connect():
         return f"OBS接続エラー"
     
     try:
-        # ちらつき防止のため、まず新しい感情ソースを表示
+        # スレッドセーフかつ高速に実行するため、直列に実行します（キャッシュがあるので十分早いです）
+        # 1. まずターゲットを表示
         await set_source_visibility(source_name, True)
 
-        # その後、他のすべての感情ソースを非表示
-        for emo_source in EMOTION_MAP.values():
+        # 2. 他を非表示
+        for emo_source in set(EMOTION_MAP.values()):
             if emo_source != source_name:
                 await set_source_visibility(emo_source, False)
         
-        logger.info(f"Changed emotion to: {emotion} (source: {source_name})")
         return f"表情変更: {emotion}"
     except Exception as e:
         logger.error(f"Error changing emotion: {e}")
@@ -164,7 +182,7 @@ async def set_visible_source(emotion: str) -> str:
 
 async def refresh_media_source(source_name: str, file_path: str) -> bool:
     """
-    メディアソースのファイルパスを更新して再生します。
+    指定されたメディアソースのファイルを更新し、再生を開始します。
     
     Args:
         source_name: メディアソース名
@@ -193,14 +211,13 @@ async def refresh_media_source(source_name: str, file_path: str) -> bool:
         try:
             ws_client.call(obs_requests.SetInputVolume(inputName=source_name, inputVolumeMul=1.0))
             ws_client.call(obs_requests.SetInputMute(inputName=source_name, inputMuted=False))
-            logger.info(f"Ensured volume 1.0 and unmuted for '{source_name}'")
-        except Exception as e:
-            logger.warning(f"Failed to set volume/mute via v5 API (might be v4): {e}")
+        except Exception:
+            pass
 
-        # 3. OBSが設定を反映するのをわずかに待つ
-        await asyncio.sleep(0.1)
+        # 3. OBSが設定を反映するのをわずかに待つ（高速化のため短縮）
+        await asyncio.sleep(0.05)
         
-        # 4. 再生を最初から開始 (Restart)
+        # 4. 再生をリスタート (v5 API)
         try:
             ws_client.call(obs_requests.TriggerMediaInputAction(
                 inputName=source_name,
@@ -342,4 +359,70 @@ async def get_streaming_status() -> bool:
         return response.getOutputActive()
     except Exception as e:
         logger.error(f"Error getting OBS streaming status: {e}")
+        return False
+
+async def play_media_with_emotion(audio_source: str, file_path: str, emotion: str) -> bool:
+    """
+    音声の再生開始と表情の切り替えを、可能な限り同時に実行します。
+    """
+    if not await connect():
+        return False
+        
+    abs_path = os.path.abspath(file_path)
+
+    try:
+        # --- 準備フェーズ ---
+        # 1. 音声ソースを必ず「表示」状態にする（ミキサー消失防止）
+        await set_source_visibility(audio_source, True)
+
+        # 2. 音声ファイルの「装填」を済ませる
+        ws_client.call(obs_requests.SetInputSettings(
+            inputName=audio_source,
+            inputSettings={"local_file": abs_path},
+            overlay=True
+        ))
+        
+        # 3. 音量/ミュート設定
+        try:
+            ws_client.call(obs_requests.SetInputVolume(inputName=audio_source, inputVolumeMul=1.0))
+            ws_client.call(obs_requests.SetInputMute(inputName=audio_source, inputMuted=False))
+        except Exception:
+            pass
+            
+        # 4. OBS側での読み込み完了を待つ (0.1s)
+        await asyncio.sleep(0.1)
+        
+        # --- 発火フェーズ ---
+        # 5. イベントフラグをリセット
+        _playback_event.clear()
+
+        # 6. 音声再生トリガーを引く
+        ws_client.call(obs_requests.TriggerMediaInputAction(
+            inputName=audio_source,
+            mediaAction="OBS_WEBSOCKET_MEDIA_INPUT_ACTION_RESTART"
+        ))
+        
+        # 7. OBSから「再生が始まったよ！」というイベントが来るのを待つ（最大5秒）
+        # これにより内部のバッファリング時間を完璧に同期させます
+        try:
+            logger.info("Waiting for OBS playback event...")
+            await asyncio.wait_for(_playback_event.wait(), timeout=5.0)
+            logger.info(f"Playback event received! Delaying {LIP_SYNC_ADJUST_MS}ms before showing mouth.")
+            
+            # リップシンク微調整：イベント受信から実際に表示を切り替えるまで待機
+            # 映像より音声が遅れる場合はここを増やす
+            if LIP_SYNC_ADJUST_MS > 0:
+                await asyncio.sleep(LIP_SYNC_ADJUST_MS / 1000.0)
+                
+            logger.info("Showing mouth movement now.")
+        except asyncio.TimeoutError:
+            logger.warning("Timeout waiting for OBS playback event. Showing mouth anyway.")
+
+
+        # 8. 表情変更（口パク開始）を実行
+        await set_visible_source(emotion)
+        
+        return True
+    except Exception as e:
+        logger.error(f"Error in play_media_with_emotion: {e}")
         return False

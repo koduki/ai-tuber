@@ -117,6 +117,36 @@ curl http://localhost:50021/version
 
 ---
 
+### Body Streamer で TypeError (isinstance) が発生する
+
+**症状**:
+```
+body-streamer-1  |   File "/usr/local/lib/python3.11/site-packages/obswebsocket/core.py", line 396, in trigger
+body-streamer-1  |     if trigger is None or isinstance(data, trigger):
+body-streamer-1  |                           ^^^^^^^^^^^^^^^^^^^^^^^^^
+body-streamer-1  | TypeError: isinstance() arg 2 must be a type, a tuple of types, or a union
+```
+
+**原因**: 
+OBS 30.x / WebSocket v5 対応のために `obs-websocket-py` v1.0 以上を使用している場合、`ws_client.register()` の第2引数にイベント名の文字列（例: `"MediaInputPlaybackStarted"`）を渡すと、ライブラリ内部で型チェックに失敗します。v1.0 では文字列ではなく、`obswebsocket.events` 配下のイベントクラスを渡す必要があります。
+
+**解決方法**:
+
+`src/body/streamer/obs_adapter.py` 等で、以下のように修正してください。
+
+```python
+# 修正前
+ws_client.register(callback, "MediaInputPlaybackStarted")
+
+# 修正後
+from obswebsocket import events as obs_events
+ws_client.register(callback, obs_events.MediaInputPlaybackStarted)
+```
+
+修正後はイメージの再ビルドが必要です： `docker compose up --build body-streamer`
+
+---
+
 ### 環境変数が読み込まれない
 
 **症状**:

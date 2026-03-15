@@ -86,5 +86,26 @@ resource "google_cloud_run_v2_service_iam_member" "invoke_healthcheck_proxy" {
   member   = "serviceAccount:${google_service_account.ai_tuber_sa.email}"
 }
 
+# Allow ai-tuber-sa to read Cloud Scheduler jobs (for Dashboard)
+resource "google_project_iam_member" "scheduler_viewer" {
+  project = var.project_id
+  role    = "roles/cloudscheduler.viewer"
+  member  = "serviceAccount:${google_service_account.ai_tuber_sa.email}"
+}
+
+# Allow ai-tuber-sa to read Cloud Build history (for Dashboard)
+resource "google_project_iam_member" "cloudbuild_viewer" {
+  project = var.project_id
+  role    = "roles/cloudbuild.builds.viewer"
+  member  = "serviceAccount:${google_service_account.ai_tuber_sa.email}"
+}
+
+# Allow ai-tuber-sa to read Workflows (for Dashboard)
+resource "google_project_iam_member" "workflows_viewer" {
+  project = var.project_id
+  role    = "roles/workflows.viewer"
+  member  = "serviceAccount:${google_service_account.ai_tuber_sa.email}"
+}
+
 # Note: Storage permissions are handled at the bucket level in storage.tf
 # No project-wide storage.objectUser role is needed here, following least privilege.

@@ -62,6 +62,12 @@ AI Tuber は、**魂（Saint Graph）**、**肉体（Body）**、**精神（Mind
 - [キャラクター作成ガイド](./components/mind/character-creation-guide.md) *(作成予定)*
 - [VOICEVOX 辞書管理](./components/mind/voicevox-dictionary.md)
 
+### Monitoring
+
+運用状況の可視化:
+
+- [運用ダッシュボード](./components/dashboard.md)
+
 ---
 
 ### Infra（インフラ抽象化）
