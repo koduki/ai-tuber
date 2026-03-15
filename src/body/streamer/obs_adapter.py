@@ -345,3 +345,49 @@ async def get_streaming_status() -> bool:
     except Exception as e:
         logger.error(f"Error getting OBS streaming status: {e}")
         return False
+
+async def play_media_with_emotion(audio_source: str, file_path: str, emotion: str) -> bool:
+    """
+    音声の再生開始と表情の切り替えを、可能な限り同時に実行します。
+    """
+    if not await connect():
+        return False
+        
+    abs_path = os.path.abspath(file_path)
+
+    try:
+        # 1. まず音声ファイルの「装填」だけ済ませる（まだ再生しない）
+        ws_client.call(obs_requests.SetInputSettings(
+            inputName=audio_source,
+            inputSettings={"local_file": abs_path},
+            overlay=True
+        ))
+        
+        # 2. 音量/ミュート設定を確実にする
+        try:
+            ws_client.call(obs_requests.SetInputVolume(inputName=audio_source, inputVolumeMul=1.0))
+            ws_client.call(obs_requests.SetInputMute(inputName=audio_source, inputMuted=False))
+        except Exception:
+            pass
+            
+        # 3. OBS側での読み込み完了をわずかに待つ
+        await asyncio.sleep(0.05)
+        
+        # 4. 再生トリガー(RESTART)と、表情変更(ソース表示)を一斉に実行！
+        # これにより「声と口」のズレの最大の原因である直列処理の遅延を解消します
+        tasks = [
+            # 音声再生開始
+            asyncio.to_thread(ws_client.call, obs_requests.TriggerMediaInputAction(
+                inputName=audio_source,
+                mediaAction="OBS_WEBSOCKET_MEDIA_INPUT_ACTION_RESTART"
+            )),
+            # 表情ソースの表示（および他を消す）
+            set_visible_source(emotion)
+        ]
+        
+        await asyncio.gather(*tasks)
+        logger.info(f"Synchronized playback and emotion '{emotion}' started.")
+        return True
+    except Exception as e:
+        logger.error(f"Error in play_media_with_emotion: {e}")
+        return False

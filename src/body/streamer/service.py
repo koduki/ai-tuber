@@ -61,11 +61,8 @@ class StreamerBodyService(BodyServiceBase):
                             self._pending_broadcast_config = None
                             await self._execute_actual_broadcast_start(config)
 
-                        # 3. 表情変更と音声再生をほぼ同時に開始（ズレを最小化）
-                        if style:
-                            await obs_adapter.set_visible_source(style)
-                        
-                        await self.play_audio_file(file_path, duration)
+                        # 3. 表情変更と音声再生を「同時」に開始（ズレをゼロに近づける）
+                        await self.play_audio_with_sync_emotion(file_path, duration, style)
                         
                         # 4. 音声再生終了後、即座に口を閉じる
                         await obs_adapter.set_visible_source("silent")
@@ -185,21 +182,24 @@ class StreamerBodyService(BodyServiceBase):
 
     # --- ヘルパーメソッドおよび固有メソッド ---
 
-    async def play_audio_file(self, file_path: str, duration: float) -> str:
-        """事前生成された音声ファイルを再生し、完了まで待機します。"""
+    async def play_audio_with_sync_emotion(self, file_path: str, duration: float, emotion: str) -> str:
+        """音声の装填を先に済ませ、表情切り替えと再生開始を同時に叩き込みます。"""
         try:
-            # ファイルをロード・再生開始（この瞬間から音声が流れる）
-            # 内部で0.05sの待機後にRestart命令が飛びます
-            await obs_adapter.refresh_media_source("voice", file_path)
+            # obs_adapter側の新メソッドを呼び出す（表情と音声を同時着火）
+            await obs_adapter.play_media_with_emotion("voice", file_path, emotion)
 
-            # 次の音声と被らないように再生完了まで待機
+            # 再生完了まで待機
             await asyncio.sleep(duration + 0.1)
 
-            logger.info(f"[play_audio_file] Completed playback ({duration:.1f}s)")
+            logger.info(f"[play_audio_sync] Completed playback ({duration:.1f}s)")
             return f"再生完了 ({duration:.1f}s)"
         except Exception as e:
-            logger.error(f"Error in play_audio_file: {e}")
+            logger.error(f"Error in play_audio_sync: {e}")
             return f"再生エラー: {str(e)}"
+
+    async def play_audio_file(self, file_path: str, duration: float) -> str:
+        """（互換性用）通常の音声再生。内部的に同期再生を使用します。"""
+        return await self.play_audio_with_sync_emotion(file_path, duration, "neutral")
 
 
     async def start_obs_recording(self) -> str:
