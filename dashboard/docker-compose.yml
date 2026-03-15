@@ -1,0 +1,23 @@
+services:
+  dashboard:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      - PORT=3000
+      - NODE_ENV=production
+      - GCP_PROJECT_ID=${GCP_PROJECT_ID:-ren-studio-ai}
+      - GCP_REGION=${GCP_REGION:-asia-northeast1}
+      - GCP_ZONE=${GCP_ZONE:-asia-northeast1-a}
+      - GOOGLE_APPLICATION_CREDENTIALS=/app/gcp-creds.json
+      - OAUTH_CLIENT_ID=${OAUTH_CLIENT_ID}
+      - OAUTH_CLIENT_SECRET=${OAUTH_CLIENT_SECRET}
+      - OAUTH_REDIRECT_URI=${OAUTH_REDIRECT_URI:-http://localhost:3000/auth/callback}
+      - SESSION_SECRET=${SESSION_SECRET:-ai-tuber-dashboard-secret}
+      # 認証用ホワイトリスト設定
+      - ALLOWED_EMAILS=${ALLOWED_EMAILS:-""}
+    volumes:
+      # ホスト側の .dashboard/gcp-creds.json (またはカレントディレクトリの ADC ファイル) をマウント
+      - ./gcp-creds.json:/app/gcp-creds.json:ro
