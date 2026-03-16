@@ -1,39 +1,31 @@
 # ---- Build Stage ----
-FROM node:20-slim AS builder
+FROM node:22-slim AS builder
 
 WORKDIR /app
 
-# ルートの依存関係
+# Dependency installation
 COPY package*.json ./
 RUN npm install
 
-# クライアントの依存関係とビルド
-COPY client/package*.json ./client/
-RUN cd client && npm install
-COPY client/ ./client/
-
-# サーバーのソースとビルド
-COPY tsconfig.json ./
-COPY src/ ./src/
+# Build
+COPY . .
 RUN npm run build
 
 # ---- Run Stage ----
-FROM node:20-slim
+FROM node:22-slim
 
-# 実行環境の構築
 ENV NODE_ENV=production
 WORKDIR /app
 
-COPY package*.json ./
+COPY --from=builder /app/package*.json ./
 RUN npm install --omit=dev
 
-# ビルド成果物のコピー
-COPY --from=builder /app/dist ./dist
-COPY --from=builder /app/client/dist ./client/dist
-COPY public/ ./public/
+# Copy build artifacts
+COPY --from=builder /app/build ./build
 
-# ポート設定
+# Port setting
 EXPOSE 8080
+ENV PORT=8080
 
-# サーバー起動
-CMD ["node", "dist/server.js"]
+# Start server (SvelteKit adapter-node default entry point is build/index.js or just build)
+CMD ["node", "build"]
