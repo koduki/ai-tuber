@@ -247,6 +247,11 @@ resource "google_cloud_run_v2_service" "dashboard" {
       }
 
       env {
+        name  = "FORCED_REDEPLOY_AT"
+        value = "2026-03-15T22:15:00Z"
+      }
+
+      env {
         name  = "OAUTH2_PROXY_PROVIDER"
         value = "google"
       }
