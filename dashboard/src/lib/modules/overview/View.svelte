@@ -1,7 +1,6 @@
 <script lang="ts">
     import { onMount } from 'svelte';
     import { formatCurrency, getStatusClass } from '$lib/utils/formatters';
-    import * as Icons from 'lucide-svelte';
 
     let data = $state<any>(null);
     let loading = $state(true);
@@ -17,126 +16,101 @@
         }
     });
 
-    const metrics = $derived(data ? [
+    const metrics = $derived([
         { 
-            label: 'Cloud Scheduler', 
+            label: 'Scheduler 健全性', 
             id: 'mc-scheduler',
-            value: data.schedulerHealth.value, 
-            sub: data.schedulerHealth.detail,
-            icon: Icons.Calendar,
-            status: getStatusClass(data.schedulerHealth.value)
+            value: data ? data.schedulerHealth.value : '—', 
+            sub: data ? data.schedulerHealth.detail : '読み込み中...',
+            status: data ? getStatusClass(data.schedulerHealth.value) : 'status-neutral',
+            trend: 'down'
         },
         { 
-            label: 'Cloud Workflows', 
+            label: 'Workflow 現在状態', 
             id: 'mc-workflow',
-            value: data.workflowState.value, 
-            sub: data.workflowState.detail,
-            icon: Icons.Network,
-            status: getStatusClass(data.workflowState.value)
+            value: data ? data.workflowState.value : '—', 
+            sub: data ? data.workflowState.detail : '読み込み中...',
+            status: data ? getStatusClass(data.workflowState.value) : 'status-neutral',
+            trend: 'down'
         },
         { 
             label: '稼働リソース', 
             id: 'mc-resources',
-            value: data.runningResources.value, 
-            sub: data.runningResources.detail,
-            icon: Icons.Server,
-            status: 'status-neutral'
+            value: data ? data.runningResources.value : '—', 
+            sub: data ? data.runningResources.detail : '読み込み中...',
+            status: 'status-neutral',
+            trend: 'down'
         },
         { 
-            label: '外部 IP (Compute)', 
+            label: 'Compute 外部 IP', 
             id: 'mc-ips',
-            value: data.externalIps.value, 
-            sub: data.externalIps.detail,
-            icon: Icons.Globe,
-            status: 'status-neutral'
+            value: data ? data.externalIps.value : '—', 
+            sub: data ? data.externalIps.detail : '読み込み中...',
+            status: 'status-neutral',
+            trend: 'down'
         },
         { 
-            label: '今月のコスト', 
-            id: 'mc-billing',
-            value: data.billing.value, 
-            sub: data.billing.detail,
-            icon: Icons.CreditCard,
-            status: 'status-neutral'
+            label: '概算コスト', 
+            id: 'mc-cost',
+            value: data ? data.billing.value : '—', 
+            sub: data ? data.billing.detail : 'Billing API 未接続',
+            status: 'status-neutral',
+            trend: null
         },
-    ] : []);
-
-    const quickLinks = [
-        { title: 'Cloud Run Services', desc: '本番サービス一覧', icon: Icons.Cloud, url: '#' },
-        { title: 'Cloud Build', desc: '履歴とログ', icon: Icons.Hammer, url: '#' },
-        { title: 'API Monitoring', desc: 'Google API Console', icon: Icons.Activity, url: '#' },
-    ];
+    ]);
 </script>
 
-<div class="overview-container">
-    <div class="metrics">
-        {#if loading}
-            {#each Array(5) as _}
-                <div class="metric-card animate-pulse h-32 bg-gray-50 border-gray-100"></div>
-            {/each}
-        {:else}
-            {#each metrics as metric}
-                <div class="metric-card" id={metric.id}>
-                    <div class="flex justify-between items-start mb-2">
-                        <span class="metric-card__label">{metric.label}</span>
-                        <metric.icon size={16} class="text-gray-400" />
-                    </div>
-                    <div class="metric-card__value {metric.status}">
-                        {metric.value}
-                    </div>
-                    <div class="metric-card__footer">
-                        <span class="metric-card__sub">{metric.sub}</span>
-                    </div>
+<div>
+    <div class="grid gap-4 mb-6 grid-cols-2 lg:grid-cols-5">
+        {#each metrics as metric}
+            <div class="p-3 px-4 border border-google-gray-300 rounded-lg bg-white hover:shadow-sm transition-shadow" id={metric.id}>
+                <div class="text-xs text-google-gray-500">{metric.label}</div>
+                <div class="mt-2 text-[28px] font-normal tracking-tight leading-none {metric.status}">
+                    {metric.value}
                 </div>
-            {/each}
-        {/if}
+                <div class="mt-2 flex justify-between items-center">
+                    <span class="text-xs text-google-gray-500">{metric.sub}</span>
+                    {#if metric.trend === 'down'}
+                        <span class="text-xs font-medium text-google-green">↓</span>
+                    {:else if metric.trend === 'up'}
+                        <span class="text-xs font-medium text-google-amber-dark">↑</span>
+                    {:else}
+                        <span class="text-xs font-medium text-google-gray-500">—</span>
+                    {/if}
+                </div>
+            </div>
+        {/each}
     </div>
 
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div class="card">
-            <div class="card-header">
-                <span>クイックリンク</span>
-                <Icons.ExternalLink size={14} class="text-gray-400" />
+    <!-- Overview Cards -->
+    <div class="flex flex-col gap-6">
+        <!-- Scheduler -->
+        <div class="border border-google-gray-300 rounded-lg bg-white overflow-hidden">
+            <div class="flex justify-between items-center px-4 py-3 border-b border-google-gray-200">
+                <h2 class="text-sm font-medium text-google-gray-900 m-0">Cloud Scheduler</h2>
             </div>
-            <div class="card-body p-0">
-                <div class="divide-y divide-gray-100">
-                    {#each quickLinks as link}
-                        <a href={link.url} class="flex items-center gap-4 p-4 hover:bg-gray-50 transition-colors">
-                            <div class="w-10 h-10 rounded bg-blue-50 flex items-center justify-center text-blue-600">
-                                <link.icon size={18} />
-                            </div>
-                            <div>
-                                <div class="text-sm font-medium text-gray-900">{link.title}</div>
-                                <div class="text-xs text-gray-500">{link.desc}</div>
-                            </div>
-                        </a>
-                    {/each}
-                </div>
+            <div class="p-4 text-[13px] text-google-gray-500">
+                各モジュールのタブから詳細を確認してください。
             </div>
         </div>
 
-        <div class="card">
-            <div class="card-header">
-                <span>システムステータス</span>
-                <Icons.Info size={14} class="text-gray-400" />
+        <!-- Workflows -->
+        <div class="border border-google-gray-300 rounded-lg bg-white overflow-hidden">
+            <div class="flex justify-between items-center px-4 py-3 border-b border-google-gray-200">
+                <h2 class="text-sm font-medium text-google-gray-900 m-0">ワークフロー</h2>
             </div>
-            <div class="card-body">
-                <div class="space-y-4">
-                    <div class="flex items-center justify-between">
-                        <span class="text-sm text-gray-600">プラットフォーム可用性</span>
-                        <span class="text-sm font-medium text-green-600">100.0%</span>
-                    </div>
-                    <div class="w-full bg-gray-100 rounded-full h-1.5">
-                        <div class="bg-green-500 h-1.5 rounded-full" style="width: 100%"></div>
-                    </div>
-                    <div class="mt-6 p-4 bg-blue-50 rounded-lg border border-blue-100">
-                        <div class="flex gap-3">
-                            <Icons.AlertCircle size={18} class="text-blue-600 flex-shrink-0" />
-                            <div class="text-xs text-blue-800 leading-relaxed">
-                                全てのシステムは正常に稼働しています。監視対象のリージョン（us-central1, asia-northeast1）で異常は検出されていません。
-                            </div>
-                        </div>
-                    </div>
-                </div>
+            <div class="p-4 text-[13px] text-google-gray-500">
+                各モジュールのタブから詳細を確認してください。
+            </div>
+        </div>
+
+        <!-- Resources -->
+        <div class="border border-google-gray-300 rounded-lg bg-white overflow-hidden">
+            <div class="flex justify-between items-center px-4 py-3 border-b border-google-gray-200">
+                <h2 class="text-sm font-medium text-google-gray-900 m-0">稼働リソース</h2>
+            </div>
+            <div class="p-4 text-[13px] text-google-gray-500">
+                各モジュールのタブから詳細を確認してください。
             </div>
         </div>
     </div>

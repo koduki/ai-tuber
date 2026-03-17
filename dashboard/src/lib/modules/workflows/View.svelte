@@ -1,7 +1,6 @@
 <script lang="ts">
     import { onMount } from 'svelte';
     import { getStatusClass } from '$lib/utils/formatters';
-    import * as Icons from 'lucide-svelte';
 
     let data = $state<{ workflows: any[], executions: any[] } | null>(null);
     let loading = $state(true);
@@ -19,80 +18,94 @@
     }
 
     onMount(fetchData);
+
+    function getDotClass(status: string) {
+        const cls = getStatusClass(status);
+        if (cls === 'status-success') return 'bg-google-green';
+        if (cls === 'status-error') return 'bg-google-red';
+        if (cls === 'status-warning') return 'bg-google-amber-dark';
+        if (cls === 'status-blue') return 'bg-google-blue';
+        return 'bg-google-gray-500';
+    }
 </script>
 
-<div class="workflows-container">
+<div>
     {#if loading}
-        <div class="space-y-8 animate-pulse">
-            {#each Array(2) as _}
-                <div class="h-32 bg-gray-50 rounded border border-gray-100"></div>
-            {/each}
-        </div>
+        <div class="text-google-gray-500 text-[13px] text-center py-6">読み込み中...</div>
     {:else if data}
-        <section class="mb-8">
-            <div class="flex justify-between items-center mb-4">
-                <h2 class="text-lg font-medium text-gray-800">ワークフロー定義</h2>
-                <button class="btn-primary flex items-center gap-2 text-sm" onclick={fetchData}>
-                    <Icons.RotateCw size={14} />
-                    <span>更新</span>
+        <!-- Workflows Table -->
+        <div class="bg-white border border-google-gray-300 rounded-lg overflow-hidden mb-6">
+            <div class="flex justify-between items-center px-4 py-3 border-b border-google-gray-200">
+                <h2 class="text-sm font-medium text-google-gray-900 m-0">ワークフロー 詳細</h2>
+                <button class="bg-white border-0 text-google-blue text-xs font-medium cursor-pointer hover:underline" onclick={fetchData}>
+                    更新
                 </button>
             </div>
-            <div class="card overflow-hidden">
-                <table class="data-table">
-                    <thead>
+            <div class="p-0 overflow-x-auto">
+                <table class="w-full text-left text-[13px] text-google-gray-700 border-collapse">
+                    <thead class="bg-google-gray-50">
                         <tr>
-                            <th>ワークフロー名</th>
-                            <th>ロケーション</th>
-                            <th>リビジョン</th>
-                            <th>最終更新</th>
+                            <th class="px-4 py-2.5 border-b border-google-gray-200 font-medium text-google-gray-500 whitespace-nowrap">名前</th>
+                            <th class="px-4 py-2.5 border-b border-google-gray-200 font-medium text-google-gray-500 whitespace-nowrap">場所</th>
+                            <th class="px-4 py-2.5 border-b border-google-gray-200 font-medium text-google-gray-500 whitespace-nowrap">リビジョン</th>
+                            <th class="px-4 py-2.5 border-b border-google-gray-200 font-medium text-google-gray-500 whitespace-nowrap">更新日</th>
                         </tr>
                     </thead>
                     <tbody>
                         {#each data.workflows as wf}
-                            <tr>
-                                <td class="font-medium text-gray-900">{wf.name}</td>
-                                <td>{wf.location}</td>
-                                <td class="text-xs font-mono text-gray-500">{wf.revision}</td>
-                                <td class="text-sm text-gray-600">{wf.updated}</td>
+                            <tr class="border-b border-google-gray-200 hover:bg-google-gray-50 last:border-b-0">
+                                <td class="px-4 py-3 align-top whitespace-nowrap">
+                                    <a href="#" class="text-google-blue font-medium hover:underline">{wf.name}</a>
+                                </td>
+                                <td class="px-4 py-3 align-top whitespace-nowrap">{wf.location}</td>
+                                <td class="px-4 py-3 align-top whitespace-nowrap">{wf.revision}</td>
+                                <td class="px-4 py-3 align-top whitespace-nowrap">{wf.updated}</td>
                             </tr>
                         {/each}
                     </tbody>
                 </table>
             </div>
-        </section>
+        </div>
 
-        <section>
-            <h2 class="text-lg font-medium text-gray-800 mb-4">直近の実行履歴</h2>
-            <div class="card overflow-hidden">
-                <table class="data-table">
-                    <thead>
+        <!-- Executions Table -->
+        <div class="bg-white border border-google-gray-300 rounded-lg overflow-hidden mb-6">
+            <div class="flex justify-between items-center px-4 py-3 border-b border-google-gray-200">
+                <h2 class="text-sm font-medium text-google-gray-900 m-0">実行履歴</h2>
+            </div>
+            <div class="p-0 overflow-x-auto">
+                <table class="w-full text-left text-[13px] text-google-gray-700 border-collapse">
+                    <thead class="bg-google-gray-50">
                         <tr>
-                            <th>実行 ID</th>
-                            <th>ステータス</th>
-                            <th>現在のステップ</th>
-                            <th>開始時刻</th>
+                            <th class="px-4 py-2.5 border-b border-google-gray-200 font-medium text-google-gray-500 whitespace-nowrap">状態</th>
+                            <th class="px-4 py-2.5 border-b border-google-gray-200 font-medium text-google-gray-500 whitespace-nowrap">実行 ID</th>
+                            <th class="px-4 py-2.5 border-b border-google-gray-200 font-medium text-google-gray-500 whitespace-nowrap">開始時刻</th>
+                            <th class="px-4 py-2.5 border-b border-google-gray-200 font-medium text-google-gray-500 whitespace-nowrap">現在のステップ</th>
                         </tr>
                     </thead>
                     <tbody>
                         {#each data.executions as ex}
-                            <tr>
-                                <td class="text-xs text-blue-600 font-mono font-medium">{ex.executionId}</td>
-                                <td>
-                                    <span class="{getStatusClass(ex.status)}">
-                                        {ex.status}
-                                    </span>
+                            <tr class="border-b border-google-gray-200 hover:bg-google-gray-50 last:border-b-0">
+                                <td class="px-4 py-3 align-top whitespace-nowrap">
+                                    <div class="flex items-center gap-2">
+                                        <span class="w-2.5 h-2.5 rounded-full {getDotClass(ex.status)}"></span>
+                                        <span class="inline-block px-2.5 py-1 rounded-full bg-google-gray-200 text-[11px] font-medium text-google-gray-500">{ex.stepName || 'exec'}</span>
+                                        <span class="text-[12px] font-medium {getStatusClass(ex.status)}">{ex.status}</span>
+                                    </div>
                                 </td>
-                                <td class="text-sm text-gray-600">{ex.stepName}</td>
-                                <td class="text-sm text-gray-500 font-mono">{ex.started}</td>
+                                <td class="px-4 py-3 align-top whitespace-nowrap">
+                                    <a href="#" class="text-google-blue hover:underline">{ex.executionId}</a>
+                                </td>
+                                <td class="px-4 py-3 align-top whitespace-nowrap">{ex.started}</td>
+                                <td class="px-4 py-3 align-top whitespace-nowrap">{ex.stepName}</td>
                             </tr>
                         {/each}
                     </tbody>
                 </table>
             </div>
-        </section>
+        </div>
     {:else}
-        <div class="error-message">
-            ワークフロー情報の取得に失敗しました。
+        <div class="bg-[#fce8e6] text-google-red p-3 px-4 rounded-lg text-[13px]">
+            データ取得に失敗しました。
         </div>
     {/if}
 </div>

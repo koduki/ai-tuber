@@ -1,7 +1,6 @@
 <script lang="ts">
     import { onMount } from 'svelte';
     import { getStatusClass } from '$lib/utils/formatters';
-    import * as Icons from 'lucide-svelte';
 
     let builds = $state<any[]>([]);
     let loading = $state(true);
@@ -19,60 +18,67 @@
     }
 
     onMount(fetchBuilds);
+
+    function getDotClass(status: string) {
+        const cls = getStatusClass(status);
+        if (cls === 'status-success') return 'bg-google-green';
+        if (cls === 'status-error') return 'bg-google-red';
+        if (cls === 'status-warning') return 'bg-google-amber-dark';
+        if (cls === 'status-blue') return 'bg-google-blue';
+        return 'bg-google-gray-500';
+    }
 </script>
 
-<div class="builds-container">
-    <div class="flex justify-between items-center mb-6">
-        <h2 class="text-lg font-medium text-gray-800">ビルド履歴 (最近の10件)</h2>
-        <button class="btn-primary flex items-center gap-2 text-sm" onclick={fetchBuilds}>
-            <Icons.RotateCw size={14} />
-            <span>更新</span>
-        </button>
-    </div>
-    
+<div>
     {#if loading}
-        <div class="animate-pulse space-y-4">
-            {#each Array(5) as _}
-                <div class="h-16 bg-gray-50 rounded border border-gray-100"></div>
-            {/each}
-        </div>
+        <div class="text-google-gray-500 text-[13px] text-center py-6">読み込み中...</div>
     {:else}
-        <div class="card overflow-hidden">
-            <table class="data-table">
-                <thead>
-                    <tr>
-                        <th>ビルド ID</th>
-                        <th>ステータス</th>
-                        <th>リポジトリ / ソース</th>
-                        <th>ブランチ / コミット</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {#each builds as build}
+        <div class="bg-white border border-google-gray-300 rounded-lg overflow-hidden mb-6">
+            <div class="flex justify-between items-center px-4 py-3 border-b border-google-gray-200">
+                <h2 class="text-sm font-medium text-google-gray-900 m-0">Cloud Build 履歴</h2>
+                <button class="bg-white border-0 text-google-blue text-xs font-medium cursor-pointer hover:underline" onclick={fetchBuilds}>
+                    更新
+                </button>
+            </div>
+            <div class="p-0 overflow-x-auto">
+                <div class="flex items-center gap-2 px-3 py-2 border-b border-google-gray-300 bg-google-gray-50 text-xs text-google-gray-500">
+                    <span>フィルタ</span>
+                    <span class="bg-white px-2 py-0.5 rounded text-google-gray-700">プロパティ名または値を入力</span>
+                </div>
+                <table class="w-full text-left text-[13px] text-google-gray-700 border-collapse">
+                    <thead class="bg-google-gray-50">
                         <tr>
-                            <td>
-                                <div class="flex items-center gap-2">
-                                    <Icons.Clock size={14} class="text-gray-400" />
-                                    <code class="text-blue-600 font-mono text-sm font-medium">{build.id}</code>
-                                </div>
-                            </td>
-                            <td>
-                                <span class="{getStatusClass(build.status)}">
-                                    {build.status}
-                                </span>
-                            </td>
-                            <td class="text-sm text-gray-600">{build.source || 'GitHub'}</td>
-                            <td>
-                                <div class="text-sm font-medium text-gray-700">{build.ref || 'main'}</div>
-                                <div class="flex items-center gap-1 text-[11px] text-gray-400 font-mono">
-                                    <Icons.GitCommit size={12} />
-                                    <span>{build.commit}</span>
-                                </div>
-                            </td>
+                            <th class="px-4 py-2.5 border-b border-google-gray-200 font-medium text-google-gray-500 whitespace-nowrap">ステータス</th>
+                            <th class="px-4 py-2.5 border-b border-google-gray-200 font-medium text-google-gray-500 whitespace-nowrap">ビルド</th>
+                            <th class="px-4 py-2.5 border-b border-google-gray-200 font-medium text-google-gray-500 whitespace-nowrap">リージョン</th>
+                            <th class="px-4 py-2.5 border-b border-google-gray-200 font-medium text-google-gray-500 whitespace-nowrap">ソース</th>
+                            <th class="px-4 py-2.5 border-b border-google-gray-200 font-medium text-google-gray-500 whitespace-nowrap">Ref</th>
+                            <th class="px-4 py-2.5 border-b border-google-gray-200 font-medium text-google-gray-500 whitespace-nowrap">commit</th>
+                            <th class="px-4 py-2.5 border-b border-google-gray-200 font-medium text-google-gray-500 whitespace-nowrap">トリガー名</th>
                         </tr>
-                    {/each}
-                </tbody>
-            </table>
+                    </thead>
+                    <tbody>
+                        {#each builds as build}
+                            <tr class="border-b border-google-gray-200 hover:bg-google-gray-50 last:border-b-0">
+                                <td class="px-4 py-3 align-top whitespace-nowrap">
+                                    <span class="inline-flex items-center gap-2 text-xs font-medium {getStatusClass(build.status)}">
+                                        <span class="w-2.5 h-2.5 rounded-full {getDotClass(build.status)}"></span>
+                                        {build.status}
+                                    </span>
+                                </td>
+                                <td class="px-4 py-3 align-top whitespace-nowrap">
+                                    <a href="#" class="text-google-blue font-medium hover:underline">{build.id}</a>
+                                </td>
+                                <td class="px-4 py-3 align-top whitespace-nowrap">{build.region}</td>
+                                <td class="px-4 py-3 align-top whitespace-nowrap"><a href="#" class="text-google-blue hover:underline">{build.source || 'GitHub'}</a></td>
+                                <td class="px-4 py-3 align-top whitespace-nowrap">{build.ref || 'main'}</td>
+                                <td class="px-4 py-3 align-top whitespace-nowrap"><a href="#" class="text-google-blue hover:underline">{build.commit}</a></td>
+                                <td class="px-4 py-3 align-top whitespace-nowrap"><a href="#" class="text-google-blue hover:underline">{build.triggerName || ''}</a></td>
+                            </tr>
+                        {/each}
+                    </tbody>
+                </table>
+            </div>
         </div>
     {/if}
 </div>

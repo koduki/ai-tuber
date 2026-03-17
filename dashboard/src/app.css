@@ -1,179 +1,55 @@
-/* ==========================================================
-   GCP Ops Portal — スタイルシート
-   Imported from main branch and adapted for SvelteKit
-   ========================================================== */
+@import "tailwindcss";
 
-:root {
-  --blue: #1a73e8;
-  --blue-dark: #174ea6;
-  --blue-bg: #e8f0fe;
-  --blue-hover: #1765cc;
-  --green: #1e8e3e;
-  --green-bg: #e6f4ea;
-  --red: #d93025;
-  --amber: #f29900;
-  --amber-dark: #b06000;
-  --gray-900: #202124;
-  --gray-700: #3c4043;
-  --gray-500: #5f6368;
-  --gray-300: #dadce0;
-  --gray-200: #e8eaed;
-  --gray-100: #f1f3f4;
-  --gray-50: #f8f9fa;
-  --white: #ffffff;
-  --font: 'Inter', 'Google Sans', 'Roboto', -apple-system, BlinkMacSystemFont, sans-serif;
-  --radius: 8px;
-  --radius-sm: 4px;
+@theme {
+  --color-google-blue: #1a73e8;
+  --color-google-blue-dark: #174ea6;
+  --color-google-blue-bg: #e8f0fe;
+  --color-google-blue-hover: #1765cc;
+  --color-google-green: #1e8e3e;
+  --color-google-green-bg: #e6f4ea;
+  --color-google-red: #d93025;
+  --color-google-red-bg: #fce8e6;
+  --color-google-amber: #f29900;
+  --color-google-amber-dark: #b06000;
+  --color-google-gray-900: #202124;
+  --color-google-gray-700: #3c4043;
+  --color-google-gray-500: #5f6368;
+  --color-google-gray-300: #dadce0;
+  --color-google-gray-200: #e8eaed;
+  --color-google-gray-100: #f1f3f4;
+  --color-google-gray-50: #f8f9fa;
+  --color-google-white: #ffffff;
+  
+  --font-family-sans: 'Google Sans', 'Roboto', -apple-system, BlinkMacSystemFont, sans-serif;
 }
 
-:global(body), :global(html) {
-  margin: 0;
-  padding: 0;
-  height: 100%;
-  font-family: var(--font);
-  background: var(--gray-50);
-  color: var(--gray-900);
+@layer base {
+  html, body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    background-color: var(--color-google-gray-50);
+    color: var(--color-google-gray-900);
+  }
 }
 
-/* ── Utility Classes (Status) ── */
-:global(.status-success) { color: var(--green); font-weight: 500; }
-:global(.status-error) { color: var(--red); font-weight: 500; }
-:global(.status-warning) { color: var(--amber-dark); font-weight: 500; }
-:global(.status-neutral) { color: var(--gray-500); }
+@layer utilities {
+  .status-success { color: var(--color-google-green); font-weight: 500; }
+  .status-error { color: var(--color-google-red); font-weight: 500; }
+  .status-warning { color: var(--color-google-amber-dark); font-weight: 500; }
+  .status-blue { color: var(--color-google-blue); font-weight: 500; }
+  .status-neutral { color: var(--color-google-gray-500); }
 
-/* ── Metric Cards ── */
-.metrics {
-  display: grid;
-  gap: 16px;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  margin-bottom: 24px;
+  .status-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    display: inline-block;
+  }
+  .status-dot-green { background-color: var(--color-google-green); }
+  .status-dot-red { background-color: var(--color-google-red); }
+  .status-dot-amber { background-color: var(--color-google-amber); }
+  .status-dot-blue { background-color: var(--color-google-blue); }
+  .status-dot-gray { background-color: var(--color-google-gray-500); }
 }
 
-.metric-card {
-  padding: 16px;
-  border: 1px solid var(--gray-300);
-  border-radius: var(--radius);
-  background: var(--white);
-  box-shadow: 0 1px 2px rgba(0,0,0,0.05);
-  transition: box-shadow 0.2s;
-}
-
-.metric-card:hover {
-  box-shadow: 0 4px 6px rgba(0,0,0,0.05);
-}
-
-.metric-card__label { font-size: 13px; color: var(--gray-500); }
-.metric-card__value { font-size: 28px; font-weight: 500; margin-top: 8px; }
-.metric-card__footer { display: flex; justify-content: space-between; align-items: center; margin-top: 8px; font-size: 12px; }
-
-/* ── Data Tables ── */
-.data-table {
-  width: 100%;
-  border-collapse: collapse;
-  background: white;
-  border-radius: var(--radius);
-  overflow: hidden;
-  border: 1px solid var(--gray-300);
-  font-size: 13px;
-}
-
-.data-table th {
-  text-align: left;
-  padding: 12px 16px;
-  background: var(--gray-50);
-  border-bottom: 1px solid var(--gray-300);
-  color: var(--gray-500);
-  font-weight: 500;
-}
-
-.data-table td {
-  padding: 12px 16px;
-  border-bottom: 1px solid var(--gray-200);
-}
-
-.data-table tr:last-child td { border-bottom: none; }
-
-/* ── App Layout ── */
-.app-container {
-  display: flex;
-  height: 100vh;
-  flex-direction: column;
-}
-
-.header {
-  height: 56px;
-  background: white;
-  border-bottom: 1px solid var(--gray-300);
-  display: flex;
-  align-items: center;
-  padding: 0 20px;
-  justify-content: space-between;
-  z-index: 100;
-}
-
-.main-layout {
-  display: flex;
-  flex: 1;
-  overflow: hidden;
-}
-
-.sidebar {
-  width: 240px;
-  background: white;
-  border-right: 1px solid var(--gray-300);
-  display: flex;
-  flex-direction: column;
-  padding: 16px 0;
-}
-
-.sidebar-item {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 10px 24px;
-  color: var(--gray-700);
-  text-decoration: none;
-  font-size: 14px;
-  transition: background 0.2s;
-}
-
-.sidebar-item:hover { background: var(--gray-100); }
-.sidebar-item.active { background: var(--blue-bg); color: var(--blue-dark); font-weight: 500; }
-
-.content-area {
-  flex: 1;
-  overflow-y: auto;
-  padding: 24px;
-}
-
-/* ── Card ── */
-.card {
-  background: white;
-  border: 1px solid var(--gray-300);
-  border-radius: var(--radius);
-  margin-bottom: 24px;
-}
-
-.card-header {
-  padding: 12px 20px;
-  border-bottom: 1px solid var(--gray-200);
-  font-weight: 500;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.card-body { padding: 20px; }
-
-/* ── Common ── */
-.btn-primary {
-  background: var(--blue);
-  color: white;
-  padding: 8px 16px;
-  border-radius: var(--radius-sm);
-  border: none;
-  cursor: pointer;
-  font-weight: 500;
-}
-
-.btn-primary:hover { background: var(--blue-dark); }

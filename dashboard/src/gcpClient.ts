@@ -4,7 +4,7 @@
  */
 
 import { CloudSchedulerClient } from '@google-cloud/scheduler';
-import { WorkflowsClient } from '@google-cloud/workflows';
+const { WorkflowsClient, ExecutionsClient } = require('@google-cloud/workflows');
 import { ServicesClient, JobsClient } from '@google-cloud/run';
 import { InstancesClient } from '@google-cloud/compute';
 import { CloudBuildClient } from '@google-cloud/cloudbuild';

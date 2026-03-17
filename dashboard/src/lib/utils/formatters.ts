@@ -38,7 +38,7 @@ export function getStatusClass(status: string): string {
         return 'status-error';
     }
     if (s.includes('実行中') || s.includes('起動中') || s.includes('ビルド中')) {
-        return 'status-warning';
+        return 'status-blue';
     }
     return 'status-neutral';
 }

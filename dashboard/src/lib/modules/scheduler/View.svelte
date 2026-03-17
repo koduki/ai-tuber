@@ -38,60 +38,66 @@
             alert(`エラー: ${err}`);
         }
     }
+    
+    function getDotClass(status: string) {
+        const cls = getStatusClass(status);
+        if (cls === 'status-success') return 'bg-google-green';
+        if (cls === 'status-error') return 'bg-google-red';
+        if (cls === 'status-warning') return 'bg-google-amber-dark';
+        if (cls === 'status-blue') return 'bg-google-blue';
+        return 'bg-google-gray-500';
+    }
 </script>
 
-<div class="scheduler-container">
-    <div class="flex justify-between items-center mb-6">
-        <h2 class="text-lg font-medium text-gray-800">ジョブ一覧</h2>
-        <button class="btn-primary flex items-center gap-2 text-sm" onclick={fetchJobs}>
-            <RotateCw size={14} />
-            <span>更新</span>
-        </button>
-    </div>
-    
-    {#if loading}
-        <div class="animate-pulse space-y-4">
-            {#each Array(3) as _}
-                <div class="h-16 bg-gray-50 rounded border border-gray-100"></div>
-            {/each}
+<div>
+    <div class="bg-white border border-google-gray-300 rounded-lg overflow-hidden mb-6">
+        <div class="flex justify-between items-center px-4 py-3 border-b border-google-gray-200">
+            <h2 class="text-sm font-medium text-google-gray-900 m-0">Cloud Scheduler ジョブ</h2>
+            <button class="bg-white border-0 text-google-blue text-xs font-medium cursor-pointer hover:underline" onclick={fetchJobs}>
+                更新
+            </button>
         </div>
-    {:else}
-        <div class="card overflow-hidden">
-            <table class="data-table">
-                <thead>
-                    <tr>
-                        <th>名前</th>
-                        <th>頻度 (Cron)</th>
-                        <th>最後の実行</th>
-                        <th>次回の実行</th>
-                        <th>ステータス</th>
-                        <th class="text-right">アクション</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {#each jobs as job}
+        <div class="p-0 overflow-x-auto">
+            {#if loading}
+                <div class="text-google-gray-500 text-[13px] text-center py-6">読み込み中...</div>
+            {:else if jobs.length === 0}
+                <div class="text-google-gray-500 text-[13px] text-center py-6">ジョブなし</div>
+            {:else}
+                <table class="w-full text-left text-[13px] text-google-gray-700 border-collapse">
+                    <thead class="bg-google-gray-50">
                         <tr>
-                            <td>
-                                <div class="font-medium text-gray-900">{job.displayName}</div>
-                                <div class="text-xs text-gray-500 mt-0.5">{job.description || 'Cloud Scheduler Job'}</div>
-                            </td>
-                            <td><code class="text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded font-mono">{job.schedule}</code></td>
-                            <td class="text-sm text-gray-600 font-mono">{job.lastRunTime}</td>
-                            <td class="text-sm text-gray-600 font-mono">{job.nextRunTime}</td>
-                            <td>
-                                <span class="{getStatusClass(job.lastStatus)}">
-                                    {job.lastStatus}
-                                </span>
-                            </td>
-                            <td class="text-right">
-                                <button class="p-2 hover:bg-blue-50 text-blue-600 rounded transition-colors" onclick={() => runJob(job.name)} title="実行">
-                                    <Play size={16} fill="currentColor" />
-                                </button>
-                            </td>
+                            <th class="px-4 py-2.5 border-b border-google-gray-200 font-medium text-google-gray-500 whitespace-nowrap">名前</th>
+                            <th class="px-4 py-2.5 border-b border-google-gray-200 font-medium text-google-gray-500 whitespace-nowrap">頻度</th>
+                            <th class="px-4 py-2.5 border-b border-google-gray-200 font-medium text-google-gray-500 whitespace-nowrap">最後の実行</th>
+                            <th class="px-4 py-2.5 border-b border-google-gray-200 font-medium text-google-gray-500 whitespace-nowrap">次回の実行</th>
+                            <th class="px-4 py-2.5 border-b border-google-gray-200 font-medium text-google-gray-500 whitespace-nowrap">ステータス</th>
+                            <th class="px-4 py-2.5 border-b border-google-gray-200 font-medium text-google-gray-500 whitespace-nowrap">アクション</th>
                         </tr>
-                    {/each}
-                </tbody>
-            </table>
+                    </thead>
+                    <tbody>
+                        {#each jobs as job}
+                            <tr class="border-b border-google-gray-200 hover:bg-google-gray-50 last:border-b-0">
+                                <td class="px-4 py-3 align-top whitespace-nowrap">
+                                    <div class="text-google-blue"><a href="#" class="font-medium hover:underline text-google-blue">{job.displayName}</a></div>
+                                    <div class="text-[11px] text-google-gray-500 mt-1">{job.description || 'Cloud Scheduler Job'}</div>
+                                </td>
+                                <td class="px-4 py-3 align-top whitespace-nowrap">{job.schedule}</td>
+                                <td class="px-4 py-3 align-top whitespace-nowrap">{job.lastRunTime}</td>
+                                <td class="px-4 py-3 align-top whitespace-nowrap">{job.nextRunTime}</td>
+                                <td class="px-4 py-3 align-top whitespace-nowrap">
+                                    <span class="inline-flex items-center gap-2 text-xs font-medium {getStatusClass(job.lastStatus)}">
+                                        <span class="w-2.5 h-2.5 rounded-full {getDotClass(job.lastStatus)}"></span>
+                                        {job.lastStatus}
+                                    </span>
+                                </td>
+                                <td class="px-4 py-3 align-top whitespace-nowrap">
+                                    <button class="bg-google-blue text-white border-0 px-3 py-1 rounded-full text-[11px] font-medium cursor-pointer hover:bg-google-blue-hover" onclick={() => runJob(job.name)}>今すぐ実行</button>
+                                </td>
+                            </tr>
+                        {/each}
+                    </tbody>
+                </table>
+            {/if}
         </div>
-    {/if}
+    </div>
 </div>

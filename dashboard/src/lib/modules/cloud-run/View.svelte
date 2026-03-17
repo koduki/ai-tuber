@@ -1,7 +1,6 @@
 <script lang="ts">
     import { onMount } from 'svelte';
     import { getStatusClass } from '$lib/utils/formatters';
-    import * as Icons from 'lucide-svelte';
 
     let services = $state<any[]>([]);
     let loading = $state(true);
@@ -19,56 +18,64 @@
     }
 
     onMount(fetchServices);
+
+    function getDotClass(status: string) {
+        const cls = getStatusClass(status);
+        if (cls === 'status-success') return 'bg-google-green';
+        if (cls === 'status-error') return 'bg-google-red';
+        if (cls === 'status-warning') return 'bg-google-amber-dark';
+        if (cls === 'status-blue') return 'bg-google-blue';
+        return 'bg-google-gray-500';
+    }
 </script>
 
-<div class="cloud-run-container">
-    <div class="flex justify-between items-center mb-6">
-        <h2 class="text-lg font-medium text-gray-800">サービス一覧 (Run v2)</h2>
-        <button class="btn-primary flex items-center gap-2 text-sm" onclick={fetchServices}>
-            <Icons.RotateCw size={14} />
-            <span>更新</span>
-        </button>
-    </div>
-    
+<div>
     {#if loading}
-        <div class="animate-pulse space-y-4">
-            {#each Array(3) as _}
-                <div class="h-16 bg-gray-50 rounded border border-gray-100"></div>
-            {/each}
-        </div>
+        <div class="text-google-gray-500 text-[13px] text-center py-6">読み込み中...</div>
     {:else}
-        <div class="card overflow-hidden">
-            <table class="data-table">
-                <thead>
-                    <tr>
-                        <th>サービス名</th>
-                        <th>ステータス</th>
-                        <th>リージョン</th>
-                        <th>認証</th>
-                        <th>URL</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {#each services as svc}
+        <div class="bg-white border border-google-gray-300 rounded-lg overflow-hidden mb-6">
+            <div class="flex justify-between items-center px-4 py-3 border-b border-google-gray-200">
+                <h2 class="text-sm font-medium text-google-gray-900 m-0">Cloud Run サービス</h2>
+                <button class="bg-white border-0 text-google-blue text-xs font-medium cursor-pointer hover:underline" onclick={fetchServices}>
+                    更新
+                </button>
+            </div>
+            <div class="p-0 overflow-x-auto">
+                <table class="w-full text-left text-[13px] text-google-gray-700 border-collapse">
+                    <thead class="bg-google-gray-50">
                         <tr>
-                            <td class="font-medium text-gray-900">{svc.name}</td>
-                            <td>
-                                <span class="{getStatusClass(svc.status)}">
-                                    {svc.status}
-                                </span>
-                            </td>
-                            <td class="text-sm text-gray-600">{svc.region}</td>
-                            <td class="text-xs text-gray-500">{svc.authentication}</td>
-                            <td>
-                                <a href={svc.uri} target="_blank" rel="noreferrer" class="text-blue-600 hover:text-blue-800 flex items-center gap-1">
-                                    <Icons.ExternalLink size={14} />
-                                    <span>開く</span>
-                                </a>
-                            </td>
+                            <th class="px-4 py-2.5 border-b border-google-gray-200 font-medium text-google-gray-500 whitespace-nowrap">状態</th>
+                            <th class="px-4 py-2.5 border-b border-google-gray-200 font-medium text-google-gray-500 whitespace-nowrap">名前</th>
+                            <th class="px-4 py-2.5 border-b border-google-gray-200 font-medium text-google-gray-500 whitespace-nowrap">リージョン</th>
+                            <th class="px-4 py-2.5 border-b border-google-gray-200 font-medium text-google-gray-500 whitespace-nowrap">認証</th>
+                            <th class="px-4 py-2.5 border-b border-google-gray-200 font-medium text-google-gray-500 whitespace-nowrap">リンク</th>
                         </tr>
-                    {/each}
-                </tbody>
-            </table>
+                    </thead>
+                    <tbody>
+                        {#each services as svc}
+                            <tr class="border-b border-google-gray-200 hover:bg-google-gray-50 last:border-b-0">
+                                <td class="px-4 py-3 align-top whitespace-nowrap">
+                                    <span class="inline-flex items-center gap-2 text-xs font-medium {getStatusClass(svc.status)}">
+                                        <span class="w-2.5 h-2.5 rounded-full {getDotClass(svc.status)}"></span>
+                                        {svc.status}
+                                    </span>
+                                </td>
+                                <td class="px-4 py-3 align-top whitespace-nowrap">
+                                    <a href="#" class="text-google-blue font-medium hover:underline">{svc.name}</a>
+                                </td>
+                                <td class="px-4 py-3 align-top whitespace-nowrap">{svc.region}</td>
+                                <td class="px-4 py-3 align-top whitespace-nowrap">{svc.authentication}</td>
+                                <td class="px-4 py-3 align-top whitespace-nowrap text-[11px]">
+                                    <div class="flex gap-3">
+                                        <a href={svc.uri} target="_blank" rel="noreferrer" class="text-google-blue hover:underline">Service</a>
+                                        <a href="https://console.cloud.google.com/logs?project=ren-studio-ai" target="_blank" rel="noreferrer" class="text-google-blue hover:underline">Logs</a>
+                                    </div>
+                                </td>
+                            </tr>
+                        {/each}
+                    </tbody>
+                </table>
+            </div>
         </div>
     {/if}
 </div>

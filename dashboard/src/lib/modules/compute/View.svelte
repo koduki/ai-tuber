@@ -1,7 +1,6 @@
 <script lang="ts">
     import { onMount } from 'svelte';
     import { getStatusClass } from '$lib/utils/formatters';
-    import * as Icons from 'lucide-svelte';
 
     let instances = $state<any[]>([]);
     let loading = $state(true);
@@ -19,63 +18,61 @@
     }
 
     onMount(fetchInstances);
+
+    function getDotClass(status: string) {
+        const cls = getStatusClass(status);
+        if (cls === 'status-success') return 'bg-google-green';
+        if (cls === 'status-error') return 'bg-google-red';
+        if (cls === 'status-warning') return 'bg-google-amber-dark';
+        if (cls === 'status-blue') return 'bg-google-blue';
+        return 'bg-google-gray-500';
+    }
 </script>
 
-<div class="compute-container">
-    <div class="flex justify-between items-center mb-6">
-        <h2 class="text-lg font-medium text-gray-800">インスタンス一覧</h2>
-        <button class="btn-primary flex items-center gap-2 text-sm" onclick={fetchInstances}>
-            <Icons.RotateCw size={14} />
-            <span>更新</span>
-        </button>
-    </div>
-    
+<div>
     {#if loading}
-        <div class="animate-pulse space-y-4">
-            {#each Array(2) as _}
-                <div class="h-20 bg-gray-50 rounded border border-gray-100"></div>
-            {/each}
-        </div>
+        <div class="text-google-gray-500 text-[13px] text-center py-6">読み込み中...</div>
     {:else}
-        <div class="card overflow-hidden">
-            <table class="data-table">
-                <thead>
-                    <tr>
-                        <th>インスタンス名</th>
-                        <th>ステータス</th>
-                        <th>ゾーン</th>
-                        <th>IP アドレス</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {#each instances as inst}
+        <div class="bg-white border border-google-gray-300 rounded-lg overflow-hidden mb-6">
+            <div class="flex justify-between items-center px-4 py-3 border-b border-google-gray-200">
+                <h2 class="text-sm font-medium text-google-gray-900 m-0">Compute Engine インスタンス</h2>
+                <button class="bg-white border-0 text-google-blue text-xs font-medium cursor-pointer hover:underline" onclick={fetchInstances}>
+                    更新
+                </button>
+            </div>
+            <div class="p-0 overflow-x-auto">
+                <table class="w-full text-left text-[13px] text-google-gray-700 border-collapse">
+                    <thead class="bg-google-gray-50">
                         <tr>
-                            <td>
-                                <div class="font-medium text-gray-900">{inst.name}</div>
-                                <div class="text-xs text-gray-400 mt-0.5">{inst.description}</div>
-                            </td>
-                            <td>
-                                <span class="{getStatusClass(inst.status)}">
-                                    {inst.status}
-                                </span>
-                            </td>
-                            <td class="text-sm text-gray-600 font-mono">{inst.zone}</td>
-                            <td>
-                                <div class="flex flex-col gap-1">
-                                    <div class="flex items-center gap-2">
-                                        <span class="text-[10px] font-bold text-gray-400 w-8 uppercase">Ext:</span>
-                                        <span class="text-xs font-mono text-gray-700">{inst.externalIp || 'N/A'}</span>
-                                    </div>
-                                    <div class="flex items-center gap-2">
-                                        <span class="text-[10px] font-bold text-gray-400 w-8 uppercase">Int:</span>
-                                        <span class="text-xs font-mono text-gray-500">{inst.internalIp || 'N/A'}</span>
-                                    </div>
-                                </div>
-                            </td>
+                            <th class="px-4 py-2.5 border-b border-google-gray-200 font-medium text-google-gray-500 whitespace-nowrap">状態</th>
+                            <th class="px-4 py-2.5 border-b border-google-gray-200 font-medium text-google-gray-500 whitespace-nowrap">名前</th>
+                            <th class="px-4 py-2.5 border-b border-google-gray-200 font-medium text-google-gray-500 whitespace-nowrap">ゾーン</th>
+                            <th class="px-4 py-2.5 border-b border-google-gray-200 font-medium text-google-gray-500 whitespace-nowrap">内部 IP</th>
+                            <th class="px-4 py-2.5 border-b border-google-gray-200 font-medium text-google-gray-500 whitespace-nowrap">外部 IP</th>
+                            <th class="px-4 py-2.5 border-b border-google-gray-200 font-medium text-google-gray-500 whitespace-nowrap">用途</th>
                         </tr>
-                    {/each}
-                </tbody>
-            </table>
+                    </thead>
+                    <tbody>
+                        {#each instances as inst}
+                            <tr class="border-b border-google-gray-200 hover:bg-google-gray-50 last:border-b-0">
+                                <td class="px-4 py-3 align-top whitespace-nowrap">
+                                    <span class="inline-flex items-center gap-2 text-xs font-medium {getStatusClass(inst.status)}">
+                                        <span class="w-2.5 h-2.5 rounded-full {getDotClass(inst.status)}"></span>
+                                        {inst.status}
+                                    </span>
+                                </td>
+                                <td class="px-4 py-3 align-top whitespace-nowrap">
+                                    <a href="#" class="text-google-blue font-medium hover:underline">{inst.name}</a>
+                                </td>
+                                <td class="px-4 py-3 align-top whitespace-nowrap">{inst.zone}</td>
+                                <td class="px-4 py-3 align-top whitespace-nowrap font-bold">{inst.internalIp || 'N/A'}</td>
+                                <td class="px-4 py-3 align-top whitespace-nowrap font-bold">{inst.externalIp || 'N/A'}</td>
+                                <td class="px-4 py-3 align-top whitespace-nowrap">{inst.description}</td>
+                            </tr>
+                        {/each}
+                    </tbody>
+                </table>
+            </div>
         </div>
     {/if}
 </div>
