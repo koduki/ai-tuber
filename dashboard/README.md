@@ -29,15 +29,10 @@ dashboard/
 
 このダッシュボードを正常にビルド・運用するために、以下の制約を厳守してください：
 
-1.  **SvelteKit 互換 API**:
-    - `Express` は使用できません。`api.ts` は SvelteKit のエンドポイント形式（`export const GET`, `export const POST` 等をメンバに持つオブジェクトをエクスポートする形式）で実装してください。
-2.  **ES Modules (ESM) 必須**:
-    - プロジェクトは `"type": "module"` として動作します。
-    - `require()` は使用できません。必ず `import` を使用してください。
-    - CommonJS モジュールを読み込む必要がある場合は、`import pkg from '...'` の形式を使用してください。
-3.  **GCP SDK の利用注意**:
-    - 一部の GCP SDK（特に `@google-cloud/workflows` やその実行系）は、ESM 環境で内部の Proto ファイルを読み込めず、ビルド後のランタイムでエラー（`TypeError: Cannot read properties of null (reading 'decode')`）が発生することがあります。
-    - この問題に遭遇した場合は、SDK を使わず `google-auth-library` と標準の `fetch` を用いた REST API 呼び出し（`src/gcpClient.ts` 内の `gcpFetch` 関数）を使用してください。
+4.  **シンプルかつ明確 (Simple & Explicit)**:
+    - 過剰な共通化や複雑な抽象化は避けてください。
+    - 各モジュールが自己完結し、他のモジュールを読まなくても理解できる状態（Explicit）を目指してください。
+    - 新しいモジュールを作る際は、既存のモジュールのコードを「コピー＆ペースト」して改変する手法を推奨します。
 
 ## 開発ガイド
 
@@ -59,9 +54,9 @@ npm run dev
 
 ### 新しいモジュールの追加手順
 
-1.  **モジュールディレクトリの作成**: `src/modules/[module_name]` を作成します。
+1.  **モジュールディレクトリの作成**: `src/modules/[module_name]` を作成します。既存の `cloud-run` などをコピーするのが最速です。
 2.  **Metadata の定義**: `index.ts` を作成し、`metadata` を export します。
-3.  **Backend API の実装**: `api.ts` を作成します。SvelteKit 互換の形式で、`GET` や `POST` オブジェクトをエクスポートしてください。
+3.  **Backend API の実装**: `api.ts` を作成します。SvelteKit 互換の形式で、`GET` や `POST` オブジェクトをエクスポートしてください。冗長であっても、モジュール内で直接 API を叩く実装を検討してください。
 4.  **Frontend View の実装**: `View.svelte` を作成し、UI を実装します。
 5.  **ナビゲーションへの追加**: プログラムによって `src/routes/api/manifest` から自動取得されます。
 

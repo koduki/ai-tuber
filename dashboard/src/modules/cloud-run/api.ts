@@ -1,7 +1,8 @@
 import { json } from '@sveltejs/kit';
-import * as gcp from '../../gcpClient';
+import * as gcp from '../../lib/gcp/run';
+import type { ModuleApi } from '../../lib/types/module';
 
-export const GET: Record<string, () => Promise<Response>> = {
+export const GET: ModuleApi['GET'] = {
     'services': async () => {
         const services = await gcp.getCloudRunServices();
         return json(services);

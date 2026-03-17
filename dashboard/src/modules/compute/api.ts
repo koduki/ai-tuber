@@ -1,8 +1,9 @@
 import { json } from '@sveltejs/kit';
-import * as gcp from '../../gcpClient';
+import * as gcp from '../../lib/gcp/compute';
+import type { ModuleApi } from '../../lib/types/module';
 
-export const GET: Record<string, () => Promise<Response>> = {
-    'index': async () => {
+export const GET: ModuleApi['GET'] = {
+    'instances': async () => {
         const instances = await gcp.getComputeInstances();
         return json(instances);
     }

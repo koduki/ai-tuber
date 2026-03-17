@@ -40,8 +40,13 @@ export const handle: Handle = async ({ event, resolve }) => {
         // Whitelist check
         const allowedEmails = (process.env.ALLOWED_EMAILS || 'pascalm3@gmail.com').split(',').map(e => e.trim()).filter(e => e);
         if (allowedEmails.length > 0 && !allowedEmails.includes(userEmail)) {
-            console.warn(`[Auth] Access Denied: ${userEmail}`);
-            throw error(403, `Access Denied: ${userEmail} is not authorized.`);
+            // Optional: Backup check via IAM if not in whitelist
+            const { checkUserPermission } = await import('./lib/gcp/auth');
+            const hasPermission = await checkUserPermission(userEmail);
+            if (!hasPermission) {
+                console.warn(`[Auth] Access Denied: ${userEmail}`);
+                throw error(403, `Access Denied: ${userEmail} is not authorized.`);
+            }
         }
         event.locals.userEmail = userEmail;
     }
