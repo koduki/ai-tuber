@@ -201,10 +201,7 @@ export async function getCloudRunServices(): Promise<CloudRunService[]> {
     const parent = `projects/${config.projectId}/locations/${config.region}`;
     const [svcs] = await runServices.listServices({ parent });
 
-    const managedNames = new Set(config.resources.cloudRunServices);
-    const filtered = (svcs || []).filter(
-        (svc: any) => managedNames.has(svc.name?.split('/').pop() || '')
-    );
+    const filtered = svcs || [];
 
     return filtered.map((svc: any) => {
         const shortName = svc.name?.split('/').pop() || '';
@@ -248,10 +245,7 @@ export async function getCloudRunJobs(): Promise<CloudRunJob[]> {
     const parent = `projects/${config.projectId}/locations/${config.region}`;
     const [jobs] = await runJobs.listJobs({ parent });
 
-    const managedNames = new Set(config.resources.cloudRunJobs);
-    const filtered = (jobs || []).filter(
-        (job: any) => managedNames.has(job.name?.split('/').pop() || '')
-    );
+    const filtered = jobs || [];
 
     return filtered.map((job: any) => {
         const shortName = job.name?.split('/').pop() || '';
