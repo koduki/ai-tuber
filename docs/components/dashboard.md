@@ -26,8 +26,8 @@ GCP リソースの運用・モニタリング用の、SvelteKit ベースのフ
 
 SvelteKit をベースに、以下の構成で実装されています：
 
-- **Frontend (Svelte 5)**: `src/routes/modules/[module_id]` で動的に UI を切り替え。
-- **Backend (Node.js)**: `src/modules` 配下に各モジュールの API エンドポイントを集約。
+- **Frontend (Svelte 5)**: `src/routes/modules/[module_id]` で、`src/modules/[module_id]/View.svelte` を動的にロード。
+- **Backend (Node.js)**: `src/modules/[module_id]/api.ts` 配下に各モジュールの API エンドポイントを定義。
 - **GCP Client**: `@google-cloud/*` SDK をラップした `src/gcpClient.ts` が統一的なインターフェースを提供。
 
 ## セキュリティ・認証

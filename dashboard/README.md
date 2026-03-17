@@ -12,13 +12,14 @@ GCP リソースの運用状況を可視化・管理するための、SvelteKit 
 ```text
 dashboard/
 ├── src/
-│   ├── modules/          # バックエンド API モジュール (Express-like Router)
-│   ├── lib/
-│   │   └── modules/      # フロントエンド UI モジュール (Svelte components)
+│   ├── modules/          # 各機能のモジュール (Backend & Frontend)
+│   │   └── [module_id]/
+│   │       ├── View.svelte  # フロントエンド UI
+│   │       ├── api.ts      # バックエンド API (Express Router)
+│   │       └── index.ts    # メタデータ定義
 │   ├── routes/           # SvelteKit ルーティング
-│   │   └── modules/      # モジュールの動的ロード用エンドポイント
 │   ├── gcpClient.ts      # GCP SDK ラッパー
-│   ├── hooks.server.ts   # 認証・認可ロジック (OAuth2 Proxy ヘッダー処理)
+│   ├── hooks.server.ts   # 認証・認和ロジック
 │   └── config.ts         # リソース名の設定管理
 ├── static/               # 静的アセット
 └── svelte.config.js      # SvelteKit 設定 (adapter-node 使用)
@@ -44,10 +45,11 @@ npm run dev
 
 ### 新しいモジュールの追加手順
 
-1.  **Backend API の作成**: `src/modules/[module_name]/api.ts` を作成し、Router を定義します。
-2.  **Frontend View の作成**: `src/lib/modules/[module_name]/View.svelte` を作成し、UI を実装します。
-3.  **API の登録**: `src/server.ts` (または対応する API 集約箇所) に作成した Router をマウントします。
-4.  **サイドバーへの追加**: `src/lib/modules/Sidebar.svelte` (またはナビゲーションコンポーネント) にリンクを追加します。
+1.  **モジュールディレクトリの作成**: `src/modules/[module_name]` を作成します。
+2.  **Metadata の定義**: `index.ts` を作成し、`metadata` を export します。
+3.  **Backend API の実装**: `api.ts` を作成し、Router を指定します。
+4.  **Frontend View の実装**: `View.svelte` を作成し、UI を実装します。
+5.  **ナビゲーションへの追加**: `src/lib/components/Sidebar.svelte` 等にリンクを追加します。
 
 ## ビルドとデプロイ
 
