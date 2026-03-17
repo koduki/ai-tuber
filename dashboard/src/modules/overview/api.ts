@@ -1,16 +1,9 @@
-import { Router } from 'express';
+import { json } from '@sveltejs/kit';
 import * as gcp from '../../gcpClient';
 
-const router = Router();
-
-router.get('/', async (req, res) => {
-    try {
+export const GET: Record<string, () => Promise<Response>> = {
+    'index': async () => {
         const overview = await gcp.getOverview();
-        res.json(overview);
-    } catch (err: any) {
-        console.error('Overview API error:', err.message);
-        res.status(500).json({ error: err.message });
+        return json(overview);
     }
-});
-
-export default router;
+};

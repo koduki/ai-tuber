@@ -4,7 +4,6 @@
  */
 
 import { CloudSchedulerClient } from '@google-cloud/scheduler';
-const { WorkflowsClient, ExecutionsClient } = require('@google-cloud/workflows');
 import { ServicesClient, JobsClient } from '@google-cloud/run';
 import { InstancesClient } from '@google-cloud/compute';
 import { CloudBuildClient } from '@google-cloud/cloudbuild';
@@ -14,7 +13,6 @@ import { config } from './config';
 
 // クライアントの初期化
 const scheduler = new CloudSchedulerClient();
-const workflows = new WorkflowsClient();
 const runServices = new ServicesClient();
 const runJobs = new JobsClient();
 const compute = new InstancesClient();
@@ -98,22 +96,30 @@ interface WorkflowInfo {
 
 export async function getWorkflowInfo(): Promise<WorkflowInfo[]> {
     const parent = `projects/${config.projectId}/locations/${config.region}`;
-    const [wfs] = await workflows.listWorkflows({ parent });
+    const WORKFLOWS_API = 'https://workflows.googleapis.com/v1';
 
-    return (wfs || []).map((wf: any) => {
-        const shortName = wf.name?.split('/').pop() || '';
-        const labels = wf.labels
-            ? Object.entries(wf.labels).map(([k, v]) => `${k}: ${v}`).join(', ')
-            : '';
-        return {
-            name: shortName,
-            location: config.region,
-            revision: wf.revisionId || '',
-            created: formatTimestamp(wf.createTime),
-            updated: formatTimestamp(wf.updateTime),
-            labels,
-        };
-    });
+    try {
+        const data = await gcpFetch(`${WORKFLOWS_API}/${parent}/workflows`);
+        const wfs = data.workflows || [];
+
+        return wfs.map((wf: any) => {
+            const shortName = wf.name?.split('/').pop() || '';
+            const labels = wf.labels
+                ? Object.entries(wf.labels).map(([k, v]) => `${k}: ${v}`).join(', ')
+                : '';
+            return {
+                name: shortName,
+                location: config.region,
+                revision: wf.revisionId || '',
+                created: formatTimestamp(wf.createTime),
+                updated: formatTimestamp(wf.updateTime),
+                labels,
+            };
+        });
+    } catch (err) {
+        console.error('Error fetching workflows:', err);
+        return [];
+    }
 }
 
 interface WorkflowExecution {

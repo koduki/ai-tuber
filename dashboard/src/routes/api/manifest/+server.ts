@@ -1,7 +1,7 @@
 import { json } from '@sveltejs/kit';
 
 export async function GET() {
-    const modules = import.meta.glob('/src/lib/modules/*/metadata.ts', { eager: true });
+    const modules = import.meta.glob('/src/modules/*/metadata.ts', { eager: true });
     
     const manifest = Object.entries(modules).map(([path, mod]: [string, any]) => {
         const parts = path.split('/');

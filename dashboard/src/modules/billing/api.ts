@@ -1,15 +1,9 @@
-import { Router } from 'express';
+import { json } from '@sveltejs/kit';
 import * as gcp from '../../gcpClient';
 
-const router = Router();
-
-router.get('/summary', async (req, res) => {
-    try {
+export const GET: Record<string, () => Promise<Response>> = {
+    'summary': async () => {
         const billing = await gcp.getBillingSummary();
-        res.json(billing);
-    } catch (err: any) {
-        res.status(500).json({ error: err.message });
+        return json(billing);
     }
-});
-
-export default router;
+};

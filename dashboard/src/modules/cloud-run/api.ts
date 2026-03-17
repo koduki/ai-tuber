@@ -1,24 +1,13 @@
-import { Router } from 'express';
+import { json } from '@sveltejs/kit';
 import * as gcp from '../../gcpClient';
 
-const router = Router();
-
-router.get('/services', async (req, res) => {
-    try {
+export const GET: Record<string, () => Promise<Response>> = {
+    'services': async () => {
         const services = await gcp.getCloudRunServices();
-        res.json(services);
-    } catch (err: any) {
-        res.status(500).json({ error: err.message });
-    }
-});
-
-router.get('/jobs', async (req, res) => {
-    try {
+        return json(services);
+    },
+    'jobs': async () => {
         const jobs = await gcp.getCloudRunJobs();
-        res.json(jobs);
-    } catch (err: any) {
-        res.status(500).json({ error: err.message });
+        return json(jobs);
     }
-});
-
-export default router;
+};

@@ -7,19 +7,16 @@ steps:
   - name: 'gcr.io/cloud-builders/docker'
     args: ['push', '--all-tags', '${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/dashboard']
 
-  # Deploy to Cloud Run
+  # Deploy to Cloud Run (Updating only the dashboard container to preserve OAuth2 Proxy sidecar)
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
-    entrypoint: gcloud
+    entrypoint: 'bash'
     args:
-      - 'run'
-      - 'deploy'
-      - 'ai-tuber-dashboard'
-      - '--image'
-      - '${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/dashboard:latest'
-      - '--region'
-      - '${_REGION}'
-      - '--platform'
-      - 'managed'
+      - '-c'
+      - |
+        gcloud beta run services update ai-tuber-dashboard \
+          --container dashboard \
+          --image ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/dashboard:latest \
+          --region ${_REGION}
 
 options:
   logging: CLOUD_LOGGING_ONLY

@@ -11,7 +11,8 @@ export const handle: Handle = async ({ event, resolve }) => {
 
     if (process.env.NODE_ENV === 'production') {
         // Detailed log for ALL requests to debug header propagation
-        console.log(`[AuthDebug] Path: ${event.url.pathname}, Email: ${userEmail}`);
+        const headerNames = Array.from(headers.keys()).join(', ');
+        console.log(`[AuthDebug] Path: ${event.url.pathname}, Email: ${userEmail}, Headers: ${headerNames}`);
         if (!userEmail) {
             console.log('[AuthDebug] All Headers:', JSON.stringify(Object.fromEntries(headers.entries())));
         }

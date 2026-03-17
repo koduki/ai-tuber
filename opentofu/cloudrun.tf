@@ -288,7 +288,12 @@ resource "google_cloud_run_v2_service" "dashboard" {
 
       env {
         name  = "OAUTH2_PROXY_UPSTREAMS"
-        value = "http://localhost:8081"
+        value = "http://127.0.0.1:8081"
+      }
+      
+      env {
+        name  = "OAUTH2_PROXY_SKIP_PROVIDER_BUTTON"
+        value = "true"
       }
 
       env {
@@ -328,7 +333,7 @@ resource "google_cloud_run_v2_service" "dashboard" {
 
       env {
         name  = "OAUTH2_PROXY_WHITELIST_DOMAINS"
-        value = ".891439853880.asia-northeast1.run.app"
+        value = ".asia-northeast1.run.app"
       }
 
       env {

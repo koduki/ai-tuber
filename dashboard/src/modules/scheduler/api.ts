@@ -1,25 +1,18 @@
-import { Router } from 'express';
+import { json } from '@sveltejs/kit';
 import * as gcp from '../../gcpClient';
 
-const router = Router();
-
-router.get('/', async (req, res) => {
-    try {
+export const GET: Record<string, () => Promise<Response>> = {
+    'index': async () => {
         const jobs = await gcp.getSchedulerJobs();
-        res.json(jobs);
-    } catch (err: any) {
-        res.status(500).json({ error: err.message });
+        return json(jobs);
     }
-});
+};
 
-router.post('/:name/run', async (req, res) => {
-    try {
-        const name = req.params.name;
+export const POST: Record<string, (url: URL) => Promise<Response>> = {
+    'run': async (url: URL) => {
+        const name = url.searchParams.get('name');
+        if (!name) return json({ error: 'Job name is required' }, { status: 400 });
         await gcp.runSchedulerJob(name);
-        res.json({ message: `Job ${name} started` });
-    } catch (err: any) {
-        res.status(500).json({ error: err.message });
+        return json({ message: `Job ${name} started` });
     }
-});
-
-export default router;
+};
