@@ -2,6 +2,7 @@
     import { onMount } from 'svelte';
     import { Play, RotateCw } from 'lucide-svelte';
     import { getStatusClass } from '$lib/utils/formatters';
+    import { getConsoleUrl } from '$lib/utils/consoleLinks';
 
     let jobs = $state<any[]>([]);
     let loading = $state(true);
@@ -67,10 +68,13 @@
                     <thead class="bg-google-gray-50">
                         <tr>
                             <th class="px-4 py-2.5 border-b border-google-gray-200 font-medium text-google-gray-500 whitespace-nowrap">名前</th>
+                            <th class="px-4 py-2.5 border-b border-google-gray-200 font-medium text-google-gray-500 whitespace-nowrap">最後の実行のステータス</th>
+                            <th class="px-4 py-2.5 border-b border-google-gray-200 font-medium text-google-gray-500 whitespace-nowrap">Last run</th>
+                            <th class="px-4 py-2.5 border-b border-google-gray-200 font-medium text-google-gray-500 whitespace-nowrap">Next run</th>
+                            <th class="px-4 py-2.5 border-b border-google-gray-200 font-medium text-google-gray-500 whitespace-nowrap">リージョン</th>
+                            <th class="px-4 py-2.5 border-b border-google-gray-200 font-medium text-google-gray-500 whitespace-nowrap">状態</th>
+                            <th class="px-4 py-2.5 border-b border-google-gray-200 font-medium text-google-gray-500 whitespace-nowrap">説明</th>
                             <th class="px-4 py-2.5 border-b border-google-gray-200 font-medium text-google-gray-500 whitespace-nowrap">頻度</th>
-                            <th class="px-4 py-2.5 border-b border-google-gray-200 font-medium text-google-gray-500 whitespace-nowrap">最後の実行</th>
-                            <th class="px-4 py-2.5 border-b border-google-gray-200 font-medium text-google-gray-500 whitespace-nowrap">次回の実行</th>
-                            <th class="px-4 py-2.5 border-b border-google-gray-200 font-medium text-google-gray-500 whitespace-nowrap">ステータス</th>
                             <th class="px-4 py-2.5 border-b border-google-gray-200 font-medium text-google-gray-500 whitespace-nowrap">アクション</th>
                         </tr>
                     </thead>
@@ -78,20 +82,23 @@
                         {#each jobs as job}
                             <tr class="border-b border-google-gray-200 hover:bg-google-gray-50 last:border-b-0">
                                 <td class="px-4 py-3 align-top whitespace-nowrap">
-                                    <div class="text-google-blue"><a href="#" class="font-medium hover:underline text-google-blue">{job.displayName}</a></div>
-                                    <div class="text-[11px] text-google-gray-500 mt-1">{job.description || 'Cloud Scheduler Job'}</div>
+                                    <div class="text-google-blue"><strong><a href={getConsoleUrl('scheduler', job)} target="_blank" rel="noopener" class="font-medium hover:underline text-google-blue">{job.displayName}</a></strong></div>
+                                    <div class="text-[11px] text-google-gray-500 mt-1">Cloud Scheduler</div>
                                 </td>
-                                <td class="px-4 py-3 align-top whitespace-nowrap">{job.schedule}</td>
-                                <td class="px-4 py-3 align-top whitespace-nowrap">{job.lastRunTime}</td>
-                                <td class="px-4 py-3 align-top whitespace-nowrap">{job.nextRunTime}</td>
                                 <td class="px-4 py-3 align-top whitespace-nowrap">
                                     <span class="inline-flex items-center gap-2 text-xs font-medium {getStatusClass(job.lastStatus)}">
                                         <span class="w-2.5 h-2.5 rounded-full {getDotClass(job.lastStatus)}"></span>
                                         {job.lastStatus}
                                     </span>
                                 </td>
+                                <td class="px-4 py-3 align-top whitespace-nowrap">{job.lastRunTime}</td>
+                                <td class="px-4 py-3 align-top whitespace-nowrap">{job.nextRunTime}</td>
+                                <td class="px-4 py-3 align-top whitespace-nowrap">{job.region}</td>
+                                <td class="px-4 py-3 align-top whitespace-nowrap">{job.state}</td>
+                                <td class="px-4 py-3 align-top whitespace-nowrap truncate max-w-[150px]" title={job.description}>{job.description}</td>
+                                <td class="px-4 py-3 align-top whitespace-nowrap font-mono">{job.schedule}</td>
                                 <td class="px-4 py-3 align-top whitespace-nowrap">
-                                    <button class="bg-google-blue text-white border-0 px-3 py-1 rounded-full text-[11px] font-medium cursor-pointer hover:bg-google-blue-hover" onclick={() => runJob(job.name)}>今すぐ実行</button>
+                                    <button class="bg-google-blue text-white border-0 px-3 py-1 rounded-[4px] text-[12px] font-medium cursor-pointer hover:bg-google-blue-hover shadow-sm" onclick={() => runJob(job.name)}>今すぐ実行</button>
                                 </td>
                             </tr>
                         {/each}

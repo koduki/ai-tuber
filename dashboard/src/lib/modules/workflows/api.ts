@@ -2,7 +2,7 @@ import * as gcp from '$lib/gcpClient';
 import { json } from '@sveltejs/kit';
 
 export const GET = {
-    all: async () => {
+    index: async () => {
         try {
             const [workflows, executions] = await Promise.all([
                 gcp.getWorkflowInfo(),

@@ -1,6 +1,7 @@
 <script lang="ts">
     import { onMount } from 'svelte';
     import { getStatusClass } from '$lib/utils/formatters';
+    import { getConsoleUrl } from '$lib/utils/consoleLinks';
 
     let builds = $state<any[]>([]);
     let loading = $state(true);
@@ -67,13 +68,13 @@
                                     </span>
                                 </td>
                                 <td class="px-4 py-3 align-top whitespace-nowrap">
-                                    <a href="#" class="text-google-blue font-medium hover:underline">{build.id}</a>
+                                    <a href={getConsoleUrl('build', build)} target="_blank" rel="noopener" class="text-google-blue font-medium hover:underline">{build.id}</a>
                                 </td>
                                 <td class="px-4 py-3 align-top whitespace-nowrap">{build.region}</td>
                                 <td class="px-4 py-3 align-top whitespace-nowrap"><a href="#" class="text-google-blue hover:underline">{build.source || 'GitHub'}</a></td>
                                 <td class="px-4 py-3 align-top whitespace-nowrap">{build.ref || 'main'}</td>
                                 <td class="px-4 py-3 align-top whitespace-nowrap"><a href="#" class="text-google-blue hover:underline">{build.commit}</a></td>
-                                <td class="px-4 py-3 align-top whitespace-nowrap"><a href="#" class="text-google-blue hover:underline">{build.triggerName || ''}</a></td>
+                                <td class="px-4 py-3 align-top whitespace-nowrap"><a href={build.triggerName ? getConsoleUrl('trigger', build) : '#'} target={build.triggerName ? "_blank" : undefined} rel={build.triggerName ? "noopener" : undefined} class="text-google-blue hover:underline">{build.triggerName || ''}</a></td>
                             </tr>
                         {/each}
                     </tbody>

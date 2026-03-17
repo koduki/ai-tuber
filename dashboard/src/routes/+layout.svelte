@@ -6,18 +6,31 @@
   let { children } = $props();
   
   let manifest = $state<any[]>([]);
+  let projectConfig = $state<{projectId: string, region: string, zone: string} | null>(null);
+  let overview = $state<any>(null);
   let loading = $state(true);
   
   onMount(async () => {
     try {
-      const res = await fetch('/api/manifest');
-      manifest = await res.json();
+      const [resManifest, resConfig, resOverview] = await Promise.all([
+        fetch('/api/manifest'),
+        fetch('/api/config'),
+        fetch('/api/modules/overview/index')
+      ]);
+      manifest = await resManifest.json();
+      projectConfig = await resConfig.json();
+      overview = await resOverview.json();
     } catch (err) {
-      console.error('Failed to fetch manifest:', err);
+      console.error('Failed to fetch app data:', err);
     } finally {
       loading = false;
     }
   });
+
+  const isAllOk = $derived(
+    overview?.schedulerHealth?.value === 'OK' && 
+    overview?.workflowState?.value === '正常'
+  );
 
   let activeModuleId = $derived(page.url.pathname.split('/')[2] || null);
   let activeModule = $derived(manifest.find(m => m.id === activeModuleId) || { title: '概要' });
@@ -53,16 +66,20 @@
     <!-- Page Header -->
     <div class="flex flex-col md:flex-row md:items-center justify-between gap-3 p-4 md:px-6 bg-white border-b border-google-gray-300">
       <div>
-        <div class="text-xs text-google-gray-500 mb-1">ホーム / Internal Developer Portal / <span id="project-id">ren-studio-ai</span></div>
+        <div class="text-xs text-google-gray-500 mb-1">ホーム / Internal Developer Portal / <span id="project-id">{projectConfig?.projectId || 'ren-studio-ai'}</span></div>
         <div class="flex items-center gap-3 mt-1">
           <h1 class="text-[28px] font-normal text-google-gray-900 leading-[1] m-0">AI Tuber Platform</h1>
-          <span class="rounded-full px-3 py-1 text-xs font-medium bg-google-green-bg text-google-green">正常</span>
+          {#if isAllOk}
+            <span class="rounded-full px-3 py-1 text-xs font-medium bg-google-green-bg text-google-green">正常</span>
+          {:else}
+            <span class="rounded-full px-3 py-1 text-xs font-medium bg-google-red-bg text-google-red">エラー</span>
+          {/if}
         </div>
         <p class="text-[13px] text-google-gray-500 mt-2 m-0">定期実行、ワークフロー、稼働リソース、コストを確認する運用ポータル</p>
       </div>
       <div class="flex flex-wrap gap-2">
         <button class="inline-block border border-google-gray-300 bg-white text-google-blue rounded-full px-4 py-2 text-[13px] font-medium hover:bg-[#f8fbff] transition-colors" onclick={() => window.location.reload()}>更新</button>
-        <a class="inline-block bg-google-blue text-white rounded-full px-4 py-2 text-[13px] font-medium hover:bg-google-blue-hover transition-colors no-underline" href="https://console.cloud.google.com" target="_blank" rel="noopener">GCP Console を開く</a>
+        <a class="inline-block bg-google-blue text-white rounded-full px-4 py-2 text-[13px] font-medium hover:bg-google-blue-hover transition-colors no-underline" href={`https://console.cloud.google.com/home/dashboard?project=${projectConfig?.projectId || 'ren-studio-ai'}`} target="_blank" rel="noopener">GCP Console を開く</a>
       </div>
     </div>
 

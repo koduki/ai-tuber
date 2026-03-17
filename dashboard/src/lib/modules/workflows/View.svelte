@@ -1,23 +1,21 @@
 <script lang="ts">
     import { onMount } from 'svelte';
     import { getStatusClass } from '$lib/utils/formatters';
+    import { getConsoleUrl } from '$lib/utils/consoleLinks';
 
     let data = $state<{ workflows: any[], executions: any[] } | null>(null);
     let loading = $state(true);
 
-    async function fetchData() {
-        loading = true;
+    onMount(async () => {
         try {
-            const res = await fetch('/api/modules/workflows/all');
+            const res = await fetch('/api/modules/workflows/index');
             data = await res.json();
         } catch (err) {
             console.error('Workflows fetch error:', err);
         } finally {
             loading = false;
         }
-    }
-
-    onMount(fetchData);
+    });
 
     function getDotClass(status: string) {
         const cls = getStatusClass(status);
@@ -27,49 +25,54 @@
         if (cls === 'status-blue') return 'bg-google-blue';
         return 'bg-google-gray-500';
     }
+
+    const firstWorkflow = $derived(data?.workflows?.[0]);
+    const latestExec = $derived(data?.executions?.[0]);
 </script>
 
 <div>
     {#if loading}
         <div class="text-google-gray-500 text-[13px] text-center py-6">読み込み中...</div>
     {:else if data}
-        <!-- Workflows Table -->
-        <div class="bg-white border border-google-gray-300 rounded-lg overflow-hidden mb-6">
-            <div class="flex justify-between items-center px-4 py-3 border-b border-google-gray-200">
-                <h2 class="text-sm font-medium text-google-gray-900 m-0">ワークフロー 詳細</h2>
-                <button class="bg-white border-0 text-google-blue text-xs font-medium cursor-pointer hover:underline" onclick={fetchData}>
-                    更新
-                </button>
+        <!-- Workflow Detail Box (Top Summary) -->
+        {#if firstWorkflow}
+            <div class="border border-google-gray-300 rounded-lg p-4 mb-3 bg-white">
+                <div class="flex justify-between items-center mb-3 text-[12px] text-google-gray-500">
+                    <div>ワークフロー: <a href={getConsoleUrl('workflow', firstWorkflow)} target="_blank" rel="noopener" class="text-google-blue font-medium hover:underline">{firstWorkflow.name}</a></div>
+                    {#if latestExec}
+                        <div class="flex items-center gap-2">
+                            現在状態: 
+                            <span class="inline-flex items-center gap-1.5 font-medium {getStatusClass(latestExec.status)}">
+                                <span class="w-2.5 h-2.5 rounded-full {getDotClass(latestExec.status)}"></span>
+                                {latestExec.status === '成功' ? '正常' : latestExec.status}
+                            </span>
+                        </div>
+                    {/if}
+                </div>
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-3 text-[12px] text-google-gray-500">
+                    <div>
+                        <div class="mb-1">場所</div>
+                        <div class="text-[13px] text-google-gray-900">{firstWorkflow.location}</div>
+                    </div>
+                    <div>
+                        <div class="mb-1">最新のリビジョン</div>
+                        <div class="text-[13px] text-google-gray-900">{firstWorkflow.revision}</div>
+                    </div>
+                    <div>
+                        <div class="mb-1">直近実行</div>
+                        <div class="text-[13px] text-google-gray-900">{latestExec ? latestExec.created : '—'}</div>
+                    </div>
+                    <div>
+                        <div class="mb-1">ラベル</div>
+                        <div class="text-[13px] text-google-gray-900">{firstWorkflow.labels || '—'}</div>
+                    </div>
+                </div>
             </div>
-            <div class="p-0 overflow-x-auto">
-                <table class="w-full text-left text-[13px] text-google-gray-700 border-collapse">
-                    <thead class="bg-google-gray-50">
-                        <tr>
-                            <th class="px-4 py-2.5 border-b border-google-gray-200 font-medium text-google-gray-500 whitespace-nowrap">名前</th>
-                            <th class="px-4 py-2.5 border-b border-google-gray-200 font-medium text-google-gray-500 whitespace-nowrap">場所</th>
-                            <th class="px-4 py-2.5 border-b border-google-gray-200 font-medium text-google-gray-500 whitespace-nowrap">リビジョン</th>
-                            <th class="px-4 py-2.5 border-b border-google-gray-200 font-medium text-google-gray-500 whitespace-nowrap">更新日</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {#each data.workflows as wf}
-                            <tr class="border-b border-google-gray-200 hover:bg-google-gray-50 last:border-b-0">
-                                <td class="px-4 py-3 align-top whitespace-nowrap">
-                                    <a href="#" class="text-google-blue font-medium hover:underline">{wf.name}</a>
-                                </td>
-                                <td class="px-4 py-3 align-top whitespace-nowrap">{wf.location}</td>
-                                <td class="px-4 py-3 align-top whitespace-nowrap">{wf.revision}</td>
-                                <td class="px-4 py-3 align-top whitespace-nowrap">{wf.updated}</td>
-                            </tr>
-                        {/each}
-                    </tbody>
-                </table>
-            </div>
-        </div>
+        {/if}
 
         <!-- Executions Table -->
-        <div class="bg-white border border-google-gray-300 rounded-lg overflow-hidden mb-6">
-            <div class="flex justify-between items-center px-4 py-3 border-b border-google-gray-200">
+        <div class="bg-white border border-google-gray-300 rounded-lg overflow-hidden mb-6 shadow-sm">
+            <div class="flex justify-between items-center px-4 py-3 border-b border-google-gray-200 bg-google-gray-50/50">
                 <h2 class="text-sm font-medium text-google-gray-900 m-0">実行履歴</h2>
             </div>
             <div class="p-0 overflow-x-auto">
@@ -78,8 +81,10 @@
                         <tr>
                             <th class="px-4 py-2.5 border-b border-google-gray-200 font-medium text-google-gray-500 whitespace-nowrap">状態</th>
                             <th class="px-4 py-2.5 border-b border-google-gray-200 font-medium text-google-gray-500 whitespace-nowrap">実行 ID</th>
+                            <th class="px-4 py-2.5 border-b border-google-gray-200 font-medium text-google-gray-500 whitespace-nowrap">リビジョン</th>
+                            <th class="px-4 py-2.5 border-b border-google-gray-200 font-medium text-google-gray-500 whitespace-nowrap">作成日時</th>
                             <th class="px-4 py-2.5 border-b border-google-gray-200 font-medium text-google-gray-500 whitespace-nowrap">開始時刻</th>
-                            <th class="px-4 py-2.5 border-b border-google-gray-200 font-medium text-google-gray-500 whitespace-nowrap">現在のステップ</th>
+                            <th class="px-4 py-2.5 border-b border-google-gray-200 font-medium text-google-gray-500 whitespace-nowrap">終了時間</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -93,19 +98,17 @@
                                     </div>
                                 </td>
                                 <td class="px-4 py-3 align-top whitespace-nowrap">
-                                    <a href="#" class="text-google-blue hover:underline">{ex.executionId}</a>
+                                    <a href={getConsoleUrl('execution', ex)} target="_blank" rel="noopener" class="text-google-blue hover:underline">{ex.executionId}</a>
                                 </td>
+                                <td class="px-4 py-3 align-top whitespace-nowrap">{ex.revision}</td>
+                                <td class="px-4 py-3 align-top whitespace-nowrap">{ex.created}</td>
                                 <td class="px-4 py-3 align-top whitespace-nowrap">{ex.started}</td>
-                                <td class="px-4 py-3 align-top whitespace-nowrap">{ex.stepName}</td>
+                                <td class="px-4 py-3 align-top whitespace-nowrap">{ex.ended}</td>
                             </tr>
                         {/each}
                     </tbody>
                 </table>
             </div>
-        </div>
-    {:else}
-        <div class="bg-[#fce8e6] text-google-red p-3 px-4 rounded-lg text-[13px]">
-            データ取得に失敗しました。
         </div>
     {/if}
 </div>

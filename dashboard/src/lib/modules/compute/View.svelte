@@ -1,6 +1,7 @@
 <script lang="ts">
     import { onMount } from 'svelte';
     import { getStatusClass } from '$lib/utils/formatters';
+    import { getConsoleUrl } from '$lib/utils/consoleLinks';
 
     let instances = $state<any[]>([]);
     let loading = $state(true);
@@ -62,7 +63,7 @@
                                     </span>
                                 </td>
                                 <td class="px-4 py-3 align-top whitespace-nowrap">
-                                    <a href="#" class="text-google-blue font-medium hover:underline">{inst.name}</a>
+                                    <a href={getConsoleUrl('compute', inst)} target="_blank" rel="noopener" class="text-google-blue font-medium hover:underline">{inst.name}</a>
                                 </td>
                                 <td class="px-4 py-3 align-top whitespace-nowrap">{inst.zone}</td>
                                 <td class="px-4 py-3 align-top whitespace-nowrap font-bold">{inst.internalIp || 'N/A'}</td>

@@ -9,5 +9,13 @@ export const GET = {
         } catch (err: any) {
             return json({ error: err.message }, { status: 500 });
         }
+    },
+    jobs: async () => {
+        try {
+            const jobs = await gcp.getCloudRunJobs();
+            return json(jobs);
+        } catch (err: any) {
+            return json({ error: err.message }, { status: 500 });
+        }
     }
 };
