@@ -248,7 +248,7 @@ resource "google_cloud_run_v2_service" "dashboard" {
 
       env {
         name  = "FORCED_REDEPLOY_AT"
-        value = "2026-03-15T22:15:00Z"
+        value = "2026-03-17T12:30:00Z"
       }
 
       env {
@@ -257,7 +257,7 @@ resource "google_cloud_run_v2_service" "dashboard" {
       }
 
       env {
-        name  = "OAUTH2_PROXY_CLIENT_ID"
+        name = "OAUTH2_PROXY_CLIENT_ID"
         value_source {
           secret_key_ref {
             secret  = "oauth-client-id"
@@ -267,7 +267,7 @@ resource "google_cloud_run_v2_service" "dashboard" {
       }
 
       env {
-        name  = "OAUTH2_PROXY_CLIENT_SECRET"
+        name = "OAUTH2_PROXY_CLIENT_SECRET"
         value_source {
           secret_key_ref {
             secret  = "oauth-client-secret"
@@ -277,7 +277,7 @@ resource "google_cloud_run_v2_service" "dashboard" {
       }
 
       env {
-        name  = "OAUTH2_PROXY_COOKIE_SECRET"
+        name = "OAUTH2_PROXY_COOKIE_SECRET"
         value_source {
           secret_key_ref {
             secret  = "dashboard-session-secret"
@@ -286,12 +286,6 @@ resource "google_cloud_run_v2_service" "dashboard" {
         }
       }
 
-      env {
-        name  = "OAUTH2_PROXY_EMAIL_DOMAINS"
-        value = "*"
-      }
-
-      # 許可するメールアドレスのリスト
       env {
         name  = "OAUTH2_PROXY_UPSTREAMS"
         value = "http://localhost:8081"
@@ -304,17 +298,42 @@ resource "google_cloud_run_v2_service" "dashboard" {
 
       env {
         name  = "OAUTH2_PROXY_REDIRECT_URL"
-        value = "https://ai-tuber-dashboard-dtpytkqsoq-an.a.run.app/auth/callback"
+        value = "https://ai-tuber-dashboard-891439853880.asia-northeast1.run.app/oauth2/callback"
       }
 
       env {
         name  = "OAUTH2_PROXY_PROXY_PREFIX"
-        value = "/auth"
+        value = "/oauth2"
+      }
+
+      env {
+        name  = "OAUTH2_PROXY_EMAIL_DOMAINS"
+        value = "*"
+      }
+
+      env {
+        name  = "OAUTH2_PROXY_PASS_USER_HEADERS"
+        value = "true"
+      }
+
+      env {
+        name  = "OAUTH2_PROXY_SET_XAUTHREQUEST"
+        value = "true"
       }
 
       env {
         name  = "OAUTH2_PROXY_REVERSE_PROXY"
         value = "true"
+      }
+
+      env {
+        name  = "OAUTH2_PROXY_WHITELIST_DOMAINS"
+        value = ".891439853880.asia-northeast1.run.app"
+      }
+
+      env {
+        name  = "OAUTH2_PROXY_LOG_LEVEL"
+        value = "debug"
       }
 
       resources {
