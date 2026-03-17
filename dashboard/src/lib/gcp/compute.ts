@@ -29,7 +29,7 @@ export async function getComputeInstances(): Promise<ComputeInstance[]> {
                 zone: config.zone,
                 internalIp: networkInterface?.networkIP ? `${networkInterface.networkIP} (nic0)` : '',
                 externalIp: networkInterface?.accessConfigs?.[0]?.natIP ? `${networkInterface.accessConfigs[0].natIP} (nic0)` : '',
-                description: instance.description || (instance.labels?.['purpose'] || 'Body 接続確認用'),
+                description: instance.description || (instance.labels?.['purpose'] || ''),
             });
         } catch (err) {
             results.push({ name: instanceName, status: '取得エラー', zone: config.zone, internalIp: '', externalIp: '', description: '' });

@@ -17,7 +17,25 @@ export async function getCloudRunServices(): Promise<CloudRunService[]> {
     const parent = `projects/${config.projectId}/locations/${config.region}`;
     const [svcs] = await runServices.listServices({ parent });
 
-    return (svcs || []).map((svc: any) => {
+    const services = svcs || [];
+    // 各サービスの IAM ポリシーを並列で取得して、公開アクセス（allUsers が invoker 権限を持っているか）を判定する
+    const authStatuses = await Promise.all(
+        services.map(async (svc: any) => {
+            try {
+                const [policy] = await runServices.getIamPolicy({ resource: svc.name });
+                const isPublic = (policy.bindings || []).some(
+                    (b: any) => (b.role === 'roles/run.invoker' || b.role === 'roles/viewer') &&
+                        (b.members || []).some((m: string) => m === 'allUsers' || m === 'allAuthenticatedUsers')
+                );
+                return isPublic ? '公開アクセス' : '認証が必要です';
+            } catch (err) {
+                console.error(`Error getting IAM policy for ${svc.name}:`, err);
+                return '不明';
+            }
+        })
+    );
+
+    return services.map((svc: any, index: number) => {
         const shortName = svc.name?.split('/').pop() || '';
         const conditions = svc.conditions || svc.status?.conditions || [];
 
@@ -32,7 +50,7 @@ export async function getCloudRunServices(): Promise<CloudRunService[]> {
             name: shortName,
             status: isReady ? '正常' : 'エラー',
             region: config.region,
-            authentication: shortName === 'ai-tuber-tools-weather' ? '公開アクセス' : '認証が必要です',
+            authentication: authStatuses[index],
             ingress: svc.ingress || 'すべて',
             uri: svc.uri || '',
         };
@@ -67,7 +85,7 @@ export async function getCloudRunJobs(): Promise<CloudRunJob[]> {
             }
         }
 
-        const trigger = latest?.labels?.['run.googleapis.com/triggered-by'] || (shortName.includes('collector') ? 'Cloud Scheduler' : 'Manual');
+        const trigger = latest?.labels?.['run.googleapis.com/triggered-by'] || 'Manual';
         const creator = latest?.annotations?.['run.googleapis.com/creator'] || '';
 
         return {

@@ -51,7 +51,8 @@
                         <tr>
                             <th class="px-4 py-2.5 border-b border-google-gray-200 font-medium text-google-gray-500 whitespace-nowrap">ステータス</th>
                             <th class="px-4 py-2.5 border-b border-google-gray-200 font-medium text-google-gray-500 whitespace-nowrap">ビルド</th>
-                            <th class="px-4 py-2.5 border-b border-google-gray-200 font-medium text-google-gray-500 whitespace-nowrap">リージョン</th>
+                            <th class="px-4 py-2.5 border-b border-google-gray-200 font-medium text-google-gray-500 whitespace-nowrap">実行時間</th>
+                            <th class="px-4 py-2.5 border-b border-google-gray-200 font-medium text-google-gray-500 whitespace-nowrap">所要時間</th>
                             <th class="px-4 py-2.5 border-b border-google-gray-200 font-medium text-google-gray-500 whitespace-nowrap">ソース</th>
                             <th class="px-4 py-2.5 border-b border-google-gray-200 font-medium text-google-gray-500 whitespace-nowrap">Ref</th>
                             <th class="px-4 py-2.5 border-b border-google-gray-200 font-medium text-google-gray-500 whitespace-nowrap">commit</th>
@@ -70,7 +71,8 @@
                                 <td class="px-4 py-3 align-top whitespace-nowrap">
                                     <a href={getConsoleUrl('build', build)} target="_blank" rel="noopener" class="text-google-blue font-medium hover:underline">{build.id}</a>
                                 </td>
-                                <td class="px-4 py-3 align-top whitespace-nowrap">{build.region}</td>
+                                <td class="px-4 py-3 align-top whitespace-nowrap">{build.startTime}</td>
+                                <td class="px-4 py-3 align-top whitespace-nowrap">{build.duration}</td>
                                 <td class="px-4 py-3 align-top whitespace-nowrap"><span class="text-google-blue hover:underline cursor-default">{build.source || 'GitHub'}</span></td>
                                 <td class="px-4 py-3 align-top whitespace-nowrap">{build.ref || 'main'}</td>
                                 <td class="px-4 py-3 align-top whitespace-nowrap"><span class="text-google-blue hover:underline cursor-default">{build.commit}</span></td>
