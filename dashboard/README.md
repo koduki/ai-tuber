@@ -1,42 +1,61 @@
-# sv
+# The tiny IDP - Ops Portal 
 
-Everything you need to build a Svelte project, powered by [`sv`](https://github.com/sveltejs/cli).
+GCP リソースの運用状況を可視化・管理するための、SvelteKit ベースのフレームワーク型 IDP です。
 
-## Creating a project
+## 特徴
+- **AI-Extensible**: 動的ロードのExtentionsではなく、AI エージェントが新しいモジュールをコーディングで追加する設計。
+- **GCP Native**: SDK 経由で Cloud Run, Workflows, Scheduler 等を直接操作・監視。
+- **OAuth2 Proxy Integration**: サイドカー方式による柔軟な認証。
 
-If you're seeing this, you've probably already done this step. Congrats!
+## プロジェクト構造
 
-```sh
-# create a new project
-npx sv create my-app
+```text
+dashboard/
+├── src/
+│   ├── modules/          # バックエンド API モジュール (Express-like Router)
+│   ├── lib/
+│   │   └── modules/      # フロントエンド UI モジュール (Svelte components)
+│   ├── routes/           # SvelteKit ルーティング
+│   │   └── modules/      # モジュールの動的ロード用エンドポイント
+│   ├── gcpClient.ts      # GCP SDK ラッパー
+│   ├── hooks.server.ts   # 認証・認可ロジック (OAuth2 Proxy ヘッダー処理)
+│   └── config.ts         # リソース名の設定管理
+├── static/               # 静的アセット
+└── svelte.config.js      # SvelteKit 設定 (adapter-node 使用)
 ```
 
-To recreate this project with the same configuration:
+## 開発ガイド
 
-```sh
-# recreate this project
-npx sv@0.12.7 create --template minimal --types ts --install npm /app/dashboard_new
-```
+### 環境変数の設定
 
-## Developing
+`.env` または Docker デプロイ時の環境変数として以下を設定します：
 
-Once you've created a project and installed dependencies with `npm install` (or `pnpm install` or `yarn`), start a development server:
+- `GCP_PROJECT_ID`: 対象の GCP プロジェクト ID
+- `ALLOWED_EMAILS`: アクセスを許可する Google アカウントのメールアドレス（カンマ区切り）
 
-```sh
+### 開発サーバーの起動
+
+```bash
+npm install
 npm run dev
-
-# or start the server and open the app in a new browser tab
-npm run dev -- --open
 ```
 
-## Building
+ローカル開発時は、OAuth2 Proxy がないため `hooks.server.ts` が `dev@example.com` としてモック認証を行います。
 
-To create a production version of your app:
+### 新しいモジュールの追加手順
 
-```sh
+1.  **Backend API の作成**: `src/modules/[module_name]/api.ts` を作成し、Router を定義します。
+2.  **Frontend View の作成**: `src/lib/modules/[module_name]/View.svelte` を作成し、UI を実装します。
+3.  **API の登録**: `src/server.ts` (または対応する API 集約箇所) に作成した Router をマウントします。
+4.  **サイドバーへの追加**: `src/lib/modules/Sidebar.svelte` (またはナビゲーションコンポーネント) にリンクを追加します。
+
+## ビルドとデプロイ
+
+```bash
 npm run build
+# build/ ディレクトリに出力されます
+node build
 ```
 
-You can preview the production build with `npm run preview`.
-
-> To deploy your app, you may need to install an [adapter](https://svelte.dev/docs/kit/adapters) for your target environment.
+本番環境（Cloud Run）では、`Dockerfile` を使用してビルド・実行されます。
+認証は前面の OAuth2 Proxy サイドカーが担当するため、アプリケーション単体で公開しないでください。
