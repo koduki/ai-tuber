@@ -1,7 +1,15 @@
 steps:
   # Build Docker image
   - name: 'gcr.io/cloud-builders/docker'
-    args: ['build', '-t', '${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/dashboard:latest', '-f', 'dashboard/Dockerfile', 'dashboard']
+    args: 
+      - 'build'
+      - '-t'
+      - '${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/dashboard:$COMMIT_SHA'
+      - '-t'
+      - '${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/dashboard:latest'
+      - '-f'
+      - 'dashboard/Dockerfile'
+      - 'dashboard'
 
   # Push image
   - name: 'gcr.io/cloud-builders/docker'
@@ -15,7 +23,7 @@ steps:
       - |
         gcloud beta run services update ai-tuber-dashboard \
           --container dashboard \
-          --image ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/dashboard:latest \
+          --image ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/dashboard:$COMMIT_SHA \
           --region ${_REGION}
 
 options:

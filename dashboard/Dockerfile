@@ -8,7 +8,11 @@ COPY package*.json ./
 RUN npm install
 
 # Build
-COPY . .
+COPY src/ ./src/
+COPY static/ ./static/
+COPY svelte.config.js ./
+COPY tsconfig.json ./
+COPY vite.config.ts ./
 RUN npm run build
 
 # ---- Run Stage ----

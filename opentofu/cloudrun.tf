@@ -225,9 +225,15 @@ output "healthcheck_proxy_url" {
   value = google_cloud_run_v2_service.healthcheck_proxy.uri
 }
 
+locals {
+  dashboard_service_name = "ai-tuber-dashboard"
+  # Construct the URI dynamically to avoid circular dependency in env vars
+  dashboard_uri          = "https://${local.dashboard_service_name}-${data.google_project.project.number}.${var.region}.run.app"
+}
+
 # Cloud Run service for Ops Dashboard
 resource "google_cloud_run_v2_service" "dashboard" {
-  name     = "ai-tuber-dashboard"
+  name     = local.dashboard_service_name
   location = var.region
   ingress  = "INGRESS_TRAFFIC_ALL"
 
@@ -246,9 +252,10 @@ resource "google_cloud_run_v2_service" "dashboard" {
         container_port = 8080
       }
 
+      # NOTE: This is for development to force a redeploy during infra updates.
       env {
         name  = "FORCED_REDEPLOY_AT"
-        value = "2026-03-17T12:30:00Z"
+        value = "2026-03-18T22:30:00Z" # Update to current time to trigger redeploy if needed
       }
 
       env {
@@ -303,7 +310,8 @@ resource "google_cloud_run_v2_service" "dashboard" {
 
       env {
         name  = "OAUTH2_PROXY_REDIRECT_URL"
-        value = "https://ai-tuber-dashboard-891439853880.asia-northeast1.run.app/oauth2/callback"
+        # We use a locally constructed URI to avoid circular dependency
+        value = "${local.dashboard_uri}/oauth2/callback"
       }
 
       env {
@@ -333,12 +341,12 @@ resource "google_cloud_run_v2_service" "dashboard" {
 
       env {
         name  = "OAUTH2_PROXY_WHITELIST_DOMAINS"
-        value = ".asia-northeast1.run.app"
+        value = ".${var.region}.run.app"
       }
 
       env {
         name  = "OAUTH2_PROXY_LOG_LEVEL"
-        value = "debug"
+        value = "info"
       }
 
       resources {

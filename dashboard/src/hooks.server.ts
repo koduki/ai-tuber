@@ -9,14 +9,16 @@ export const handle: Handle = async ({ event, resolve }) => {
                       headers.get('x-forwarded-user') ||
                       headers.get('x-auth-request-preferred-username');
 
+    // Debugging header propagation (Disable on production once verified)
+    /*
     if (process.env.NODE_ENV === 'production') {
-        // Detailed log for ALL requests to debug header propagation
         const headerNames = Array.from(headers.keys()).join(', ');
         console.log(`[AuthDebug] Path: ${event.url.pathname}, Email: ${userEmail}, Headers: ${headerNames}`);
         if (!userEmail) {
             console.log('[AuthDebug] All Headers:', JSON.stringify(Object.fromEntries(headers.entries())));
         }
     }
+    */
 
     // Health check bypass
     if (event.url.pathname === '/healthz' || event.url.pathname === '/api/healthz' || event.url.pathname.startsWith('/oauth2/')) {
