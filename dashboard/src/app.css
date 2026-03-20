@@ -1,0 +1,55 @@
+@import "tailwindcss";
+
+@theme {
+  --color-google-blue: #1a73e8;
+  --color-google-blue-dark: #174ea6;
+  --color-google-blue-bg: #e8f0fe;
+  --color-google-blue-hover: #1765cc;
+  --color-google-green: #1e8e3e;
+  --color-google-green-bg: #e6f4ea;
+  --color-google-red: #d93025;
+  --color-google-red-bg: #fce8e6;
+  --color-google-amber: #f29900;
+  --color-google-amber-dark: #b06000;
+  --color-google-gray-900: #202124;
+  --color-google-gray-700: #3c4043;
+  --color-google-gray-500: #5f6368;
+  --color-google-gray-300: #dadce0;
+  --color-google-gray-200: #e8eaed;
+  --color-google-gray-100: #f1f3f4;
+  --color-google-gray-50: #f8f9fa;
+  --color-google-white: #ffffff;
+  
+  --font-family-sans: 'Google Sans', 'Roboto', -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+@layer base {
+  html, body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    background-color: var(--color-google-gray-50);
+    color: var(--color-google-gray-900);
+  }
+}
+
+@layer utilities {
+  .status-success { color: var(--color-google-green); font-weight: 500; }
+  .status-error { color: var(--color-google-red); font-weight: 500; }
+  .status-warning { color: var(--color-google-amber-dark); font-weight: 500; }
+  .status-blue { color: var(--color-google-blue); font-weight: 500; }
+  .status-neutral { color: var(--color-google-gray-500); }
+
+  .status-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    display: inline-block;
+  }
+  .status-dot-green { background-color: var(--color-google-green); }
+  .status-dot-red { background-color: var(--color-google-red); }
+  .status-dot-amber { background-color: var(--color-google-amber); }
+  .status-dot-blue { background-color: var(--color-google-blue); }
+  .status-dot-gray { background-color: var(--color-google-gray-500); }
+}
+

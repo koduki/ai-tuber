@@ -1,126 +1,103 @@
 /**
- * ダッシュボード Express サーバー
- * GCP API から取得したリソース情報を提供する
+ * ダッシュボード Express サーバー (Modular IDP Version)
+ * 認証はサイドカー (OAuth2 Proxy) で行うため、ここではアプリロジックに集中する
  */
 
 import express from 'express';
 import path from 'path';
 import { config } from './config';
-import * as gcp from './gcpClient';
+import { loadModules } from './core/loader';
 
-const app = express();
+async function startServer() {
+    const app = express();
 
-// 静的ファイル配信
-app.use(express.static(path.join(__dirname, '..', 'public')));
+    // モジュールのロード
+    const modulesDir = path.join(__dirname, 'modules');
+    const modules = await loadModules(modulesDir);
 
-// ─── API エンドポイント ──────────────────────────────────
+    // ─── ミドルウェア ──────────────────────────────────
 
-/** 概要サマリー */
-app.get('/api/overview', async (_req, res) => {
-    try {
-        const overview = await gcp.getOverview();
-        res.json(overview);
-    } catch (err: any) {
-        console.error('overview error:', err.message);
-        res.status(500).json({ error: err.message });
-    }
-});
+    // 許可するメールアドレスのリスト (環境変数から取得)
+    const allowedEmails = (process.env.ALLOWED_EMAILS || '').split(',').map(e => e.trim()).filter(e => e);
 
-/** Cloud Scheduler ジョブ一覧 */
-app.get('/api/scheduler', async (_req, res) => {
-    try {
-        const jobs = await gcp.getSchedulerJobs();
-        res.json(jobs);
-    } catch (err: any) {
-        console.error('scheduler error:', err.message);
-        res.status(500).json({ error: err.message });
-    }
-});
+    // OAuth2 Proxy から渡されるヘッダーを取得し、認可をチェックするミドルウェア
+    app.use((req, res, next) => {
+        const userEmail = req.header('X-Forwarded-Email') || req.header('X-Auth-Request-Email');
+        
+        // ヘルスチェックなどはパス（User-Agent 等で判断するか、特定のパスを除外）
+        if (req.path === '/healthz' || req.path === '/api/healthz') {
+            return next();
+        }
 
-/** Scheduler ジョブ強制実行 */
-app.post('/api/scheduler/:name/run', async (req, res) => {
-    try {
-        const name = req.params.name;
-        await gcp.runSchedulerJob(name);
-        res.json({ message: `Job ${name} started` });
-    } catch (err: any) {
-        console.error('run scheduler error:', err.message);
-        res.status(500).json({ error: err.message });
-    }
-});
+        if (!userEmail) {
+            // Proxy が正しく設定されていればここには来ないはずだが、安全のため
+            if (process.env.NODE_ENV === 'production') {
+                return res.status(401).send('Unauthorized: Missing auth headers from proxy');
+            }
+            // 開発環境ではモック
+            (req as any).userEmail = 'dev@example.com';
+            return next();
+        }
 
-/** Workflow + Executions */
-app.get('/api/workflows', async (_req, res) => {
-    try {
-        const [workflows, executions] = await Promise.all([
-            gcp.getWorkflowInfo(),
-            gcp.getWorkflowExecutions(),
-        ]);
-        res.json({ workflows, executions });
-    } catch (err: any) {
-        console.error('workflows error:', err.message);
-        res.status(500).json({ error: err.message });
-    }
-});
+        // ホワイトリストチェック
+        if (allowedEmails.length > 0 && !allowedEmails.includes(userEmail)) {
+            console.warn(`Access Denied: ${userEmail} is not in the allowed list.`);
+            return res.status(403).send(`Access Denied: ${userEmail} は許可されていません。`);
+        }
 
-/** Cloud Run サービス + ジョブ */
-app.get('/api/services', async (_req, res) => {
-    try {
-        const [services, jobs] = await Promise.all([
-            gcp.getCloudRunServices(),
-            gcp.getCloudRunJobs(),
-        ]);
-        res.json({ services, jobs });
-    } catch (err: any) {
-        console.error('services error:', err.message);
-        res.status(500).json({ error: err.message });
-    }
-});
-
-/** Compute Engine インスタンス */
-app.get('/api/compute', async (_req, res) => {
-    try {
-        const instances = await gcp.getComputeInstances();
-        res.json(instances);
-    } catch (err: any) {
-        console.error('compute error:', err.message);
-        res.status(500).json({ error: err.message });
-    }
-});
-
-/** Cloud Build 履歴 */
-app.get('/api/builds', async (_req, res) => {
-    try {
-        const builds = await gcp.getCloudBuildHistory();
-        res.json(builds);
-    } catch (err: any) {
-        console.error('builds error:', err.message);
-        res.status(500).json({ error: err.message });
-    }
-});
-
-/** Billing 情報 */
-app.get('/api/billing', async (_req, res) => {
-    try {
-        const billing = await gcp.getBillingSummary();
-        res.json(billing);
-    } catch (err: any) {
-        console.error('billing error:', err.message);
-        res.status(500).json({ error: err.message });
-    }
-});
-
-/** 設定情報 (フロントエンド用) */
-app.get('/api/config', (_req, res) => {
-    res.json({
-        projectId: config.projectId,
-        region: config.region,
-        zone: config.zone,
+        (req as any).userEmail = userEmail;
+        next();
     });
-});
 
-// ─── サーバー起動 ──────────────────────────────────────
+    // ─── API エンドポイント ──────────────────────────────────
 
-app.listen(config.port, () => {
-    console.log(`Dashboard server listening on port ${config.port}`);
+    // モジュール一覧 (Manifest)
+    app.get('/api/manifest', (req, res) => {
+        res.json(modules.map(m => m.metadata));
+    });
+
+    // 各モジュールの API マウント
+    for (const mod of modules) {
+        if (mod.router) {
+            app.use(`/api/modules/${mod.metadata.id}`, mod.router);
+            console.log(`Server: Mounted API for module "${mod.metadata.id}" at /api/modules/${mod.metadata.id}`);
+        }
+    }
+
+    // 共通設定 API
+    app.get('/api/config', (req, res) => {
+        res.json({
+            projectId: config.projectId,
+            region: config.region,
+            zone: config.zone,
+            userEmail: (req as any).userEmail,
+        });
+    });
+
+    // ─── 静的ファイル配信 ──────────────────────────────────
+
+    // クライアントのビルドディレクトリ
+    const clientDistPath = path.join(__dirname, '..', 'client', 'dist');
+    const clientPublicPath = path.join(__dirname, '..', 'public'); // 互換性のため
+
+    if (process.env.NODE_ENV === 'production') {
+        app.use(express.static(clientDistPath));
+        app.get('*', (req, res) => {
+            res.sendFile(path.join(clientDistPath, 'index.html'));
+        });
+    } else {
+        // 開発時は public ディレクトリまたは Vite Proxy を想定
+        app.use(express.static(clientPublicPath));
+    }
+
+    // ─── サーバー起動 ──────────────────────────────────────
+
+    app.listen(config.port, () => {
+        console.log(`Modular Dashboard server listening on port ${config.port}`);
+    });
+}
+
+startServer().catch(err => {
+    console.error('Failed to start server:', err);
+    process.exit(1);
 });

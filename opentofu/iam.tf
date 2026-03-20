@@ -107,5 +107,12 @@ resource "google_project_iam_member" "workflows_viewer" {
   member  = "serviceAccount:${google_service_account.ai_tuber_sa.email}"
 }
 
+# Allow ai-tuber-sa to read IAM policy to check user permissions
+resource "google_project_iam_member" "project_iam_viewer" {
+  project = var.project_id
+  role    = "roles/iam.securityReviewer"
+  member  = "serviceAccount:${google_service_account.ai_tuber_sa.email}"
+}
+
 # Note: Storage permissions are handled at the bucket level in storage.tf
 # No project-wide storage.objectUser role is needed here, following least privilege.

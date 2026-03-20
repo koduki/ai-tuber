@@ -66,7 +66,7 @@ AI Tuber は、**魂（Saint Graph）**、**肉体（Body）**、**精神（Mind
 
 運用状況の可視化:
 
-- [運用ダッシュボード](./components/dashboard.md)
+- [The tiny IDP - Ops Portal](./components/dashboard.md) - SvelteKit ベースのフレームワーク型 IDP
 
 ---
 

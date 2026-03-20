@@ -554,8 +554,112 @@ NVIDIA GPU 以外（CPU のみ等）を使用する場合は、この値を `x26
 
 ---
 
-## ログの確認方法
+## 運用ダッシュボードの問題
 
+### Google ログイン後に「Access Denied」と表示される
+
+**症状**:
+Google ログインは成功するが、その後「Access Denied: ユーザー xxx はこのプロジェクトの閲覧権限を持っていません」というメッセージが表示される。
+
+**原因**:
+1. **ユーザー権限の不足**: ログインした Google アカウントが、GCP プロジェクトの IAM で `roles/viewer`（閲覧者）以上の権限を持っていない。
+2. **サービスアカウントの権限不足**: ダッシュボードの Cloud Run が使用しているサービスアカウント（`ai-tuber-sa`）に、プロジェクトの IAM ポリシーを読み取るための権限（`roles/iam.securityReviewer`）が付与されていない。
+
+**解決方法**:
+- ユーザーに権限があるか確認（Owner 権限であれば問題ありません）。
+- Terraform (`iam.tf`) で `google_project_iam_member.project_iam_viewer` が正しく設定され、apply されているか確認してください。
+
+---
+
+### Google ログイン後に「Permission check error」が出る、または 403 エラー
+
+**症状**:
+ログに `Cloud Resource Manager API has not been used in project ... before or it is disabled` というエラーが出ている。
+
+**原因**:
+IAM 権限のプログラム的確認に必要な **Cloud Resource Manager API** がプロジェクトで有効になっていない。
+
+**解決方法**:
+以下のコマンドで API を有効化してください：
+```bash
+gcloud services enable cloudresourcemanager.googleapis.com
+```
+反映には数分かかる場合があります。
+
+---
+
+## ダッシュボード & Cloud Build の問題
+
+### ダッシュボードの API ( /api/modules/... ) が 404 になる
+
+**症状**:
+ダッシュボードの各モジュール画面を開いた際、API 通信が 404 エラーとなり、データが表示されない。
+
+**原因**:
+SvelteKit の動的ルーティング (`src/routes/api/modules/[module_id]/[slug]/+server.ts`) において、モジュールファイルの検索パスが間違っている。特に移行期に `src/lib/modules` と `src/modules` が混在した場合に発生しやすい。
+
+**解決方法**:
+`src/routes/api/manifest/+server.ts` および `src/routes/api/modules/[module_id]/[slug]/+server.ts` 内の `import.meta.glob` で指定しているパスを確認し、実際のモジュール配置場所（通常は `/src/modules/*/api.ts` など）と一致させてください。
+
+---
+
+### ビルド時に `ReferenceError: require is not defined` が発生する
+
+**症状**:
+`npm run build` または Cloud Build 中に以下のエラーで失敗する。
+```
+ReferenceError: require is not defined in ES module scope
+```
+
+**原因**:
+SvelteKit プロジェクトが ES Modules (`"type": "module"`) として構成されているため、CommonJS スタイルの `require()` が使用できない。
+
+**解決方法**:
+1. 全ての `require()` を `import` 文に書き換えてください。
+2. CommonJS のライブラリを読み込む場合は、`import pkg from 'library'; const { func } = pkg;` のように記述してください。
+
+---
+
+### `TypeError: WorkflowsClient is not a constructor` / Proto ファイルの読み込みエラー
+
+**症状**:
+ビルドは通るが、実行時に特定の GCP SDK (例: `@google-cloud/workflows`) を初期化しようとするとエラーが発生する。
+
+**原因**:
+一部の Google Cloud SDK は内部で Proto ファイルを相対パスでロードしており、Vite や Rollup によるバンドル後や ESM 環境での実行時にそのパスが解決できず、初期化に失敗する。
+
+**解決方法**:
+SDK の使用を避け、`google-auth-library` を用いてアクセストークンを取得し、標準の `fetch` (REST API) を使用してリクエストを送信してください。
+
+```typescript
+// 実装例 (src/gcpClient.ts)
+async function gcpFetch(url: string) {
+    const { GoogleAuth } = await import('google-auth-library');
+    const auth = new GoogleAuth({ scopes: ['...'] });
+    const client = await auth.getClient();
+    const token = (await client.getAccessToken()).token;
+    return fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+}
+```
+
+---
+
+### デプロイ後に OAuth2 Proxy サイドカーが消える / 401 Unauthorized
+
+**症状**:
+Cloud Build でデプロイした後、それまで動いていた Google 認証が表示されなくなり、API が `Missing auth headers` で 401 エラーを返すようになる。
+
+**原因**:
+`gcloud beta run services replace` を使用したデプロイを行うと、YAML 内に定義されていない設定（手動や Terraform で追加したサイドカー等）が削除される。
+
+**解決方法**:
+1. `replace` ではなく `gcloud run services update --image ...` を使用して、コンテナイメージのみを更新してください。これにより、サイドカー設定が維持されます。
+2. または、サイドカー設定も含めた完全な YAML を Cloud Build で使用してください。
+
+---
+
+## ログの確認方法
++
 ### すべてのサービスのログ
 
 ```bash

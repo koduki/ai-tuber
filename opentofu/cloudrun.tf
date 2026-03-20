@@ -225,10 +225,17 @@ output "healthcheck_proxy_url" {
   value = google_cloud_run_v2_service.healthcheck_proxy.uri
 }
 
+locals {
+  dashboard_service_name = "ai-tuber-dashboard"
+  # Construct the URI dynamically to avoid circular dependency in env vars
+  dashboard_uri          = "https://${local.dashboard_service_name}-${data.google_project.project.number}.${var.region}.run.app"
+}
+
 # Cloud Run service for Ops Dashboard
 resource "google_cloud_run_v2_service" "dashboard" {
-  name     = "ai-tuber-dashboard"
+  name     = local.dashboard_service_name
   location = var.region
+  ingress  = "INGRESS_TRAFFIC_ALL"
 
   labels = {
     managed-by = "opentofu"
@@ -236,8 +243,134 @@ resource "google_cloud_run_v2_service" "dashboard" {
   }
 
   template {
+    # OAuth2 Proxy container (Primary / Ingress)
     containers {
+      name  = "oauth2-proxy"
+      image = "${var.region}-docker.pkg.dev/${var.project_id}/${var.artifact_repository}/oauth2-proxy:latest"
+
+      ports {
+        container_port = 8080
+      }
+
+      # NOTE: This is for development to force a redeploy during infra updates.
+      env {
+        name  = "FORCED_REDEPLOY_AT"
+        value = "2026-03-18T22:30:00Z" # Update to current time to trigger redeploy if needed
+      }
+
+      env {
+        name  = "OAUTH2_PROXY_PROVIDER"
+        value = "google"
+      }
+
+      env {
+        name = "OAUTH2_PROXY_CLIENT_ID"
+        value_source {
+          secret_key_ref {
+            secret  = "oauth-client-id"
+            version = "latest"
+          }
+        }
+      }
+
+      env {
+        name = "OAUTH2_PROXY_CLIENT_SECRET"
+        value_source {
+          secret_key_ref {
+            secret  = "oauth-client-secret"
+            version = "latest"
+          }
+        }
+      }
+
+      env {
+        name = "OAUTH2_PROXY_COOKIE_SECRET"
+        value_source {
+          secret_key_ref {
+            secret  = "dashboard-session-secret"
+            version = "latest"
+          }
+        }
+      }
+
+      env {
+        name  = "OAUTH2_PROXY_UPSTREAMS"
+        value = "http://127.0.0.1:8081"
+      }
+      
+      env {
+        name  = "OAUTH2_PROXY_SKIP_PROVIDER_BUTTON"
+        value = "true"
+      }
+
+      env {
+        name  = "OAUTH2_PROXY_HTTP_ADDRESS"
+        value = "0.0.0.0:8080"
+      }
+
+      env {
+        name  = "OAUTH2_PROXY_REDIRECT_URL"
+        # We use a locally constructed URI to avoid circular dependency
+        value = "${local.dashboard_uri}/oauth2/callback"
+      }
+
+      env {
+        name  = "OAUTH2_PROXY_PROXY_PREFIX"
+        value = "/oauth2"
+      }
+
+      env {
+        name  = "OAUTH2_PROXY_EMAIL_DOMAINS"
+        value = "*"
+      }
+
+      env {
+        name  = "OAUTH2_PROXY_PASS_USER_HEADERS"
+        value = "true"
+      }
+
+      env {
+        name  = "OAUTH2_PROXY_SET_XAUTHREQUEST"
+        value = "true"
+      }
+
+      env {
+        name  = "OAUTH2_PROXY_REVERSE_PROXY"
+        value = "true"
+      }
+
+      env {
+        name  = "OAUTH2_PROXY_WHITELIST_DOMAINS"
+        value = ".${var.region}.run.app"
+      }
+
+      env {
+        name  = "OAUTH2_PROXY_LOG_LEVEL"
+        value = "info"
+      }
+
+      resources {
+        limits = {
+          cpu    = "1"
+          memory = "256Mi"
+        }
+      }
+    }
+
+    # Dashboard App container (Sidecar)
+    containers {
+      name  = "dashboard"
       image = "${var.region}-docker.pkg.dev/${var.project_id}/${var.artifact_repository}/dashboard:latest"
+
+      env {
+        name  = "PORT"
+        value = "8081"
+      }
+
+      env {
+        name  = "ALLOWED_EMAILS"
+        value = "pascalm3@gmail.com"
+      }
 
       env {
         name  = "GCP_PROJECT_ID"
@@ -275,11 +408,10 @@ output "dashboard_url" {
   value = google_cloud_run_v2_service.dashboard.uri
 }
 
-# Allow authenticated access for dashboard (needed for gcloud proxy)
-resource "google_cloud_run_v2_service_iam_member" "dashboard_auth" {
+resource "google_cloud_run_v2_service_iam_member" "dashboard_public" {
   project  = google_cloud_run_v2_service.dashboard.project
   location = google_cloud_run_v2_service.dashboard.location
   name     = google_cloud_run_v2_service.dashboard.name
   role     = "roles/run.invoker"
-  member   = "allAuthenticatedUsers"
+  member   = "allUsers" # アプリ層で保護するためパブリックにする
 }

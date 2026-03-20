@@ -1,109 +1,87 @@
-# GCP Ops Portal Dashboard
+# The tiny IDP - Ops Portal 
 
-AI Tuber プラットフォームの GCP リソースの状態を可視化するための運用ダッシュボードです。
+GCP リソースの運用状況を可視化・管理するための、SvelteKit ベースのフレームワーク型 IDP です。
 
-## 概要
+## 特徴
+- **AI-Extensible**: 動的ロードのExtentionsではなく、AI エージェントが新しいモジュールをコーディングで追加する設計。
+- **GCP Native**: SDK 経由で Cloud Run, Workflows, Scheduler 等を直接操作・監視。
+- **OAuth2 Proxy Integration**: サイドカー方式による柔軟な認証。
 
-モックデザインをベースに、GCP API から実際のデータを取得して表示する運用ポータルです。
-以下のリソースのステータス、メタデータ、実行履歴を一覧表示します。
-
-- **Cloud Scheduler**: 毎日実行されるデータ更新ジョブの状態
-- **Cloud Workflows**: ストリーミングパイプラインの実行履歴
-- **Cloud Run (Services/Jobs)**: サーバー・バッチジョブの稼働状態
-- **Compute Engine (GCE)**: Body ノードのインスタンス状態と IP 
-- **Cloud Build**: 各コンポーネントのビルド履歴
-
-## 技術スタック
-
-- **Backend**: TypeScript / Express (API Server)
-- **Frontend**: Vanilla HTML / CSS / JavaScript (No framework)
-- **Infra**: OpenTofu (GCP Provisioning), Cloud Run (Hosting)
-- **CI/CD**: Cloud Build (Auto deployment)
-
-## ディレクトリ構成
+## プロジェクト構造
 
 ```text
 dashboard/
-├── Dockerfile          # マルチステージビルド定義
-├── package.json        # 依存関係定義
-├── src/                # バックエンド TypeScript 
-│   ├── config.ts       # 環境設定
-│   ├── gcpClient.ts    # GCP SDK 連携ロジック
-│   └── server.ts       # Express サーバー
-├── public/             # フロントエンド静的ファイル
-│   ├── index.html      # メイン UI
-│   ├── style.css       # GCP Console 風デザインの CSS 
-│   └── app.js          # API フェッチ & 動的レンダリング
-└── tsconfig.json       # TypeScript 設定
+├── src/
+│   ├── modules/          # 各機能のモジュール (Backend & Frontend)
+│   │   └── [module_id]/
+│   │       ├── View.svelte  # フロントエンド UI
+│   │       ├── api.ts      # バックエンド API (SvelteKit Endpoint 形式)
+│   │       └── index.ts    # メタデータ定義
+│   ├── routes/           # SvelteKit ルーティング
+│   ├── gcpClient.ts      # GCP SDK / REST API ラッパー
+│   ├── hooks.server.ts   # 認証・認可ロジック
+│   └── config.ts         # リソース名の設定管理
+├── static/               # 静的アセット
+└── svelte.config.js      # SvelteKit 設定 (adapter-node 使用)
 ```
 
-## ローカル開発
+## デザイン制約と実装原則
 
-### 1. 依存関係のインストール
-Node.js 20+ が必要です。
+このダッシュボードを正常にビルド・運用するために、以下の制約を厳守してください：
+
+1.  **シンプルかつ明確 (Simple & Explicit)**:
+    - 過剰な共通化や複雑な抽象化は避けてください。
+    - 各モジュールが自己完結し、他のモジュールを読まなくても理解できる状態（Explicit）を目指してください。
+    - 新しいモジュールを作る際は、既存のモジュールのコードを「コピー＆ペースト」して改変する手法を推奨します。
+
+## 開発ガイド
+
+### 環境変数の設定
+
+`.env` または Docker デプロイ時の環境変数として以下を設定します：
+
+- `GCP_PROJECT_ID`: 対象の GCP プロジェクト ID
+- `ALLOWED_EMAILS`: アクセスを許可する Google アカウントのメールアドレス（カンマ区切り）
+
+### 開発サーバーの起動
 
 ```bash
-cd dashboard
 npm install
-```
-
-### 2. 環境変数の設定
-ローカルで動かす場合は、GCP 認証 (`gcloud auth application-default login`) が必要です。
-
-```bash
-export GCP_PROJECT_ID=your-project-id
-export GCP_REGION=asia-northeast1
-export GCP_ZONE=asia-northeast1-a
-```
-
-### 3. テスト起動 (Docker 推奨)
-
-ローカル環境の `gcloud` 認証情報を利用して、コンテナ内でダッシュボードを起動します。
-
-```bash
-# 1. 認証情報のコピー (一度だけ実行)
-cp ~/.config/gcloud/application_default_credentials.json gcp-creds.json
-
-# 2. 起動
-docker compose -f docker-compose.local.yml up --build
-```
-
-起動後、 `http://localhost:3000` にアクセスしてください。
-
-### (参考) Node.js 直接起動
-
-```bash
 npm run dev
 ```
 
-## デプロイ
+ローカル開発時は、OAuth2 Proxy がないため `hooks.server.ts` が `dev@example.com` としてモック認証を行います。
 
-変更を `main` (または `dev/.*`) ブランチにプッシュすると、Cloud Build が自動的にイメージをビルドし、Cloud Run (`ai-tuber-dashboard`) へデプロイします。
+### 新しいモジュールの追加手順
 
-手動デプロイする場合:
-```bash
-gcloud builds submit --config cloudbuild-dashboard.yaml --substitutions=_REGION=asia-northeast1,_REPOSITORY=ai-tuber .
-```
+1.  **モジュールディレクトリの作成**: `src/modules/[module_name]` を作成します。既存の `cloud-run` などをコピーするのが最速です。
+2.  **Metadata の定義**: `index.ts` を作成し、`metadata` を export します。
+3.  **Backend API の実装**: `api.ts` を作成します。SvelteKit 互換の形式で、`GET` や `POST` オブジェクトをエクスポートしてください。冗長であっても、モジュール内で直接 API を叩く実装を検討してください。
+4.  **Frontend View の実装**: `View.svelte` を作成し、UI を実装します。
+5.  **ナビゲーションへの追加**: プログラムによって `src/routes/api/manifest` から自動取得されます。
 
-## セキュリティとアクセス制限
+## ビルドとデプロイ
 
-開発効率と安全性を考慮し、以下のアクセス制限を行っています。
-
-1.  **IAM によるアクセス制御**: 
-    - 特定の `allUsers` などの公開アクセス権限は付与されていません。
-    - Cloud Run の起動権限を持つ IAM ユーザーのみが閲覧可能です。
-
-2.  **ブラウザからの閲覧方法**: 
-    セキュリティ制限により直接 URL を開くと 403 エラーになります。以下のプロキシコマンドを使用してアクセスしてください。
+### ローカルビルド確認
 
 ```bash
-gcloud run services proxy ai-tuber-dashboard --region asia-northeast1
+npm run build
+# build/ ディレクトリに出力されます
 ```
 
-表示されたローカル URL（例: `http://127.0.0.1:8080`）をブラウザで開いてください。
+### Cloud Build によるデプロイ
 
----
+```bash
+gcloud builds submit --config cloudbuild-dashboard.yaml .
+```
 
-## 注意事項
-- **コスト情報**: Billing API へのアクセスには強力な権限が必要なため、現在はプレースホルダ表示となっています。
-- **自動更新**: フロントエンドは 60 秒間隔でデータの再取得を自動的に行います。
+本番環境（Cloud Run）では、認証に OAuth2 Proxy サイドカーを使用します。
+**注意**: デプロイ時は `gcloud beta run services replace` ではなく `gcloud run services update` (または terraform) を使用してください。`replace` を使用すると設定済みのサイドカーが消失する恐れがあります。
+
+## トラブルシューティング
+
+詳細は [プロジェクト共通のトラブルシューティング](../../docs/knowledge/troubleshooting.md) を参照してください。
+
+- **404 Not Found**: `/api/modules/...` が 404 になる場合、`src/routes/api/modules/[module_id]/[slug]/+server.ts` のパス解決（glob パターン）が `src/modules` を正しく指しているか確認してください。
+- **ReferenceError: require is not defined**: ESM 環境で `require` を使用しています。`import` に書き換えてください。
+- **WorkflowsClient is not a constructor**: `@google-cloud/workflows` SDK の ESM 互換性問題です。REST API 方式に切り替えてください。

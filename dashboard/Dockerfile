@@ -1,27 +1,35 @@
 # ---- Build Stage ----
-FROM node:20-slim AS builder
+FROM node:22-slim AS builder
 
 WORKDIR /app
 
+# Dependency installation
 COPY package*.json ./
 RUN npm install
 
-COPY tsconfig.json ./
+# Build
 COPY src/ ./src/
-
+COPY static/ ./static/
+COPY svelte.config.js ./
+COPY tsconfig.json ./
+COPY vite.config.ts ./
 RUN npm run build
 
 # ---- Run Stage ----
-FROM node:20-slim
+FROM node:22-slim
 
+ENV NODE_ENV=production
 WORKDIR /app
 
-COPY package*.json ./
+COPY --from=builder /app/package*.json ./
 RUN npm install --omit=dev
 
-COPY --from=builder /app/dist ./dist
-COPY public/ ./public/
+# Copy build artifacts
+COPY --from=builder /app/build ./build
 
+# Port setting
 EXPOSE 8080
+ENV PORT=8080
 
-CMD ["node", "dist/server.js"]
+# Start server (SvelteKit adapter-node default entry point is build/index.js or just build)
+CMD ["node", "build"]
