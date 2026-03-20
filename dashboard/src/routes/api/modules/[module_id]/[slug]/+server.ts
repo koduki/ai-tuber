@@ -2,7 +2,7 @@ import { error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 
 async function getModuleApi(module_id: string) {
-    const apiModules = import.meta.glob('/src/modules/*/api.ts', { eager: true });
+    const apiModules = import.meta.glob(['/src/modules/*/api.ts', '!/src/modules/_*/**'], { eager: true });
     return apiModules[`/src/modules/${module_id}/api.ts`];
 }
 

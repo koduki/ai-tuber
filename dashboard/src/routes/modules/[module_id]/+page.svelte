@@ -1,7 +1,7 @@
 <script lang="ts">
   import { page } from '$app/state';
   
-  const views = import.meta.glob('/src/modules/*/View.svelte');
+  const views = import.meta.glob(['/src/modules/*/View.svelte', '!/src/modules/_*/**']);
   
   let module_id = $derived(page.params.module_id);
   let viewPromise = $derived(views[`/src/modules/${module_id}/View.svelte`]?.().then((m: any) => m.default));
