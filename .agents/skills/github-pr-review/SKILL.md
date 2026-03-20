@@ -65,6 +65,33 @@ git commit -m "fix: address pr review comments"
 git push origin HEAD
 ```
 
+### Step 6: GitHub PR コメントへの返信
+修正をプッシュした後、GitHub上で行われた各指摘コメントに対し、どのような対応を行ったか返信します。これにより、レビュー担当者が修正内容を把握しやすくなり、マージを早めることができます。
+
+1. **コメントIDの取得**:
+   `gh api` を使用して、特定のリポジトリとPRに関連付けられたレビューコメントのIDを取得します。
+   ```bash
+   gh api repos/koduki/ai-tuber/pulls/<PR_NUMBER>/comments --jq '.[] | {id, body, path, line, diff_hunk}'
+   ```
+
+2. **修正内容の報告（返信）**:
+   各コメントに対し、返信を行います。`in_reply_to` 引数を使用してスレッドに紐付けます。
+   ```bash
+   gh api repos/koduki/ai-tuber/pulls/<PR_NUMBER>/comments \
+     -f "body=指摘に基づき、XXXをYYYに修正しました。" \
+     -F "in_reply_to=<COMMENT_ID>"
+   ```
+
+3. **重複コメントの削除（必要な場合）**:
+   誤って同じ返信を複数回投稿してしまった場合は、重複を削除してください。
+   ```bash
+   gh api repos/koduki/ai-tuber/pulls/comments/<COMMENT_ID> --method DELETE
+   ```
+
+付属のヘルパースクリプト (`/app/.agents/skills/github-pr-review/scripts/`) も活用してください：
+- `reply_to_pr_comments.py`: 複数のコメントに対して一括で返信を行う。
+- `dedupe_pr_comments.py`: 重複した自分のコメントを自動で削除する。
+
 ## 3. GitHub CLI 活用テクニック
 
 - **特定 PR の詳細取得**: `gh pr view <PR_NUMBER> --json ...`
